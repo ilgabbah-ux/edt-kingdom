@@ -311,6 +311,11 @@ function buildBoardDOM() {
   for (let r = 0; r < ROWS; r++) {
     G.mudEls.push([]);
     for (let c = 0; c < COLS; c++) {
+      if (!G.board.hole[r][c]) {
+        const fr = document.createElement('div');
+        fr.className = 'cellframe'; fr.dataset.r = r; fr.dataset.c = c; fr.style.transform = pos(r, c);
+        b.insertBefore(fr, b.firstChild);
+      }
       const bg = document.createElement('div');
       bg.className = 'cellbg' + ((r + c) % 2 ? ' dark' : '') + (G.board.hole[r][c] ? ' hole' : '');
       bg.style.transform = pos(r, c);
@@ -331,7 +336,10 @@ function buildBoardDOM() {
       G.badges[r].push(bd);
     }
   }
-  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (G.board.grid[r][c]) makeTileEl(G.board.grid[r][c], r, c);
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (G.board.grid[r][c]) {
+    const el = makeTileEl(G.board.grid[r][c], r, c);
+    el.animate([{ transform: pos(r - ROWS, c), opacity: 0 }, { transform: pos(r, c), opacity: 1 }], { duration: 420, delay: (ROWS - r) * 35 + c * 12, easing: 'cubic-bezier(.3,1.3,.5,1)', fill: 'backwards' });
+  }
   G.badgeEls.forEach((bd) => b.appendChild(bd));
   renderMud();
 }
@@ -359,6 +367,7 @@ function repositionAll(instant = true) {
   }
   G.badgeEls?.forEach((bd, i) => { bd.style.transform = pos(Math.floor(i / COLS), i % COLS); });
   G.ticketEls?.flat().forEach((el, i) => { el.style.transform = pos(Math.floor(i / COLS), i % COLS); });
+  document.querySelectorAll('.cellframe').forEach((el) => { el.style.transform = pos(+el.dataset.r, +el.dataset.c); });
   document.querySelectorAll('.cellbg,#board > .mud').forEach((el, i) => {
     const k = Math.floor(i / 2);
     el.style.transform = pos(Math.floor(k / COLS), k % COLS);
@@ -699,6 +708,7 @@ async function resolve({ pending = [], swapCells = [] } = {}) {
 // ---------- mosse ----------
 function useMove() {
   G.moves--;
+  G.moveCount = (G.moveCount || 0) + 1;
   if (G.boss) G.boss.count--;
   renderMoves();
   renderGoals();
@@ -860,6 +870,7 @@ async function endTurn() {
       FX.ring(x, y, G.S, '#ffd646', 6);
       G.ticketEls[r][c].animate([{ transform: pos(r, c) + ' scale(0) rotate(-40deg)' }, { transform: pos(r, c) + ' scale(1.2)' }, { transform: pos(r, c) }], { duration: 420, easing: 'ease-out' });
       sfx.whistle();
+      coach('multa');
     }
   }
   G.ticketCleared = false;
@@ -883,6 +894,7 @@ async function endTurn() {
     await sleep(400);
   }
   G.busy = false;
+  checkStuck();
   scheduleHint();
 }
 
@@ -957,18 +969,78 @@ function retryOrHome() {
 }
 
 // ---------- suggerimenti ----------
+// ---------- suggerimenti ----------
 function clearHint() {
   clearTimeout(G.hintT);
-  document.querySelectorAll('.tile.hint').forEach((e) => e.classList.remove('hint'));
+  document.querySelectorAll('.hintring,.hinthand').forEach((e) => e.remove());
+}
+function showHint() {
+  clearHint();
+  if (G.busy || G.over || !G.board) return;
+  const mv = G.board.bestMove(G.goals) || G.board.findMove();
+  if (!mv) return;
+  const fx = $('#fx');
+  const cells = mv.filter(Boolean);
+  for (const [r, c] of cells) {
+    const d = document.createElement('div');
+    d.className = 'hintring';
+    d.style.transform = pos(r, c);
+    fx.appendChild(d);
+  }
+  const [a, b] = cells;
+  const h = document.createElement('div');
+  h.className = 'hinthand';
+  h.textContent = '👆';
+  const S = G.S;
+  h.style.setProperty('--x1', (a[1] + .5) * S + 'px'); h.style.setProperty('--y1', (a[0] + .75) * S + 'px');
+  const bb = b || a;
+  h.style.setProperty('--x2', (bb[1] + .5) * S + 'px'); h.style.setProperty('--y2', (bb[0] + .75) * S + 'px');
+  fx.appendChild(h);
 }
 function scheduleHint() {
   clearHint();
-  G.hintT = setTimeout(() => {
-    if (G.busy || G.over) return;
-    const mv = G.board.findMove();
-    if (!mv) return;
-    mv.filter(Boolean).forEach(([r, c]) => G.els.get(G.board.grid[r][c].id)?.classList.add('hint'));
-  }, G.level && G.level.n <= 2 ? 2500 : 6000);
+  G.hintT = setTimeout(showHint, G.level && G.level.n <= 3 ? 2500 : 5000);
+}
+
+// consigli dei personaggi quando sei in difficoltà (piccolo fumetto, non blocca il gioco)
+const COACH = {
+  tile: ['gabbah', 'Cerca le tessere dell\'obiettivo in alto: fai tris con quelle, il resto viene da sé.'],
+  mud: ['mirco', 'Il fango si pulisce solo facendo tris <b>sopra</b> le pozze. Quelle col 2 vanno fatte due volte.'],
+  rock: ['purcello', 'I sassi si spaccano facendo un tris <b>accanto</b>. Moto e taniche li prendono anche da lontano.'],
+  crate: ['gabbah', 'Le casse si aprono con un tris lì vicino. Una tanica ne apre tante in un colpo.'],
+  chain: ['renard', 'I pezzi incatenati non si spostano: mettili in un tris con le tessere vicine e la catena salta.'],
+  multa: ['forestale', 'Se in un turno non togli nemmeno una multa, se ne aggiunge un\'altra. Toglile in fretta!'],
+  boss: ['miti', 'Ogni tessera che rompi scarica la pazienza della Forestale. Combo e power-up la svuotano prima!'],
+  power: ['miti', 'Hai un power-up sulla griglia: toccalo o scambialo con un altro per una super combo.'],
+  hammer: ['renard', 'Ti manca poco? Il mio <b>martello</b> qui sotto spacca la tessera che vuoi.'],
+};
+function coach(key, force = false) {
+  if (!force && G.coached.has(key)) return;
+  G.coached.add(key);
+  const [who, text] = COACH[key];
+  $('#coach')?.remove();
+  const d = document.createElement('div');
+  d.id = 'coach';
+  d.innerHTML = `<div class="cav" style="background-image:${I(CHARS[who].img)}"></div><p>${text}</p>`;
+  d.onclick = () => d.remove();
+  $('#game').appendChild(d);
+  sfx.click();
+  setTimeout(() => d.classList.add('out'), 5200);
+  setTimeout(() => d.remove(), 5600);
+}
+function progressSnapshot() { return G.goals.reduce((s2, g) => s2 + Math.min(g.done, g.n), 0); }
+function checkStuck() {
+  const now = progressSnapshot();
+  if (now > G.lastProg) { G.lastProg = now; G.idleMoves = 0; return; }
+  G.idleMoves++;
+  const open = G.goals.filter((g) => g.done < g.n);
+  if (!open.length) return;
+  if (G.moves <= 4 && save.coins >= 100 && !G.coached.has('hammer')) { coach('hammer'); return; }
+  if (G.idleMoves >= 3) {
+    const hasPower = G.board.grid.flat().some((t) => t && t.power);
+    const pick2 = hasPower && !G.coached.has('power') ? 'power' : open.map((g) => g.type).find((t) => !G.coached.has(t));
+    if (pick2) { coach(pick2); G.idleMoves = 0; showHint(); }
+  }
 }
 function setSel(cell) {
   document.querySelectorAll('.tile.sel').forEach((e) => e.classList.remove('sel'));
@@ -1065,7 +1137,7 @@ async function startLevel(n, extras = []) {
   G.moves = lv.moves;
   G.goals = lv.goals.map((g) => ({ ...g, done: 0 }));
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
-  G.ticketCleared = false;
+  G.ticketCleared = false; G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
   G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null;
   $('#goals').innerHTML = '';
   $('#gLevel').textContent = n;
@@ -1184,6 +1256,7 @@ $('#btnBack').onclick = () => {
   { cS: hideCard, cL: () => { hideCard(); G.over = true; save.streak = 0; persist(); goHome(); } });
   bindToggles();
 };
+$('#bHelp').onclick = () => { if (G.busy || G.over) return; sfx.click(); showHint(); const open = G.goals.filter((g) => g.done < g.n).map((g) => g.type); const k = open.find((t) => !G.coached.has(t)) || open[0]; if (k && COACH[k]) coach(k, true); };
 $('#bHammer').onclick = () => {
   if (G.busy || G.over) return;
   if (!G.hammer && save.coins < 100) { toast('Servono 100 monete', 1000); return; }

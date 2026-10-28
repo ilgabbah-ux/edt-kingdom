@@ -413,6 +413,50 @@ export class Board {
 
   hasMoves() { return !!this.findMove(); }
 
+  // la mossa migliore da suggerire: preferisce power-up e mosse utili agli obiettivi
+  bestMove(goals = []) {
+    let best = null, bestSc = -1;
+    const open = goals.filter((g) => g.done < g.n);
+    const wantTile = new Set(open.filter((g) => g.type === 'tile').map((g) => g.t));
+    const wantMud = open.some((g) => g.type === 'mud'), wantBlock = open.some((g) => ['rock', 'crate', 'boss'].includes(g.type));
+    const wantChain = open.some((g) => g.type === 'chain'), wantMulta = open.some((g) => g.type === 'multa');
+    const PW = { grappa: 9, bomb: 6, mH: 5, mV: 5, drone: 4 };
+    const near = (k, test) => { const [r, c] = unkey(k); return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dr, dc]) => inside(r + dr, c + dc) && test(r + dr, c + dc)); };
+    const score = (a, b) => {
+      const ta = this.get(...a), tb = this.get(...b);
+      if (!this.isSwappable(ta) || !this.isSwappable(tb)) return -1;
+      if (ta.power && tb.power) return 30 + PW[ta.power] + PW[tb.power];
+      if (ta.power || tb.power) return 12 + PW[(ta.power || tb.power)];
+      this.swap(a, b);
+      const groups = this.findMatches([a, b]);
+      this.swap(a, b);
+      if (!groups.length) return -1;
+      let sc = 0;
+      for (const g of groups) {
+        sc += g.cells.length;
+        if (g.power) sc += PW[g.power] * 2;
+        if (wantTile.has(g.color)) sc += g.cells.length * 1.5;
+        for (const k of g.cells) {
+          const [r, c] = unkey(k);
+          if (wantMud && this.mud[r][c]) sc += 2;
+          if (wantMulta && this.ticket[r][c]) sc += 3;
+          if (wantChain && this.grid[r][c]?.chain) sc += 3;
+          if (wantBlock && near(k, (rr, cc) => this.grid[rr][cc]?.rock)) sc += 2.5;
+        }
+      }
+      return sc + Math.random() * 0.3;
+    };
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      for (const [dr, dc] of [[0, 1], [1, 0]]) {
+        const b = [r + dr, c + dc];
+        if (!inside(...b)) continue;
+        const sc = score([r, c], b);
+        if (sc > bestSc) { bestSc = sc; best = [[r, c], b]; }
+      }
+    }
+    return best;
+  }
+
   shuffle() {
     const cells = [];
     const tiles = [];

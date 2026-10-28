@@ -272,3 +272,44 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .tog.on i::after { transform: translateX(24px); }
 .card p.small { font-size: 13px; color: #8a5a2e; margin: 8px 0 0; }
 .card .row + .row { margin-top: 10px; }
+
+/* ===== grafica partita v2 ===== */
+#game::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 35%, rgba(10,20,8,.55) 100%); pointer-events: none; }
+#game > * { position: relative; }
+#game > #coach { position: absolute; }
+.cellframe { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); }
+.cellframe::before { content: ''; position: absolute; inset: -7px; background: linear-gradient(#8a5a2e, #5e3818); border-radius: 12px; box-shadow: 0 5px 0 #3b2210; }
+.cellbg { background: rgba(255,246,222,.93) !important; border-radius: 4px; box-shadow: inset 0 -2px 0 rgba(160,120,70,.18) !important; }
+.cellbg.dark { background: rgba(238,224,190,.93) !important; }
+/* barra obiettivi in legno */
+.goals { background: linear-gradient(#b5793d, #8a5527) !important; border: 3px solid var(--ink) !important; border-radius: 18px !important; box-shadow: inset 0 3px 0 rgba(255,255,255,.25), inset 0 -5px 0 rgba(0,0,0,.25), 0 4px 0 var(--ink) !important; padding: 6px 8px !important; gap: 8px !important; }
+.goal { width: 50px !important; height: 50px !important; border-radius: 50% !important; background-color: #f6e6c2 !important; box-shadow: inset 0 3px 6px rgba(0,0,0,.35), 0 0 0 2px rgba(43,29,20,.6); background-size: 78% !important; }
+.goal b { right: -6px !important; bottom: -6px !important; min-width: 24px; text-align: center; border-radius: 12px !important; box-shadow: 0 2px 0 var(--ink); }
+.goal.done { animation: goalDone .5s cubic-bezier(.2,1.6,.4,1); }
+.goal.done b { background: #3fbf4f !important; color: #fff !important; }
+@keyframes goalDone { 50% { transform: scale(1.3) rotate(8deg); } }
+.moves { width: 74px !important; border-radius: 20px !important; background: radial-gradient(circle at 50% 30%, #fff6d0, #ffd34d 70%, #e8a21c) !important; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 4px 0 var(--ink) !important; }
+.moves small { font: 800 9px var(--fb); letter-spacing: .8px; color: #6b4a1a; }
+.round { background: radial-gradient(circle at 50% 30%, #fff, #f3e2bd) !important; }
+/* pulsanti in basso */
+.boosters { align-items: flex-end !important; }
+.booster { width: 84px !important; border-radius: 22px !important; background: radial-gradient(circle at 50% 25%, #fffaf0, #f0dcb0) !important; box-shadow: inset 0 -4px 0 rgba(0,0,0,.12), 0 4px 0 var(--ink) !important; padding: 6px 2px 4px !important; }
+.booster .bi { width: 40px !important; height: 40px !important; }
+.booster b { background: var(--ink); color: #fff; border-radius: 10px; padding: 1px 7px; margin-top: 2px; font: 800 11px var(--fb) !important; }
+.booster b .ic { width: 14px; height: 14px; vertical-align: -2px; }
+.midfoot { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.helpbtn { font: 800 15px var(--fb); color: var(--ink); background: radial-gradient(circle at 50% 30%, #fffbe0, #ffe27a); border: 3px solid var(--ink); border-radius: 999px; padding: 6px 14px; box-shadow: 0 3px 0 var(--ink); }
+.helpbtn:active, .booster:active { transform: translateY(2px); }
+/* suggerimento: anelli e mano */
+.hintring { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); pointer-events: none; }
+.hintring::before { content: ''; position: absolute; inset: 3px; border-radius: 14px; border: 4px solid #ffb020; box-shadow: 0 0 14px #ffcf4d, inset 0 0 12px rgba(255,190,60,.7); animation: ringPulse .9s ease-in-out infinite; }
+@keyframes ringPulse { 50% { transform: scale(1.1); opacity: .6; } }
+.hinthand { position: absolute; left: 0; top: 0; font-size: 46px; line-height: 1; width: 52px; height: 52px; text-align: center; background: radial-gradient(rgba(255,255,255,.85) 40%, rgba(255,255,255,0) 70%); border-radius: 50%; pointer-events: none; z-index: 5; filter: drop-shadow(0 3px 2px rgba(0,0,0,.5)); animation: handMove 1.4s ease-in-out infinite; }
+@keyframes handMove { 0%, 15% { transform: translate(calc(var(--x1) - 20px), var(--y1)) scale(1); } 55%, 70% { transform: translate(calc(var(--x2) - 20px), var(--y2)) scale(.92); } 100% { transform: translate(calc(var(--x1) - 20px), var(--y1)) scale(1); opacity: .2; } }
+/* fumetto consigli */
+#coach { left: 10px; right: 10px; bottom: calc(118px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; background: #fff; border: 3px solid var(--ink); border-radius: 18px; padding: 8px 10px; box-shadow: 0 5px 0 var(--ink); z-index: 20; animation: coachIn .35s cubic-bezier(.2,1.5,.4,1); }
+#coach.out { transition: opacity .35s, transform .35s; opacity: 0; transform: translateY(12px); }
+#coach .cav { width: 50px; height: 50px; flex: none; border-radius: 50%; border: 2px solid var(--ink); background: #bfe3ff center 20%/120% no-repeat; }
+#coach p { margin: 0; font: 700 14px/1.3 var(--fb); }
+#coach b { font-weight: 800; }
+@keyframes coachIn { from { transform: translateY(20px) scale(.9); opacity: 0; } }

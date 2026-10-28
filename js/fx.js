@@ -74,6 +74,13 @@ function loop() {
       ctx.lineWidth = p.w * (1 - k * .6); ctx.globalAlpha = (1 - k) * .75;
       ctx.shadowColor = '#fff6a0'; ctx.shadowBlur = 14;
       ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(p.dx, p.dy); ctx.stroke();
+    } else if (p.kind === 'bubble') {
+      const grow = Math.min(1, k * 1.6), pop = k > .75;
+      const rr = p.size * (0.4 + grow * .6) * (pop ? 1 + (k - .75) * 4 : 1);
+      ctx.globalAlpha = pop ? 1 - (k - .75) * 4 : .95;
+      ctx.fillStyle = 'rgba(120,75,35,.85)'; ctx.strokeStyle = 'rgba(230,190,140,.95)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, 7); if (!pop) ctx.fill(); ctx.stroke();
+      if (!pop) { ctx.fillStyle = 'rgba(255,240,210,.9)'; ctx.beginPath(); ctx.arc(-rr * .35, -rr * .35, rr * .28, 0, 7); ctx.fill(); }
     } else if (p.kind === 'rays') {
       ctx.globalAlpha = (1 - k) * .8;
       ctx.fillStyle = p.color;
@@ -111,6 +118,7 @@ export function burst(x, y, color, n = 8, power = 1) {
 export function dust(x, y, n = 3, color = 'rgba(196,150,96,.9)') {
   for (let i = 0; i < n; i++) add({ kind: 'puff', x: x + rnd(-6, 6), y: y + rnd(-6, 6), vx: rnd(-1, 1), vy: rnd(-1.4, -.2), drag: .96, size: rnd(6, 12), color, life: rnd(.5, .9) });
 }
+export function bubble(x, y, R) { add({ kind: 'bubble', x, y, size: R, fade: false, life: .9 }); }
 export function ring(x, y, R, color = '#fff6a0', w = 10) { add({ kind: 'ring', x, y, size: R, color, w, life: .45 }); }
 export function glow(x, y, R, color = 'rgba(255,214,90,.8)') { add({ kind: 'glow', x, y, size: R, color, life: .5 }); }
 export function streak(x1, y1, x2, y2, color = '#fffbe0', w = 6) { add({ kind: 'streak', x: x1, y: y1, dx: x2 - x1, dy: y2 - y1, color, w, life: .4 }); }
@@ -136,15 +144,30 @@ export function flash(op = 0.6) {
   f.className = 'flash'; f.style.setProperty('--fo', op);
   app.appendChild(f); setTimeout(() => f.remove(), 400);
 }
+// centro dello spazio libero più grande sopra o sotto la griglia (così le scritte non coprono le tessere)
+export function freeSpotY() {
+  const board = document.querySelector('#board');
+  const game = document.querySelector('#game');
+  const ar = app.getBoundingClientRect();
+  if (!board || !game.classList.contains('active')) return ar.height * 0.34;
+  const br = board.getBoundingClientRect();
+  const topEl = document.querySelector('#bossbar:not(.hidden)') || document.querySelector('.gamebar');
+  const top = topEl.getBoundingClientRect().bottom - ar.top;
+  const bot = document.querySelector('.boosters').getBoundingClientRect().top - ar.top;
+  const gapA = br.top - ar.top - top, gapB = bot - (br.bottom - ar.top);
+  if (Math.max(gapA, gapB) < 60) return br.top - ar.top + 24; // poco spazio: in alto sulla griglia
+  return gapA >= gapB ? top + gapA / 2 : br.bottom - ar.top + gapB / 2;
+}
 export function banner(word, sub = '', color = '#ffd34d') {
   app.querySelectorAll('.combo').forEach((e) => e.remove());
   const d = document.createElement('div');
   d.className = 'combo';
+  d.style.top = freeSpotY() + 'px';
   const longest = Math.max(...word.split(' ').map((w) => w.length));
-  const size = Math.max(30, Math.min(58, Math.floor(Math.min(620 / word.length, 330 / longest) * 1.25)));
+  const size = Math.max(24, Math.min(40, Math.floor(Math.min(520 / word.length, 280 / longest))));
   d.innerHTML = `<span class="w" style="color:${color};font-size:${size}px">${word}</span>${sub ? `<span class="n">${sub}</span>` : ''}`;
   app.appendChild(d);
-  setTimeout(() => d.remove(), 1100);
+  setTimeout(() => d.remove(), 950);
 }
 
 // sprite che attraversa (moto) lasciando polvere

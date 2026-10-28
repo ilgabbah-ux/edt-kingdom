@@ -67,6 +67,7 @@ const hideCard = () => $('#overlay').classList.add('hidden');
 let toastT = 0;
 function toast(text, ms = 900) {
   const t = $('#toast');
+  t.style.top = FX.freeSpotY() + 'px';
   t.textContent = text;
   t.classList.add('show');
   clearTimeout(toastT);
@@ -220,7 +221,7 @@ function buildBoardDOM() {
   const b = $('#board');
   b.innerHTML = '';
   G.els.clear();
-  G.mudEls = [];
+  G.mudEls = []; G.badges = Array.from({ length: ROWS }, () => []); G.badgeEls = [];
   for (let r = 0; r < ROWS; r++) {
     G.mudEls.push([]);
     for (let c = 0; c < COLS; c++) {
@@ -233,9 +234,15 @@ function buildBoardDOM() {
       m.style.transform = pos(r, c);
       b.appendChild(m);
       G.mudEls[r].push(m);
+      const bd = document.createElement('div');
+      bd.className = 'mudbadge'; bd.textContent = '2'; bd.hidden = true;
+      bd.style.transform = pos(r, c);
+      G.badgeEls.push(bd);
+      G.badges[r].push(bd);
     }
   }
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) makeTileEl(G.board.grid[r][c], r, c);
+  G.badgeEls.forEach((bd) => b.appendChild(bd));
   renderMud();
 }
 function renderMud() {
@@ -244,6 +251,8 @@ function renderMud() {
     const m = G.mudEls[r][c];
     m.style.backgroundImage = v ? MUD_URI[v] : 'none';
     m.style.opacity = v ? 1 : 0;
+    G.badges[r][c].hidden = v < 2;
+    m.style.animationDelay = ((r * 7 + c * 3) % 10) * -0.3 + 's';
   }
 }
 function repositionAll(instant = true) {
@@ -256,7 +265,8 @@ function repositionAll(instant = true) {
     el.style.transform = pos(r, c);
     if (instant) { void el.offsetWidth; el.style.transition = ''; }
   }
-  document.querySelectorAll('.cellbg,.mud').forEach((el, i) => {
+  G.badgeEls?.forEach((bd, i) => { bd.style.transform = pos(Math.floor(i / COLS), i % COLS); });
+  document.querySelectorAll('.cellbg,#board > .mud').forEach((el, i) => {
     const k = Math.floor(i / 2);
     el.style.transform = pos(Math.floor(k / COLS), k % COLS);
   });
@@ -465,7 +475,7 @@ async function doClear(clear, matched, created, pre = []) {
       killTile(t, r, c, n++);
       b.grid[r][c] = null;
     }
-    if (b.mud[r][c] > 0) { b.mud[r][c]--; credit('mud', r, c); const [mx, my] = cellCenter(r, c); FX.burst(mx, my, '#7a4a20', 6, .8); FX.dust(mx, my, 2, 'rgba(110,70,30,.85)'); }
+    if (b.mud[r][c] > 0) { b.mud[r][c]--; credit('mud', r, c); mudSplash(r, c, b.mud[r][c]); }
   }
   for (const cr of created) {
     const [r, c] = unkey(cr.at);
@@ -487,6 +497,31 @@ async function doClear(clear, matched, created, pre = []) {
 }
 
 let burstBudget = 0;
+function mudSplash(r, c, left) {
+  const [mx, my] = cellCenter(r, c);
+  FX.burst(mx, my, left ? '#4a2a10' : '#8a5a2e', 7, .9);
+  FX.dust(mx, my, 2, 'rgba(110,70,30,.85)');
+  const m = G.mudEls[r][c];
+  if (left) {
+    m.animate([{ transform: pos(r, c) + ' scale(1.25)' }, { transform: pos(r, c) + ' scale(.9)' }, { transform: pos(r, c) }], { duration: 380, easing: 'ease-out' });
+  } else {
+    const ghost = m.cloneNode(); ghost.className = 'mud'; ghost.style.opacity = 1;
+    m.parentNode.insertBefore(ghost, m);
+    ghost.animate([{ transform: pos(r, c) + ' scale(1)', opacity: 1 }, { transform: pos(r, c) + ' scale(1.45)', opacity: 0 }], { duration: 380, easing: 'ease-out' }).onfinish = () => ghost.remove();
+    FX.ring(mx, my, G.S * .75, '#ffffff', 5); FX.glow(mx, my, G.S * .7, 'rgba(255,255,220,.8)');
+  }
+}
+// bollicine nel fango
+setInterval(() => {
+  if (!G.board || G.over || !$('#game').classList.contains('active')) return;
+  const cells = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (G.board.mud[r][c]) cells.push([r, c]);
+  for (let i = 0; i < Math.min(2, cells.length); i++) {
+    const [r, c] = cells[Math.floor(Math.random() * cells.length)];
+    const [x, y] = cellCenter(r, c);
+    FX.bubble(x + (Math.random() - .5) * G.S * .7, y + (Math.random() - .5) * G.S * .7, G.S * (.08 + Math.random() * .07));
+  }
+}, 650);
 function killTile(t, r, c) {
   const el = G.els.get(t.id);
   if (!el) return;

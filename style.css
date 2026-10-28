@@ -155,20 +155,29 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .hp span { font-family: var(--fb); font-weight: 800; }
 .pill b { font-family: var(--fd); font-size: 20px; font-weight: 400; }
 .booster small { font-family: var(--fb); font-weight: 800; }
-.toast { font-size: 44px; color: #fff; -webkit-text-stroke: 9px var(--ink); text-shadow: 0 5px 0 var(--ink); }
+.toast { font-size: 34px; color: #fff; -webkit-text-stroke: 9px var(--ink); text-shadow: 0 5px 0 var(--ink); }
 .toast.gold { color: #ffd34d; }
 .toast.red { color: #ff6a5c; }
-.floater { font-size: 34px; color: #ffd34d; -webkit-text-stroke: 7px var(--ink); text-shadow: 0 4px 0 var(--ink); }
+.floater { font-size: 20px; color: #ffd34d; -webkit-text-stroke: 7px var(--ink); text-shadow: 0 4px 0 var(--ink); }
 
 /* ======== effetti combo ======== */
 #fxc { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
-.combo { position: absolute; left: 50%; top: 34%; width: 92%; transform: translate(-50%, -50%); font-family: var(--fd); white-space: normal; text-wrap: balance; pointer-events: none; z-index: 45; text-align: center; line-height: .95; animation: comboIn 1.05s cubic-bezier(.2,1.4,.4,1) forwards; }
-.combo .w { display: block; font-size: 56px; -webkit-text-stroke: 10px var(--ink); text-shadow: 0 6px 0 var(--ink); }
-.combo .n { display: block; font-size: 30px; color: #fff; -webkit-text-stroke: 7px var(--ink); text-shadow: 0 4px 0 var(--ink); }
-@keyframes comboIn { 0% { transform: translate(-50%, -50%) scale(.2) rotate(-12deg); opacity: 0; } 18% { transform: translate(-50%, -50%) scale(1.18) rotate(3deg); opacity: 1; } 32% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); } 78% { opacity: 1; transform: translate(-50%, -58%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -75%) scale(.9); } }
+.combo { position: absolute; left: 50%; top: 34%; width: 92%; transform: translate(-50%, -50%); font-family: var(--fd); white-space: normal; text-wrap: balance; pointer-events: none; z-index: 45; text-align: center; line-height: .95; animation: comboIn .95s cubic-bezier(.2,1.4,.4,1) forwards; }
+.combo .w { display: block; font-size: 40px; -webkit-text-stroke: 8px var(--ink); text-shadow: 0 4px 0 var(--ink); }
+.combo .n { display: block; font-size: 18px; color: #fff; -webkit-text-stroke: 5px var(--ink); text-shadow: 0 2px 0 var(--ink); margin-top: 2px; }
+@keyframes comboIn { 0% { transform: translate(-50%, -50%) scale(.2) rotate(-12deg); opacity: 0; } 18% { transform: translate(-50%, -50%) scale(1.18) rotate(3deg); opacity: 1; } 32% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); } 75% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -62%) scale(.92); } }
 .shake { animation: shake2 var(--sd, .35s) linear; }
 @keyframes shake2 { 0%,100% { transform: translate(0,0); } 15% { transform: translate(calc(var(--si) * -1), calc(var(--si) * .6)); } 30% { transform: translate(var(--si), calc(var(--si) * -.5)); } 45% { transform: translate(calc(var(--si) * -.7), calc(var(--si) * -.7)); } 60% { transform: translate(calc(var(--si) * .6), var(--si)); } 80% { transform: translate(calc(var(--si) * -.3), calc(var(--si) * .3)); } }
 .flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 44; animation: flash .35s ease-out forwards; }
 @keyframes flash { from { opacity: var(--fo, .7); } to { opacity: 0; } }
 .rider { position: absolute; width: calc(var(--cell) * 1.6); height: calc(var(--cell) * 1.6); background-size: contain; background-repeat: no-repeat; background-position: center; pointer-events: none; z-index: 42; filter: drop-shadow(0 4px 2px rgba(0,0,0,.4)); }
 @media (prefers-reduced-motion: reduce) { .shake { animation: none; } .combo { animation-duration: .6s; } }
+
+/* fango vivo */
+.mud { animation: mudwob 3s ease-in-out infinite; }
+@keyframes mudwob { 50% { filter: drop-shadow(0 0 3px rgba(60,30,8,.9)) brightness(1.12) saturate(1.1); } }
+.mudbadge { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); pointer-events: none; z-index: 3; }
+.mudbadge { font-size: 0; }
+.mudbadge::after { content: '2'; position: absolute; right: 1px; bottom: 1px; width: 17px; height: 17px; border-radius: 50%; background: #3a1f0a; color: #ffe2b0; border: 2px solid #ffe2b0; font: 800 11px/13px var(--fb); text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+#board .tile { z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .mud { animation: none; } }

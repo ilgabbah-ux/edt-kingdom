@@ -102,6 +102,12 @@ function renderHome(popId = null) {
   const map = $('#map');
   map.style.backgroundImage = I('map_bg');
   map.innerHTML = '';
+  [[8, 70, 38], [20, 34, 52], [4, 55, 30]].forEach(([top, w, dur], i) => {
+    const cl = document.createElement('div');
+    cl.className = 'cloud';
+    Object.assign(cl.style, { top: top + '%', left: '0', width: w + '%', aspectRatio: '2.2', animationDuration: dur + 's', animationDelay: (-dur * (i * .37 + .1)) + 's' });
+    map.appendChild(cl);
+  });
   const nb = nextBuilding();
   for (const b of BUILDINGS) {
     const built = isBuilt(b);
@@ -114,7 +120,7 @@ function renderHome(popId = null) {
     d.style.top = bldTop(b) + '%';
     d.innerHTML = `<div class="img" style="background-image:${I(built || !isNext ? 'b_' + b.id : 'b_cantiere')}"></div>
       ${isNext ? `<div class="chip">${st}/${STEPS}</div>` : ''}
-      <div class="tag">${built ? b.name : isNext ? `🔨 ${b.name}` : `🔒 ${b.name}`}</div>`;
+      <div class="tag">${built ? b.name : isNext ? `<i class="ic ic-hammer"></i> ${b.name}` : `<i class="ic ic-lock"></i> ${b.name}`}</div>`;
     d.onclick = () => (isNext ? tryBuild() : built ? say(b.who, b.text, 'Bello!') : lockedInfo(b));
     map.appendChild(d);
   }
@@ -133,13 +139,13 @@ function renderHome(popId = null) {
     const ok = save.stars >= 1;
     btnB.classList.toggle('ready', ok); btnB.classList.toggle('wait', !ok);
     $('#buildLbl').textContent = 'Costruisci';
-    $('#buildCost').textContent = ok ? `usa ⭐ 1` : 'serve ⭐ 1';
+    $('#buildCost').innerHTML = (ok ? 'usa ' : 'serve ') + IC_S + ' 1';
   } else {
     $('#jobImg').style.backgroundImage = I('b_statua');
     $('#jobName').textContent = 'Campo Base completo!';
     $('#jobSteps').innerHTML = '';
     btnB.classList.remove('ready'); btnB.classList.add('wait');
-    $('#buildLbl').textContent = 'Fatto'; $('#buildCost').textContent = '🏆';
+    $('#buildLbl').textContent = 'Fatto'; $('#buildCost').textContent = 'Completo';
   }
   $('#btnPlay').innerHTML = save.level > MAX_LEVEL ? 'Finito! 🏆' : `Gioca <b>livello ${save.level}</b>`;
 }
@@ -148,14 +154,14 @@ function lockedInfo(b) {
   const idx = BUILDINGS.indexOf(b);
   const before = BUILDINGS.slice(0, idx).reduce((s, x) => s + (STEPS - stepsOf(x)), 0);
   const nb = nextBuilding();
-  say('gabbah', `<b>${b.name}</b> arriva più avanti. Prima finiamo <b>${nb.name}</b>: mancano ancora <b>${before} ⭐</b> prima di arrivarci.`, 'Ok');
+  say('gabbah', `<b>${b.name}</b> arriva più avanti. Prima finiamo <b>${nb.name}</b>: mancano ancora <b>${before} ${IC_S}</b> prima di arrivarci.`, 'Ok');
 }
 
 async function tryBuild() {
   const nb = nextBuilding();
   if (!nb || G.building) return;
   if (save.stars < 1) {
-    showCard(`${speakerHTML('gabbah', `Per costruire ci vogliono le stelle: <b>ogni livello vinto vale ⭐ 1</b>, e ogni stella è un pezzo di <b>${nb.name}</b>. Andiamo a guadagnarne una!`)}
+    showCard(`${speakerHTML('gabbah', `Per costruire ci vogliono le stelle: <b>ogni livello vinto vale ${IC_S} 1</b>, e ogni stella è un pezzo di <b>${nb.name}</b>. Andiamo a guadagnarne una!`)}
       <div class="row"><button id="cNo" class="btn btn-gray">Dopo</button><button id="cGo" class="btn btn-play">Gioca!</button></div>`,
       { cNo: hideCard, cGo: () => { hideCard(); openLevel(); } });
     return;
@@ -175,7 +181,7 @@ async function tryBuild() {
   const r = el.getBoundingClientRect(), ar = app.getBoundingClientRect();
   const cx = r.left - ar.left + r.width / 2, cy = r.top - ar.top + r.height * .55;
   const h = document.createElement('div');
-  h.className = 'hammer'; h.textContent = '🔨';
+  h.className = 'hammer ic-hammer';
   h.style.left = (cx + r.width * .2) + 'px'; h.style.top = (cy - r.height * .5) + 'px';
   app.appendChild(h);
   for (let k = 0; k < 4; k++) {
@@ -209,7 +215,7 @@ async function tryBuild() {
 function flyStarToCounter() {
   const pill = $('#hStars').parentElement.getBoundingClientRect(), ar = app.getBoundingClientRect();
   const s2 = document.createElement('div');
-  s2.className = 'flystar'; s2.textContent = '⭐';
+  s2.className = 'flystar ic-star';
   s2.style.left = (ar.width / 2 - 35) + 'px'; s2.style.top = (ar.height * .45 - 35) + 'px';
   s2.style.transform = 'scale(2.2)';
   app.appendChild(s2);
@@ -482,6 +488,7 @@ function credit(type, r, c, color = -1, amount = 1) {
     }
   });
 }
+const IC_S = '<i class="ic ic-star"></i>', IC_C = '<i class="ic ic-coin"></i>';
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const WIN_TITLES = ['Giro easy!', 'Che manetta!', 'Grande EDT!', 'Sentiero pulito!', 'Da manuale!'];
 const WIN_LINES = [
@@ -922,8 +929,8 @@ async function winLevel() {
   sfx.win();
   const nb = nextBuilding();
   const [who, line] = pick(WIN_LINES);
-  showCard(`<h2>${pick(WIN_TITLES)}</h2><div class="stars3">⭐</div>
-    <p><b>+1 stella</b> · <b>+${coins} 🪙</b>${nb ? `<br>Con la stella costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
+  showCard(`<h2>${pick(WIN_TITLES)}</h2><div class="stars3"><i class="ic ic-star"></i></div>
+    <p><b>+1 stella</b> · <b>+${coins} ${IC_C}</b>${nb ? `<br>Con la stella costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
     ${speakerHTML(who, line)}
     <div class="row"><button id="cHome" class="btn btn-play">Campo base</button></div>`,
     { cHome: () => { hideCard(); goHome(); } });
@@ -934,7 +941,7 @@ async function loseLevel() {
   sfx.lose();
   const canBuy = save.coins >= 200;
   const left = G.goals.filter((g) => g.done < g.n).map((g) => `${goalLeft(g)}`).join(', ');
-  showCard(`${speakerHTML('purcello', `${pick(LOSE_LINES)}<br>Ti mancavano <b>${left}</b>. Con <b>200 🪙</b> hai <b>5 mosse</b> in più.`)}
+  showCard(`${speakerHTML('purcello', `${pick(LOSE_LINES)}<br>Ti mancavano <b>${left}</b>. Con <b>200 ${IC_C}</b> hai <b>5 mosse</b> in più.`)}
     <div class="row">
       <button id="cQuit" class="btn btn-gray">Mollo</button>
       <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>+5 mosse</button>
@@ -1104,7 +1111,7 @@ async function openLevel() {
     const gift = gifts.includes(p.id);
     return `<button class="pre${gift ? ' gift' : ''}" data-id="${p.id}" ${gift ? 'disabled' : ''}>
       <span class="pi" style="background-image:${I(p.img)}"></span><small>${p.name}</small>
-      <b>${gift ? 'Regalo' : p.cost + ' 🪙'}</b></button>`;
+      <b>${gift ? 'Regalo' : p.cost + ' ' + IC_C}</b></button>`;
   }).join('');
   const streak = save.streak || 0;
   showCard(`<h2>${lv.boss ? 'Arriva la Forestale!' : `Livello ${lv.n}`}</h2>${intro}
@@ -1147,14 +1154,14 @@ $('#btnBack').onclick = () => {
 };
 $('#bHammer').onclick = () => {
   if (G.busy || G.over) return;
-  if (!G.hammer && save.coins < 100) { toast('Servono 100 🪙', 1000); return; }
+  if (!G.hammer && save.coins < 100) { toast('Servono 100 monete', 1000); return; }
   G.hammer = !G.hammer;
   if (G.hammer) toast('Tocca cosa spaccare', 1000);
   renderMoves();
 };
 $('#bShield').onclick = () => {
   if (G.busy || G.over || G.shield) return;
-  if (save.coins < 150) { toast('Servono 150 🪙', 900); return; }
+  if (save.coins < 150) { toast('Servono 150 monete', 900); return; }
   save.coins -= 150; persist();
   G.shield = true;
   toast('Miti ti copre!', 1000);

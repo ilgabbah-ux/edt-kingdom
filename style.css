@@ -229,3 +229,19 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .pre.gift b { color: #2a8a37; }
 
 .bubble p b { font-family: var(--fb); font-weight: 800; color: var(--ink); -webkit-text-stroke: 0; }
+
+/* icone 3D */
+.ic { display: inline-block; width: 1.25em; height: 1.25em; vertical-align: -.28em; background: center/contain no-repeat; }
+.ic-star { background-image: url('img/u_stella.webp'); }
+.ic-coin { background-image: url('img/u_moneta.webp'); }
+.ic-hammer { background-image: url('img/u_martello.webp'); background-position: center; background-size: contain; background-repeat: no-repeat; }
+.ic-shield { background-image: url('img/u_scudo.webp'); background-position: center; background-size: contain; background-repeat: no-repeat; }
+.ic-lock { background-image: url('img/u_lucchetto.webp'); }
+.pill .ico { display: flex; } .pill .ico .ic { width: 28px; height: 28px; }
+.booster .bi { width: 34px; height: 34px; display: block; }
+.stars3 .ic { width: 84px; height: 84px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.3)); animation: pop .6s cubic-bezier(.2,1.6,.4,1); }
+.hammer { width: 54px; height: 54px; font-size: 0; }
+.flystar { font-size: 0; }
+.cloud { position: absolute; background: url('img/u_nuvola.webp') center/contain no-repeat; pointer-events: none; opacity: .9; animation: drift linear infinite; z-index: 1; }
+@keyframes drift { from { transform: translateX(-40vw); } to { transform: translateX(140vw); } }
+@media (prefers-reduced-motion: reduce) { .cloud { animation: none; } }

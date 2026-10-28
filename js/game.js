@@ -1,21 +1,19 @@
 // EDT Kingdom — interfaccia, animazioni, campo base
 import { Board, ROWS, COLS, key, unkey, inside } from './engine.js';
-import { TILE_SVG, POWER_SVG, ROCK_SVG, FORESTALE_SVG, toURI } from './art.js';
 import { getLevel, MAX_LEVEL } from './levels.js';
-import { BUILDINGS, CHARS, SCAFFOLD_SVG, MAP_BG } from './kingdom.js';
+import { BUILDINGS, CHARS } from './kingdom.js';
 
 const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const app = $('#app');
 
 // ---------- grafica in cache ----------
-const TILE_URI = TILE_SVG.map(toURI);
-const POWER_URI = Object.fromEntries(Object.entries(POWER_SVG).map(([k, v]) => [k, toURI(v)]));
-const ROCK_URI = ROCK_SVG.map((s) => (s ? toURI(s) : null));
-const MUD_URI = [null,
-  toURI(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M8 20 q4 -14 22 -10 q12 -8 26 0 q16 -6 28 4 q12 10 6 26 q8 14 0 30 q-6 16 -26 14 q-14 8 -30 0 q-18 4 -24 -12 q-10 -14 -4 -28 q-6 -14 2 -24z" fill="#8a5a2e" opacity=".85"/><circle cx="26" cy="30" r="5" fill="#a87442"/><circle cx="70" cy="66" r="6" fill="#a87442"/></svg>`),
-  toURI(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M4 16 q6 -14 26 -10 q12 -6 26 0 q20 -6 32 6 q10 12 6 28 q8 14 0 30 q-6 18 -28 16 q-14 8 -32 0 q-20 2 -26 -14 q-10 -14 -2 -30 q-8 -14 -2 -26z" fill="#5a3518"/><circle cx="26" cy="30" r="6" fill="#7a4a20"/><circle cx="70" cy="66" r="7" fill="#7a4a20"/><circle cx="64" cy="26" r="4" fill="#7a4a20"/></svg>`)];
-const FORESTALE_URI = toURI(FORESTALE_SVG);
+const I = (n) => `url('img/${n}.webp')`;
+const TILE_URI = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale'].map(I);
+const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
+const ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
+const MUD_URI = [null, I('o_fango1'), I('o_fango2')];
+const FORESTALE_URI = I('forestale');
 
 // ---------- salvataggio ----------
 const SAVE_KEY = 'edtKingdom_v1';
@@ -75,7 +73,7 @@ function toast(text, ms = 900) {
 }
 function speakerHTML(who, text) {
   const ch = CHARS[who] || CHARS.gabbah;
-  return `<div class="speaker"><div class="avatar" style="background-image:${toURI(ch.svg)}"></div>
+  return `<div class="speaker"><div class="avatar" style="background-image:${I(ch.img)}"></div>
     <div class="bubble"><b>${ch.name}</b><p>${text}</p></div></div>`;
 }
 function say(who, text, btn = 'Ok!') {
@@ -91,19 +89,19 @@ function renderHome(popId = null) {
   $('#hCoins').textContent = save.coins;
   $('#hLevel').textContent = Math.min(save.level, MAX_LEVEL);
   const map = $('#map');
-  map.style.backgroundImage = toURI(MAP_BG);
+  map.style.backgroundImage = I('map_bg');
   map.innerHTML = '';
   const nb = nextBuilding();
   for (const b of BUILDINGS) {
     const built = save.built.includes(b.id);
-    if (!built && b !== nb) continue;
+    const isNext = !built && b === nb;
     const d = document.createElement('div');
-    d.className = 'bld ' + (built ? 'built' : 'next locked') + (b.id === popId ? ' pop' : '');
+    d.className = 'bld ' + (built ? 'built' : isNext ? 'next' : 'ghost') + (b.id === popId ? ' pop' : '');
     d.style.left = b.x + '%';
     d.style.top = (14 + b.y * 0.72) + '%';
-    d.innerHTML = `<div class="img" style="background-image:${toURI(built ? b.svg : SCAFFOLD_SVG)}"></div>
-      <div class="tag">${built ? b.name : `🔨 ${b.name} · ⭐${b.cost}`}</div>`;
-    if (!built) d.onclick = () => tryBuild();
+    d.innerHTML = `<div class="img" style="background-image:${I(built || !isNext ? 'b_' + b.id : 'b_cantiere')}"></div>
+      <div class="tag">${built ? b.name : isNext ? `🔨 ${b.name} · ⭐${b.cost}` : `🔒 ${b.name}`}</div>`;
+    if (isNext) d.onclick = () => tryBuild();
     map.appendChild(d);
   }
   const btnB = $('#btnBuild');

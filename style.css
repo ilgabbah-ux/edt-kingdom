@@ -26,12 +26,13 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .pill { background: var(--cream); border: 3px solid var(--ink); border-radius: 999px; padding: 3px 12px 3px 6px; display: flex; align-items: center; gap: 4px; font-weight: 900; font-size: 17px; box-shadow: 0 3px 0 var(--ink); min-width: 74px; }
 .pill .ico { font-size: 18px; }
 #map { position: absolute; inset: 0; background-size: cover; background-position: center; }
-.bld { position: absolute; width: 23%; aspect-ratio: 1.2; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; }
+.bld { position: absolute; width: 31%; aspect-ratio: 1; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; }
 .bld .img { width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; background-position: center bottom; filter: drop-shadow(0 4px 0 rgba(0,0,0,.18)); }
-.bld.locked .img { opacity: .55; filter: grayscale(.4); }
+.bld.ghost .img { opacity: .5; filter: grayscale(1) brightness(1.15) contrast(.8); }
+.bld.ghost .tag { opacity: .75; }
 .bld .tag { margin-top: -4px; font-size: 10px; font-weight: 900; background: rgba(255,246,224,.92); border: 2px solid var(--ink); border-radius: 8px; padding: 1px 5px; white-space: nowrap; max-width: 140%; overflow: hidden; text-overflow: ellipsis; }
 .bld.next .tag { background: var(--gold); }
-.bld.next .img { opacity: .9; animation: bob 1.4s ease-in-out infinite; }
+.bld.next .img { animation: bob 1.4s ease-in-out infinite; filter: drop-shadow(0 0 10px #ffd34d); }
 .bld.built .img { animation: none; }
 .bld.pop .img { animation: pop .7s cubic-bezier(.2,1.6,.4,1); }
 @keyframes bob { 50% { transform: translateY(-5px); } }
@@ -47,7 +48,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .btn-gray { background: linear-gradient(#b8b8b8, #7a7a7a); }
 
 /* ---------- partita ---------- */
-#game { background: radial-gradient(ellipse at 50% 30%, #4f9a4a, #24502a 70%); }
+#game { background: linear-gradient(rgba(20,40,20,.35), rgba(20,40,20,.55)), url('img/map_bg.webp') center/cover; }
 .gamebar { display: flex; align-items: stretch; gap: 8px; padding: calc(8px + env(safe-area-inset-top)) 10px 6px; }
 .round { width: 40px; height: 40px; border-radius: 50%; background: var(--cream); border: 3px solid var(--ink); font-weight: 900; font-size: 18px; box-shadow: 0 3px 0 var(--ink); align-self: center; }
 .goals { flex: 1; display: flex; gap: 6px; justify-content: center; background: var(--wood); border: 3px solid var(--ink); border-radius: 14px; padding: 5px 6px; box-shadow: inset 0 -4px 0 var(--wood2); }
@@ -62,7 +63,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .moves.low b { color: var(--red); animation: bump .6s infinite; }
 
 .bossbar { display: flex; align-items: center; gap: 8px; margin: 0 10px 4px; }
-.bossface { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--ink); background-size: cover; background-color: #d9f0c9; flex: none; }
+.bossface { width: 58px; height: 58px; border-radius: 50%; border: 3px solid var(--ink); background-size: 125%; background-position: center 15%; background-repeat: no-repeat; background-color: #d9f0c9; flex: none; }
 .bossface.hit { animation: shake .35s; }
 .bossface.angry { animation: angry .6s; }
 @keyframes shake { 25% { transform: translateX(-5px) rotate(-6deg); } 75% { transform: translateX(5px) rotate(6deg); } }
@@ -73,11 +74,12 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .bosscount { background: var(--cream); border: 3px solid var(--ink); border-radius: 12px; padding: 2px 6px; font-weight: 900; display: flex; align-items: center; gap: 2px; }
 
 #boardWrap { position: relative; margin: auto; flex: none; }
-#board { position: relative; width: 100%; height: 100%; background: rgba(20,40,20,.55); border: 4px solid var(--ink); border-radius: 18px; box-shadow: 0 6px 0 rgba(0,0,0,.35), inset 0 0 0 3px rgba(255,255,255,.12); overflow: hidden; }
+#board { position: relative; width: 100%; height: 100%; background: rgba(30,22,14,.62); backdrop-filter: blur(2px); border: 4px solid var(--ink); border-radius: 18px; box-shadow: 0 6px 0 rgba(0,0,0,.35), inset 0 0 0 3px rgba(255,255,255,.12); overflow: hidden; }
 .cellbg { position: absolute; width: var(--cell); height: var(--cell); }
-.cellbg.dark { background: rgba(255,255,255,.06); }
+.cellbg { background: rgba(255,240,200,.10); }
+.cellbg.dark { background: rgba(255,240,200,.04); }
 .mud { position: absolute; width: var(--cell); height: var(--cell); background-size: 100% 100%; transition: opacity .3s; }
-.tile { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); background-size: 86%; background-repeat: no-repeat; background-position: center; will-change: transform; transition: transform .16s ease-in; }
+.tile { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); background-size: 94%; background-repeat: no-repeat; background-position: center; will-change: transform; filter: drop-shadow(0 2px 1px rgba(0,0,0,.35)); transition: transform .16s ease-in; }
 .tile.sel { filter: brightness(1.25) drop-shadow(0 0 6px #fff); }
 .tile.power { animation: glow 1.2s ease-in-out infinite; }
 @keyframes glow { 50% { filter: drop-shadow(0 0 7px #fff7a8) brightness(1.1); } }
@@ -113,7 +115,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .card .row { display: flex; gap: 10px; margin-top: 8px; }
 .card .row .btn { font-size: 19px; }
 .speaker { display: flex; gap: 10px; align-items: flex-start; text-align: left; }
-.avatar { width: 72px; height: 72px; flex: none; border-radius: 50%; border: 3px solid var(--ink); background-size: cover; background-color: #ffe9c7; }
+.avatar { width: 84px; height: 84px; flex: none; border-radius: 50%; border: 3px solid var(--ink); background-size: 118%; background-position: center 20%; background-repeat: no-repeat; background-color: #bfe3ff; }
 .bubble b { font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; font-size: 18px; color: var(--wood); letter-spacing: .4px; }
 .bubble p { margin: 2px 0 0; }
 .goalrow { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }

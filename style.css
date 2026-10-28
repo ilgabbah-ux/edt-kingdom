@@ -1,4 +1,9 @@
+@font-face { font-family: 'EDT Display'; src: url('fonts/luckiest.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'EDT Body'; src: url('fonts/baloo700.woff2') format('woff2'); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: 'EDT Body'; src: url('fonts/baloo800.woff2') format('woff2'); font-weight: 800 900; font-display: swap; }
 :root {
+  --fd: 'EDT Display', 'Arial Black', Impact, sans-serif;
+  --fb: 'EDT Body', 'Trebuchet MS', system-ui, sans-serif;
   --ink: #2b1d14;
   --green: #2a8a37;
   --green2: #3fbf4f;
@@ -10,8 +15,8 @@
   --cell: 44px;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: #1d3b22; }
-body { font-family: 'Nunito', system-ui, sans-serif; color: var(--ink); user-select: none; -webkit-user-select: none; touch-action: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #2a5c30; }
+body { font-family: var(--fb); color: var(--ink); user-select: none; -webkit-user-select: none; touch-action: none; }
 #app { position: relative; max-width: 520px; height: 100%; margin: 0 auto; overflow: hidden; background: #2a5c30; }
 .hidden { display: none !important; }
 button { font-family: inherit; cursor: pointer; border: 0; }
@@ -21,7 +26,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 
 /* ---------- campo base ---------- */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 12px 8px; position: relative; z-index: 3; }
-.title { font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; font-size: 26px; color: #fff; text-shadow: 0 3px 0 var(--ink), 0 0 2px var(--ink); letter-spacing: 1px; white-space: nowrap; }
+.title { font-family: var(--fd); font-size: 26px; color: #fff; text-shadow: 0 3px 0 var(--ink), 0 0 2px var(--ink); letter-spacing: 1px; white-space: nowrap; }
 .title span { color: var(--gold); }
 .pill { background: var(--cream); border: 3px solid var(--ink); border-radius: 999px; padding: 3px 12px 3px 6px; display: flex; align-items: center; gap: 4px; font-weight: 900; font-size: 17px; box-shadow: 0 3px 0 var(--ink); min-width: 74px; }
 .pill .ico { font-size: 18px; }
@@ -38,9 +43,9 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 @keyframes bob { 50% { transform: translateY(-5px); } }
 @keyframes pop { 0% { transform: scale(.2); } 100% { transform: scale(1); } }
 .homebar { margin-top: auto; display: flex; gap: 10px; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); position: relative; z-index: 3; }
-.btn { flex: 1; font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; font-size: 22px; padding: 12px 10px 8px; border-radius: 16px; border: 3px solid var(--ink); box-shadow: 0 5px 0 var(--ink); color: #fff; text-shadow: 0 2px 0 var(--ink); letter-spacing: .5px; transition: transform .08s; }
+.btn { flex: 1; font-family: var(--fd); font-size: 22px; padding: 12px 10px 8px; border-radius: 16px; border: 3px solid var(--ink); box-shadow: 0 5px 0 var(--ink); color: #fff; text-shadow: 0 2px 0 var(--ink); letter-spacing: .5px; transition: transform .08s; }
 .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
-.btn small { display: block; font-size: 13px; font-family: 'Nunito'; font-weight: 900; text-shadow: none; color: var(--ink); }
+.btn small { display: block; font-size: 13px; font-family: var(--fb); font-weight: 900; text-shadow: none; color: var(--ink); }
 .btn-play { background: linear-gradient(#5fd96d, #2a8a37); flex: 1.3; }
 .btn-build { background: linear-gradient(#ffd34d, #f39a1c); color: var(--ink); text-shadow: 0 1px 0 #fff; }
 .btn-build[disabled] { filter: grayscale(.7); opacity: .75; }
@@ -59,7 +64,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 @keyframes bump { 50% { transform: scale(1.25); } }
 .moves { width: 66px; background: var(--cream); border: 3px solid var(--ink); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 3px 0 var(--ink); }
 .moves small { font-size: 10px; font-weight: 900; }
-.moves b { font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; font-size: 30px; line-height: 1; }
+.moves b { font-family: var(--fd); font-size: 30px; line-height: 1; }
 .moves.low b { color: var(--red); animation: bump .6s infinite; }
 
 .bossbar { display: flex; align-items: center; gap: 8px; margin: 0 10px 4px; }
@@ -92,7 +97,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 @keyframes beam { from { opacity: 1; } to { opacity: 0; } }
 .boom { position: absolute; border-radius: 50%; background: radial-gradient(#fff, #ffd34d 40%, #ff6a1c 70%, transparent 72%); animation: boom .4s ease-out forwards; pointer-events: none; }
 @keyframes boom { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
-.floater { position: absolute; font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; color: #fff; text-shadow: 0 3px 0 var(--ink), 0 0 3px var(--ink); font-size: 30px; pointer-events: none; white-space: nowrap; animation: floatUp 1.1s ease-out forwards; transform: translateX(-50%); }
+.floater { position: absolute; font-family: var(--fd); color: #fff; text-shadow: 0 3px 0 var(--ink), 0 0 3px var(--ink); font-size: 30px; pointer-events: none; white-space: nowrap; animation: floatUp 1.1s ease-out forwards; transform: translateX(-50%); }
 @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.5); } 20% { opacity: 1; transform: translate(-50%, 0) scale(1.1); } 100% { opacity: 0; transform: translate(-50%, -50px) scale(1); } }
 .flyer { position: absolute; width: 40px; height: 40px; background-size: contain; background-repeat: no-repeat; pointer-events: none; transition: transform .55s cubic-bezier(.5,-0.3,.6,1), opacity .55s; z-index: 30; }
 
@@ -103,24 +108,67 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .booster b { font-size: 12px; }
 .booster.active { background: var(--gold); transform: translateY(2px); }
 .booster.on { background: #bdf0ff; }
-.lvlLabel { font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; color: #fff; font-size: 20px; text-shadow: 0 2px 0 var(--ink); }
+.lvlLabel { font-family: var(--fd); color: #fff; font-size: 20px; text-shadow: 0 2px 0 var(--ink); }
 
 /* ---------- overlay ---------- */
 .overlay { position: absolute; inset: 0; background: rgba(15,25,15,.6); display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 50; animation: fade .2s; }
 @keyframes fade { from { opacity: 0; } }
 .card { width: 100%; max-width: 380px; background: var(--cream); border: 4px solid var(--ink); border-radius: 22px; box-shadow: 0 8px 0 var(--ink); padding: 18px 16px 16px; text-align: center; animation: pop .35s cubic-bezier(.2,1.5,.4,1); }
-.card h2 { font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; font-size: 32px; margin: 0 0 6px; color: var(--green); text-shadow: 0 2px 0 var(--ink); letter-spacing: .5px; }
+.card h2 { font-family: var(--fd); font-size: 32px; margin: 0 0 6px; color: var(--green); text-shadow: 0 2px 0 var(--ink); letter-spacing: .5px; }
 .card h2.red { color: var(--red); }
 .card p { font-size: 16px; font-weight: 700; margin: 6px 0 12px; line-height: 1.35; }
 .card .row { display: flex; gap: 10px; margin-top: 8px; }
 .card .row .btn { font-size: 19px; }
 .speaker { display: flex; gap: 10px; align-items: flex-start; text-align: left; }
 .avatar { width: 84px; height: 84px; flex: none; border-radius: 50%; border: 3px solid var(--ink); background-size: 118%; background-position: center 20%; background-repeat: no-repeat; background-color: #bfe3ff; }
-.bubble b { font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; font-size: 18px; color: var(--wood); letter-spacing: .4px; }
+.bubble b { font-family: var(--fd); font-size: 18px; color: var(--wood); letter-spacing: .4px; }
 .bubble p { margin: 2px 0 0; }
 .goalrow { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
 .goalrow .goal { width: 58px; height: 58px; background-color: rgba(160,100,46,.25); }
 .stars3 { font-size: 40px; margin: 4px 0; }
 
-.toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(.8); font-family: 'Luckiest Guy', 'Arial Black', Impact, sans-serif; color: #fff; font-size: 34px; text-shadow: 0 3px 0 var(--ink), 0 0 4px var(--ink); opacity: 0; pointer-events: none; z-index: 60; text-align: center; white-space: nowrap; transition: opacity .2s, transform .2s; }
+.toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(.8); font-family: var(--fd); color: #fff; font-size: 34px; text-shadow: 0 3px 0 var(--ink), 0 0 4px var(--ink); opacity: 0; pointer-events: none; z-index: 60; text-align: center; white-space: nowrap; transition: opacity .2s, transform .2s; }
 .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+/* ======== tipografia "da gioco" ======== */
+.title, .btn, .card h2, .toast, .floater, .lvlLabel, .moves b, .combo, .bubble b {
+  paint-order: stroke fill; -webkit-text-stroke: 0; letter-spacing: .5px;
+}
+.title { font-size: 30px; color: #fff; -webkit-text-stroke: 7px var(--ink); text-shadow: 0 4px 0 var(--ink); }
+.title span { color: #ffd34d; }
+.btn { font-size: 24px; -webkit-text-stroke: 6px var(--ink); text-shadow: 0 3px 0 var(--ink); color: #fff; padding: 12px 10px 9px; }
+.btn-build { color: #fff; text-shadow: 0 3px 0 var(--ink); }
+.btn small { -webkit-text-stroke: 0; text-shadow: none; font-size: 14px; font-weight: 800; color: var(--ink); background: rgba(255,255,255,.75); border-radius: 999px; display: inline-block; padding: 0 8px; margin-top: 2px; }
+.btn-build small { background: rgba(255,255,255,.6); }
+.card h2 { font-size: 38px; color: #ffd34d; -webkit-text-stroke: 8px var(--ink); text-shadow: 0 4px 0 var(--ink); margin: -4px 0 8px; line-height: 1.05; }
+.card h2.red { color: #ff6a5c; }
+.card p { font-weight: 700; font-size: 17px; }
+.card .row .btn { font-size: 21px; }
+.bubble b { font-size: 19px; color: #ffd34d; -webkit-text-stroke: 5px var(--ink); }
+.bubble p { font-size: 16.5px; line-height: 1.32; }
+.speaker { background: #fff; border: 3px solid var(--ink); border-radius: 18px; padding: 10px; box-shadow: inset 0 -4px 0 rgba(0,0,0,.08); }
+.lvlLabel { font-size: 24px; color: #fff; -webkit-text-stroke: 6px var(--ink); text-shadow: 0 3px 0 var(--ink); }
+.moves b { font-size: 32px; color: var(--ink); }
+.moves.low b { color: #e8322a; }
+.goal b { font-family: var(--fb); font-weight: 800; font-size: 14px; }
+.bld .tag { font-family: var(--fb); font-weight: 800; font-size: 11px; }
+.hp span { font-family: var(--fb); font-weight: 800; }
+.pill b { font-family: var(--fd); font-size: 20px; font-weight: 400; }
+.booster small { font-family: var(--fb); font-weight: 800; }
+.toast { font-size: 44px; color: #fff; -webkit-text-stroke: 9px var(--ink); text-shadow: 0 5px 0 var(--ink); }
+.toast.gold { color: #ffd34d; }
+.toast.red { color: #ff6a5c; }
+.floater { font-size: 34px; color: #ffd34d; -webkit-text-stroke: 7px var(--ink); text-shadow: 0 4px 0 var(--ink); }
+
+/* ======== effetti combo ======== */
+#fxc { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
+.combo { position: absolute; left: 50%; top: 34%; width: 92%; transform: translate(-50%, -50%); font-family: var(--fd); white-space: normal; text-wrap: balance; pointer-events: none; z-index: 45; text-align: center; line-height: .95; animation: comboIn 1.05s cubic-bezier(.2,1.4,.4,1) forwards; }
+.combo .w { display: block; font-size: 56px; -webkit-text-stroke: 10px var(--ink); text-shadow: 0 6px 0 var(--ink); }
+.combo .n { display: block; font-size: 30px; color: #fff; -webkit-text-stroke: 7px var(--ink); text-shadow: 0 4px 0 var(--ink); }
+@keyframes comboIn { 0% { transform: translate(-50%, -50%) scale(.2) rotate(-12deg); opacity: 0; } 18% { transform: translate(-50%, -50%) scale(1.18) rotate(3deg); opacity: 1; } 32% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); } 78% { opacity: 1; transform: translate(-50%, -58%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -75%) scale(.9); } }
+.shake { animation: shake2 var(--sd, .35s) linear; }
+@keyframes shake2 { 0%,100% { transform: translate(0,0); } 15% { transform: translate(calc(var(--si) * -1), calc(var(--si) * .6)); } 30% { transform: translate(var(--si), calc(var(--si) * -.5)); } 45% { transform: translate(calc(var(--si) * -.7), calc(var(--si) * -.7)); } 60% { transform: translate(calc(var(--si) * .6), var(--si)); } 80% { transform: translate(calc(var(--si) * -.3), calc(var(--si) * .3)); } }
+.flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 44; animation: flash .35s ease-out forwards; }
+@keyframes flash { from { opacity: var(--fo, .7); } to { opacity: 0; } }
+.rider { position: absolute; width: calc(var(--cell) * 1.6); height: calc(var(--cell) * 1.6); background-size: contain; background-repeat: no-repeat; background-position: center; pointer-events: none; z-index: 42; filter: drop-shadow(0 4px 2px rgba(0,0,0,.4)); }
+@media (prefers-reduced-motion: reduce) { .shake { animation: none; } .combo { animation-duration: .6s; } }

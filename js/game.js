@@ -2,6 +2,7 @@
 import { Board, ROWS, COLS, key, unkey, inside } from './engine.js';
 import { getLevel, MAX_LEVEL } from './levels.js';
 import { BUILDINGS, CHARS } from './kingdom.js';
+import * as FX from './fx.js';
 
 const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -119,7 +120,7 @@ async function tryBuild() {
   const nb = nextBuilding();
   if (!nb) return;
   if (save.stars < nb.cost) {
-    showCard(`${speakerHTML('gabbah', `Per costruire <b>${nb.name}</b> servono ${nb.cost} ⭐. Ne hai ${save.stars}: vai a giocare qualche livello!`)}
+    showCard(`${speakerHTML('gabbah', `Per <b>${nb.name}</b> servono <b>${nb.cost} ⭐</b> e ne hai ${save.stars}. Fai ancora qualche giro e torniamo col materiale.`)}
       <div class="row"><button id="cNo" class="btn btn-gray">Dopo</button><button id="cGo" class="btn btn-play">Gioca!</button></div>`,
       { cNo: hideCard, cGo: () => { hideCard(); openLevel(); } });
     return;
@@ -131,7 +132,7 @@ async function tryBuild() {
   renderHome(nb.id);
   await sleep(700);
   await say(nb.who, nb.text, 'Grande!');
-  if (!nextBuilding()) await say('forestale', 'Un intero campo base abusivo?! Questa non finisce qui... tornerò con rinforzi e TANTE multe!', 'Ci vediamo!');
+  if (!nextBuilding()) await say('forestale', 'Un campo base intero, con tanto di statua? Qui serve il blocchetto grande. Tornerò con i rinforzi!', 'Ti aspettiamo');
 }
 
 function showScreen(id) {
@@ -277,18 +278,37 @@ function fxEl(cls, x, y, w, h) {
 }
 function fxPower(power, r, c, cells) {
   const S = G.S;
-  if (power === 'mH') { fxEl('beam', 0, r * S + S * 0.25, COLS * S, S * 0.5); sfx.moto(); }
-  else if (power === 'mV') { fxEl('beam', c * S + S * 0.25, 0, S * 0.5, ROWS * S).style.background = 'linear-gradient(transparent,#fff8b0,#fff,#fff8b0,transparent)'; sfx.moto(); }
-  else if (power === 'bomb') { fxEl('boom', (c - 2) * S, (r - 2) * S, S * 5, S * 5); sfx.boom(); }
-  else if (power === 'grappa') {
+  const [x, y] = cellCenter(r, c);
+  const br = $('#board').getBoundingClientRect(), ar = app.getBoundingClientRect();
+  const bx = br.left - ar.left + 4, by = br.top - ar.top + 4;
+  if (power === 'mH') {
+    sfx.moto();
+    const dir = c < COLS / 2 ? 1 : -1;
+    FX.rideAcross(POWER_URI.mH, dir > 0 ? bx - S : bx + COLS * S + S, y, dir > 0 ? bx + COLS * S + S : bx - S, y, 360);
+    FX.streak(bx, y, bx + COLS * S, y, '#fff6c8', S * 0.55);
+    FX.shake(4, .25);
+  } else if (power === 'mV') {
+    sfx.moto();
+    FX.rideAcross(POWER_URI.mV, x, by + ROWS * S + S, x, by - S, 380);
+    FX.streak(x, by + ROWS * S, x, by, '#fff6c8', S * 0.55);
+    FX.shake(4, .25);
+  } else if (power === 'bomb') {
+    sfx.boom();
+    FX.glow(x, y, S * 2.8); FX.ring(x, y, S * 3, '#ffe9a0', 14); FX.fire(x, y, S * 2.4);
+    FX.flash(.35); FX.shake(10, .4);
+  } else if (power === 'grappa') {
     sfx.power();
+    FX.rays(x, y, S * 4); FX.glow(x, y, S * 2, 'rgba(255,240,170,.9)'); FX.flash(.45);
+    let i = 0;
     for (const k of cells) {
       const [rr, cc] = unkey(k);
-      fxEl('boom', cc * S, rr * S, S, S);
+      const [tx, ty] = cellCenter(rr, cc);
+      setTimeout(() => { FX.streak(x, y, tx, ty, '#fff3a8', 4); FX.ring(tx, ty, S * .7, '#ffffff', 5); }, (i++ % 16) * 25);
     }
+    FX.shake(6, .35);
   } else if (power === 'drone') {
     sfx.power();
-    fxEl('boom', (c - 1) * S, (r - 1) * S, S * 3, S * 3);
+    FX.ring(x, y, S * 1.6, '#c4f1ff', 8); FX.dust(x, y, 6, 'rgba(220,240,255,.9)');
   }
 }
 function floater(text, r, c) {
@@ -347,16 +367,42 @@ function credit(type, r, c, color = -1, amount = 1) {
     }
   });
 }
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const WIN_TITLES = ['Giro easy!', 'Che manetta!', 'Grande EDT!', 'Sentiero pulito!', 'Da manuale!'];
+const WIN_LINES = [
+  ['gabbah', 'Fatto senza nemmeno sporcare il casco. Quasi.'],
+  ['miti', 'Ho ripreso tutto con la GoPro. Questa la mettiamo nel video!'],
+  ['mirco', 'Bravo. Io intanto mi sono riposato. Campa giù!'],
+  ['costa', 'Per festeggiare offro io: grigliata di trote per tutti!'],
+  ['purcello', 'Visto? Non hai avuto bisogno della mia spinta. Stavolta.'],
+  ['svetlana', 'Che classe. Quasi quasi ti presto il trono.'],
+];
+const LOSE_LINES = [
+  'Sei rimasto piantato nel fango. Ti do una spinta io da dietro?',
+  'Mosse finite e sentiero ancora chiuso. Ci penso io: aggancio e tiro!',
+  'Ti sei insabbiato? Tranquillo, Purcello arriva sempre da dietro.',
+];
 const allDone = () => G.goals.every((gl) => gl.done >= gl.n);
 
 // ---------- risoluzione ----------
-const SHOUTS = ['Bella!', 'Campa giù!', 'Che manetta!', 'Giro easy!', 'Ingroppata!', 'EDT!!!'];
+const CASCADE = [
+  ['Bella!', '#ffd34d'], ['Che manetta!', '#ffb02e'], ['Gas aperto!', '#ff8a1c'],
+  ['Fuori giri!', '#ff5a3c'], ['Campa giù!', '#ff4fa3'], ['LEGGENDARIO!', '#b07bff'],
+];
+const POWER_SHOUT = { mH: 'Moto!', mV: 'Moto!', bomb: 'Tanica!', drone: 'Drone!', grappa: 'San Braulio!' };
+const COMBO_NAMES = {
+  'mH+mH': 'Doppia sgasata!', 'mH+mV': 'Doppia sgasata!', 'mV+mV': 'Doppia sgasata!',
+  'bomb+mH': 'Moto in fiamme!', 'bomb+mV': 'Moto in fiamme!', 'bomb+bomb': 'Mega tanica!',
+  'drone+drone': 'Squadriglia droni!', 'drone+mH': 'Drone con moto!', 'drone+mV': 'Drone con moto!', 'bomb+drone': 'Drone bombarolo!',
+  'grappa+grappa': 'Miracolo di San Braulio!',
+};
 
 async function doClear(clear, matched, created, pre = []) {
   const b = G.board;
   const protect = new Set(created.map((x) => x.at));
   const triggered = new Set(pre);
   flyBudget = 10;
+  burstBudget = 24;
 
   // reazione a catena dei power-up
   let changed = true;
@@ -374,7 +420,8 @@ async function doClear(clear, matched, created, pre = []) {
         fxPower('drone', r, c, cells);
         await flyDrone(k, cells.droneTarget);
         const [tr, tc] = unkey(cells.droneTarget);
-        fxEl('boom', tc * G.S, tr * G.S, G.S, G.S);
+        const [dx, dy] = cellCenter(tr, tc);
+        FX.ring(dx, dy, G.S * 1.4, '#ffffff', 8); FX.glow(dx, dy, G.S * 1.2); FX.shake(3, .2);
       } else fxPower(t.power, r, c, cells);
       cells.forEach((x) => clear.add(x));
       changed = true;
@@ -428,7 +475,10 @@ async function doClear(clear, matched, created, pre = []) {
     t.color = -1;
     refreshArt(t);
     const el = G.els.get(t.id);
-    el.animate([{ transform: pos(r, c) + ' scale(1.5)' }, { transform: pos(r, c) }], { duration: 300, easing: 'cubic-bezier(.2,1.6,.4,1)' });
+    el.animate([{ transform: pos(r, c) + ' scale(1.7) rotate(-15deg)' }, { transform: pos(r, c) + ' scale(.9)' }, { transform: pos(r, c) }], { duration: 420, easing: 'cubic-bezier(.2,1.6,.4,1)' });
+    const [x, y] = cellCenter(r, c);
+    FX.glow(x, y, G.S * 1.3); FX.ring(x, y, G.S * 1.2, '#fff6a0', 6);
+    floater(POWER_SHOUT[cr.power], r, c);
   }
   sfx.pop(Math.min(n, 8) / 2);
   renderMud();
@@ -436,9 +486,14 @@ async function doClear(clear, matched, created, pre = []) {
   await sleep(230);
 }
 
+let burstBudget = 0;
 function killTile(t, r, c) {
   const el = G.els.get(t.id);
   if (!el) return;
+  const [x, y] = cellCenter(r, c);
+  const col = t.rock ? '#9a958f' : t.power ? '#fff3a8' : t.color >= 0 ? FX.TILE_COLORS[t.color] : '#9a958f';
+  if (burstBudget-- > 0) FX.burst(x, y, col, t.rock !== undefined && t.color < 0 ? 10 : 7);
+  else FX.burst(x, y, col, 2);
   el.classList.add('dying');
   el.style.transform = pos(r, c) + ' scale(0.2)';
   G.els.delete(t.id);
@@ -485,8 +540,10 @@ async function resolve({ pending = [], swapCells = [] } = {}) {
     pending = [];
     await doClear(clear, matched, created, pre);
     if (step >= 1) {
-      const [r, c] = unkey([...clear][0] ?? 0);
-      floater(SHOUTS[Math.min(step - 1, SHOUTS.length - 1)], Math.max(1, r), c);
+      const lv = CASCADE[Math.min(step - 1, CASCADE.length - 1)];
+      FX.banner(lv[0], `Combo x${step + 1}`, lv[1]);
+      beep(520 + step * 90, 0.12, 'triangle', 0.1, 240);
+      if (step >= 2) FX.shake(2 + step * 1.5, .3);
     }
     await applyGravity();
     step++;
@@ -550,9 +607,13 @@ async function comboPowers(ta, tb, at, ka, kb) {
   const b = G.board;
   const [r, c] = at;
   const res = b.comboBlast(ta.power, tb.power, r, c, G.goals);
-  toast('COMBO!', 700);
+  const keyName = [ta.power, tb.power].sort().join('+');
+  const nm = COMBO_NAMES[keyName] || (keyName.includes('grappa') ? 'Benedizione di San Braulio!' : 'Super combo!');
+  FX.banner(nm, 'SUPER COMBO', '#ffd34d');
+  const [cx, cy] = cellCenter(r, c);
+  FX.flash(.7); FX.shake(12, .5); FX.glow(cx, cy, G.S * 3.5); FX.ring(cx, cy, G.S * 4.5, '#ffffff', 16);
   if (res.convert) {
-    sfx.power();
+    sfx.power(); FX.rays(cx, cy, G.S * 5);
     const want = res.convert.power;
     for (const k of res.convert.cells) {
       const [rr, cc] = unkey(k);
@@ -560,16 +621,27 @@ async function comboPowers(ta, tb, at, ka, kb) {
       t.power = want === 'mH' || want === 'mV' ? (Math.random() < 0.5 ? 'mH' : 'mV') : want;
       t.color = -1;
       refreshArt(t);
+      const [tx, ty] = cellCenter(rr, cc);
+      FX.streak(cx, cy, tx, ty, '#fff3a8', 4); FX.ring(tx, ty, G.S * .8, '#fff', 5);
     }
-    await sleep(450);
+    await sleep(500);
     await resolve({ pending: [{ cells: new Set([ka, kb, ...res.convert.cells]), pre: [ka, kb] }] });
     return;
   }
   if (res.cells.droneTarget !== undefined) await flyDrone(ka, res.cells.droneTarget);
   // effetto grande
   const S = G.S;
-  if ([ta.power, tb.power].includes('bomb') && ![ta.power, tb.power].some((p) => p === 'mH' || p === 'mV')) fxEl('boom', (c - 3) * S, (r - 3) * S, S * 7, S * 7);
-  else { fxEl('beam', 0, r * S, COLS * S, S); fxEl('beam', c * S, 0, S, ROWS * S); }
+  const br = $('#board').getBoundingClientRect(), ar = app.getBoundingClientRect();
+  const bx = br.left - ar.left + 4, by = br.top - ar.top + 4;
+  if (keyName === 'bomb+bomb') { FX.fire(cx, cy, S * 4); FX.ring(cx, cy, S * 5.5, '#ffe9a0', 20); }
+  else if (keyName.startsWith('drone+drone')) { FX.dust(cx, cy, 14, 'rgba(220,240,255,.9)'); }
+  else {
+    const w = keyName.includes('bomb') ? S * 2.6 : S * .9;
+    FX.streak(bx, cy, bx + COLS * S, cy, '#fff6c8', w); FX.streak(cx, by, cx, by + ROWS * S, '#fff6c8', w);
+    FX.rideAcross(POWER_URI.mH, bx - S, cy, bx + COLS * S + S, cy, 380);
+    FX.rideAcross(POWER_URI.mV, cx, by + ROWS * S + S, cx, by - S, 400);
+    if (keyName.includes('bomb')) FX.fire(cx, cy, S * 2.5);
+  }
   sfx.boom();
   res.cells.add(ka); res.cells.add(kb);
   await resolve({ pending: [{ cells: res.cells, pre: [ka, kb] }] });
@@ -591,7 +663,7 @@ async function useHammer(cell) {
   G.busy = true; clearHint();
   renderMoves();
   const [r, c] = cell;
-  fxEl('boom', c * G.S, r * G.S, G.S, G.S);
+  { const [hx, hy] = cellCenter(r, c); FX.ring(hx, hy, G.S * 1.3, '#fff', 10); FX.shake(8, .3); }
   sfx.boom();
   await resolve({ pending: [{ cells: new Set([key(r, c)]) }] });
   await endTurn();
@@ -603,12 +675,12 @@ async function forestaleStrike() {
   sfx.whistle();
   if (G.shield) {
     G.shield = false;
-    toast('🛡️ Miti ti protegge!', 1100);
+    toast('Miti para il colpo!', 1100);
     renderMoves();
     await sleep(900);
     return;
   }
-  toast('MULTA! 🪨', 1000);
+  toast('MULTA!', 1000); $('#toast').classList.add('red'); setTimeout(() => $('#toast').classList.remove('red'), 1000);
   await sleep(500);
   const b = G.board;
   const cand = [];
@@ -637,7 +709,7 @@ async function endTurn() {
   }
   if (G.moves <= 0) { await loseLevel(); return; }
   if (!G.board.hasMoves()) {
-    toast('Rimescolo!', 900);
+    toast('Si rimescola!', 900);
     await sleep(400);
     G.board.shuffle();
     repositionAll(false);
@@ -651,14 +723,14 @@ async function endTurn() {
 async function winLevel() {
   G.over = true;
   clearHint();
-  if (G.boss) await say('forestale', 'Va bene, va bene... passate. Ma la prossima volta porto il blocchetto nuovo!', 'Ciao ciao!');
-  else { toast('LIVELLO SUPERATO!', 1200); await sleep(1000); }
+  if (G.boss) await say('forestale', pick(['Va bene, passate. Ma ho preso la targa!', 'Per oggi niente multa. Ma vi tengo d\'occhio, eh.', 'Il fischietto è scarico... Passate, va.']), 'Arrivederci!');
+  else { FX.banner('Livello superato!', '', '#ffd34d'); FX.flash(.3); await sleep(1100); }
   // bonus mosse avanzate: moto che partono a caso
   const left = G.moves;
   const b = G.board;
   const shots = Math.min(left, 6);
   if (shots > 0) {
-    toast('Bonus mosse!', 800);
+    FX.banner('Mosse avanzate!', 'Partono le moto', '#7ee06a');
     const cells = new Set();
     for (let i = 0; i < shots; i++) {
       const r = Math.floor(Math.random() * ROWS), c = Math.floor(Math.random() * COLS);
@@ -679,8 +751,10 @@ async function winLevel() {
   persist();
   sfx.win();
   const nb = nextBuilding();
-  showCard(`<h2>Grandi!</h2><div class="stars3">⭐</div>
-    <p>+1 stella · +${coins} 🪙${nb && save.stars >= nb.cost ? `<br>Puoi costruire: <b>${nb.name}</b>!` : ''}</p>
+  const [who, line] = pick(WIN_LINES);
+  showCard(`<h2>${pick(WIN_TITLES)}</h2><div class="stars3">⭐</div>
+    <p><b>+1 stella</b> · <b>+${coins} 🪙</b>${nb && save.stars >= nb.cost ? `<br>Hai le stelle per costruire <b>${nb.name}</b>.` : ''}</p>
+    ${speakerHTML(who, line)}
     <div class="row"><button id="cHome" class="btn btn-play">Campo base</button></div>`,
     { cHome: () => { hideCard(); goHome(); } });
 }
@@ -690,7 +764,7 @@ async function loseLevel() {
   sfx.lose();
   const canBuy = save.coins >= 200;
   const left = G.goals.filter((g) => g.done < g.n).map((g) => `${goalLeft(g)}`).join(', ');
-  showCard(`${speakerHTML('purcello', `Mosse finite! Ti mancavano ${left}. Vuoi che ti spinga io da dietro? +5 mosse per 200 🪙.`)}
+  showCard(`${speakerHTML('purcello', `${pick(LOSE_LINES)}<br>Ti mancavano <b>${left}</b>. Con <b>200 🪙</b> hai <b>5 mosse</b> in più.`)}
     <div class="row">
       <button id="cQuit" class="btn btn-gray">Mollo</button>
       <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>+5 mosse</button>
@@ -702,13 +776,13 @@ async function loseLevel() {
       hideCard();
       G.moves += 5; G.over = false; G.busy = false;
       renderMoves();
-      toast('Spinta di Purcello! +5', 1000);
+      FX.banner('Spinta di Purcello!', '+5 mosse', '#ff8a1c');
       scheduleHint();
     },
   });
 }
 function retryOrHome() {
-  showCard(`<h2 class="red">Peccato!</h2><p>Il sentiero era duro. Ci riprovi?</p>
+  showCard(`<h2 class="red">Insabbiato!</h2><p>Questo sentiero è tosto. Si riparte?</p>
     <div class="row"><button id="cH" class="btn btn-gray">Campo base</button><button id="cR" class="btn btn-play">Riprova</button></div>`,
   { cH: () => { hideCard(); goHome(); }, cR: () => { hideCard(); startLevel(G.level.n); } });
 }
@@ -808,14 +882,23 @@ async function startLevel(n) {
 
 async function openLevel() {
   if (save.level > MAX_LEVEL) {
-    await say('gabbah', 'Hai finito tutti i livelli! Nuove aree e nuove multe in arrivo nei prossimi aggiornamenti.');
+    await say('gabbah', 'Hai finito tutti i sentieri! Nuove zone (e nuove multe) arrivano coi prossimi aggiornamenti.');
     return;
   }
   const lv = getLevel(save.level);
   const goalsHTML = lv.goals.map((g) => `<div class="goal" style="background-image:${goalURI(g)}"><b>${g.n}</b></div>`).join('');
-  const intro = lv.intro ? speakerHTML(lv.intro.who, lv.intro.text) : '';
-  showCard(`<h2>${lv.boss ? 'BOSS: La Forestale' : `Livello ${lv.n}`}</h2>${intro}
-    <div class="goalrow">${goalsHTML}</div><p>${lv.moves} mosse</p>
+  const TIPS = [
+    ['miti', 'Consiglio da Protettore: due power-up scambiati tra loro fanno una super combo.'],
+    ['gabbah', 'Cinque in fila e arriva la Grappa di San Braulio: si porta via un colore intero.'],
+    ['purcello', 'Quattro tessere a quadrato e parte il drone: va dritto dove serve.'],
+    ['costa', 'Una L o una T fanno la tanica. Tenetela lontana dal mio pesce.'],
+    ['mirco', 'Io faccio il tifo da qui. Seduto. Campa giù!'],
+    ['renard', 'Se una tessera non si sposta, c\'è il mio martello. Costa poco, giuro.'],
+  ];
+  const tip = lv.intro || (() => { const t = TIPS[lv.n % TIPS.length]; return { who: t[0], text: t[1] }; })();
+  const intro = speakerHTML(tip.who, tip.text);
+  showCard(`<h2>${lv.boss ? 'Arriva la Forestale!' : `Livello ${lv.n}`}</h2>${intro}
+    <div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? '. Svuota la sua pazienza prima che ti riempia di sassi!' : ''}</p>
     <div class="row"><button id="cBack" class="btn btn-gray">Indietro</button><button id="cPlay" class="btn btn-play">Gioca!</button></div>`,
   { cBack: hideCard, cPlay: () => { hideCard(); startLevel(lv.n); } });
 }
@@ -831,15 +914,15 @@ $('#btnPlay').onclick = () => openLevel();
 $('#btnBuild').onclick = () => tryBuild();
 $('#btnBack').onclick = () => {
   if (G.busy) return;
-  showCard(`<h2 class="red">Lasci il giro?</h2><p>Il livello non verrà salvato.</p>
+  showCard(`<h2 class="red">Torni al campo?</h2><p>Se esci adesso perdi questo giro.</p>
     <div class="row"><button id="cS" class="btn btn-play">Resto</button><button id="cL" class="btn btn-red">Esco</button></div>`,
   { cS: hideCard, cL: () => { hideCard(); G.over = true; goHome(); } });
 };
 $('#bHammer').onclick = () => {
   if (G.busy || G.over) return;
-  if (!G.hammer && save.coins < 100) { toast('Servono 100 🪙', 900); return; }
+  if (!G.hammer && save.coins < 100) { toast('Servono 100 🪙', 1000); return; }
   G.hammer = !G.hammer;
-  if (G.hammer) toast('Tocca una tessera', 900);
+  if (G.hammer) toast('Tocca cosa spaccare', 1000);
   renderMoves();
 };
 $('#bShield').onclick = () => {
@@ -847,18 +930,19 @@ $('#bShield').onclick = () => {
   if (save.coins < 150) { toast('Servono 150 🪙', 900); return; }
   save.coins -= 150; persist();
   G.shield = true;
-  toast('🛡️ Scudo attivo!', 900);
+  toast('Miti ti copre!', 1000);
   renderMoves();
 };
 window.addEventListener('resize', () => {
   if ($('#game').classList.contains('active') && G.board) { layout(); repositionAll(); }
 });
 
+FX.initFX($('#fxc'), app);
 initInput();
 renderHome();
 if (!save.welcomed) {
   save.welcomed = true; persist();
-  setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Vinci i livelli, guadagna stelle e costruisci il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale...', 'Andiamo!'), 300);
+  setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Ogni livello vinto vale una stella, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano.', 'Si parte!'), 300);
 }
 
 // per i test automatici

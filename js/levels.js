@@ -4,26 +4,26 @@ import { makeRng, ROWS, COLS } from './engine.js';
 // Layout: '.' normale, m/M fango (1/2 strati), r/R roccia (1/2 colpi)
 const HAND = {
   1: { moves: 20, colors: 5, goals: [{ type: 'tile', t: 0, n: 12 }],
-    intro: { who: 'gabbah', text: 'Benvenuto al Campo Base EDT! Allinea 3 birre per raccoglierle. Tranquillo, è un giro easy.' } },
+    intro: { who: 'gabbah', text: 'Primo giro: metti in fila 3 birre uguali e sono tue. Tranquillo, è un giro easy.' } },
   2: { moves: 20, colors: 5, goals: [{ type: 'tile', t: 1, n: 14 }, { type: 'tile', t: 3, n: 10 }],
-    intro: { who: 'miti', text: 'Allinea 4 tessere e ti esce una MOTO: sfreccia e spazza via una riga intera!' } },
+    intro: { who: 'miti', text: 'Metti in fila 4 tessere e ti esce una <b>moto</b>: parte a manetta e si porta via tutta la riga.' } },
   3: { moves: 25, colors: 5, goals: [{ type: 'mud', n: 16 }],
     layout: ['........', '........', '........', '..mmmm..', '.mmmmmm.', '.mmmmmm.', '..mmmm..', '........', '........'],
-    intro: { who: 'mirco', text: 'Fango ovunque! Fai match sopra al fango per pulirlo. Io intanto... campa giù.' } },
+    intro: { who: 'mirco', text: 'Qui è tutto fango. Fai i tris sopra le pozze per pulirle. Io vi guardo da qui... campa giù.' } },
   4: { moves: 25, colors: 5, goals: [{ type: 'rock', n: 8 }],
     layout: ['........', '........', 'r..rr..r', '........', '........', '.r.rr.r.', '........', '........', '........'],
-    intro: { who: 'purcello', text: 'Sassi in mezzo al sentiero: fai match ACCANTO ai sassi per spaccarli. Se ti pianti, ti spingo io da dietro!' } },
+    intro: { who: 'purcello', text: 'Sassi in mezzo al sentiero! Fai i tris <b>accanto</b> ai sassi per spaccarli. E se ti pianti, arrivo io da dietro.' } },
   5: { moves: 24, colors: 5, boss: { hp: 150, every: 5 }, goals: [{ type: 'boss', n: 150 }],
-    intro: { who: 'forestale', text: 'ALT! Forestale. Questo sentiero è chiuso. Chi passa prende la multa... e io lancio SASSI ogni 5 mosse!' } },
+    intro: { who: 'forestale', text: 'Alt! Forestale. Sentiero chiuso. Ogni 5 mosse vi tiro un sasso in mezzo ai piedi, e poi vi faccio pure la multa.' } },
 };
 
 const BOSS_LINES = [
-  'Libretto e assicurazione, prego.',
-  'Silenziatore omologato? Non mi pare.',
-  'Qui è zona protetta: niente sgasate!',
-  'Vi ho visti, eh. Anche dietro la birra.',
-  'Ancora voi? Stavolta vi faccio la multa doppia.',
-];
+  'Libretto, assicurazione e patente. E quella gomma lì è omologata?',
+  'Marmitta aperta in zona protetta? Questa la scrivo in stampatello.',
+  'Vi ho visto dal binocolo. Anche quando nascondevate la birra.',
+  'Ancora voi? Oggi ho il blocchetto nuovo, ancora da inaugurare.',
+  'Qui i cinghiali dormono. Spegnete quei motori o arrivano i sassi!',
+]
 
 export function getLevel(n) {
   if (HAND[n]) return { n, ...HAND[n] };

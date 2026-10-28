@@ -83,8 +83,8 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .cellbg { position: absolute; width: var(--cell); height: var(--cell); }
 .cellbg { background: rgba(255,240,200,.10); }
 .cellbg.dark { background: rgba(255,240,200,.04); }
-.mud { position: absolute; width: var(--cell); height: var(--cell); background-size: 100% 100%; transition: opacity .3s; }
-.tile { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); background-size: 94%; background-repeat: no-repeat; background-position: center; will-change: transform; filter: drop-shadow(0 2px 1px rgba(0,0,0,.35)); transition: transform .16s ease-in; }
+.mud { position: absolute; width: var(--cell); height: var(--cell); background-size: 100% 100%; transition: opacity .3s; filter: drop-shadow(0 0 3px rgba(60,30,8,.9)); }
+.tile { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); background-size: 84%; background-repeat: no-repeat; background-position: center; will-change: transform; filter: drop-shadow(0 2px 1px rgba(0,0,0,.35)); transition: transform .16s ease-in; }
 .tile.sel { filter: brightness(1.25) drop-shadow(0 0 6px #fff); }
 .tile.power { animation: glow 1.2s ease-in-out infinite; }
 @keyframes glow { 50% { filter: drop-shadow(0 0 7px #fff7a8) brightness(1.1); } }

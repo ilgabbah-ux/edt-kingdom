@@ -465,7 +465,7 @@ async function doClear(clear, matched, created, pre = []) {
       killTile(t, r, c, n++);
       b.grid[r][c] = null;
     }
-    if (b.mud[r][c] > 0) { b.mud[r][c]--; credit('mud', r, c); }
+    if (b.mud[r][c] > 0) { b.mud[r][c]--; credit('mud', r, c); const [mx, my] = cellCenter(r, c); FX.burst(mx, my, '#7a4a20', 6, .8); FX.dust(mx, my, 2, 'rgba(110,70,30,.85)'); }
   }
   for (const cr of created) {
     const [r, c] = unkey(cr.at);

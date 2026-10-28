@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#2a8a37">
+<title>EDT Kingdom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+</head>
+<body>
+<div id="app">
+
+  <!-- CAMPO BASE -->
+  <section id="home" class="screen active">
+    <header class="topbar">
+      <div class="pill"><span class="ico">⭐</span><b id="hStars">0</b></div>
+      <div class="title">EDT <span>Kingdom</span></div>
+      <div class="pill"><span class="ico">🪙</span><b id="hCoins">0</b></div>
+    </header>
+    <div id="map"></div>
+    <div class="homebar">
+      <button id="btnBuild" class="btn btn-build">🔨 Costruisci <small id="buildCost"></small></button>
+      <button id="btnPlay" class="btn btn-play">Livello <b id="hLevel">1</b></button>
+    </div>
+  </section>
+
+  <!-- PARTITA -->
+  <section id="game" class="screen">
+    <header class="gamebar">
+      <button id="btnBack" class="round">✕</button>
+      <div class="goals" id="goals"></div>
+      <div class="moves"><small>MOSSE</small><b id="moves">0</b></div>
+    </header>
+    <div id="bossbar" class="bossbar hidden">
+      <div class="bossface" id="bossFace"></div>
+      <div class="hp"><div id="bossHp"></div><span id="bossTxt"></span></div>
+      <div class="bosscount" title="Mosse al prossimo sasso"><span>🪨</span><b id="bossCount">5</b></div>
+    </div>
+    <div id="boardWrap">
+      <div id="board"></div>
+      <div id="fx"></div>
+    </div>
+    <footer class="boosters">
+      <button id="bHammer" class="booster"><span>🔨</span><small>Martello<br>di Renard</small><b>100🪙</b></button>
+      <div class="lvlLabel">Livello <b id="gLevel">1</b></div>
+      <button id="bShield" class="booster"><span>🛡️</span><small>Scudo<br>di Miti</small><b>150🪙</b></button>
+    </footer>
+  </section>
+
+  <!-- OVERLAY -->
+  <div id="overlay" class="overlay hidden">
+    <div class="card" id="card"></div>
+  </div>
+  <div id="toast" class="toast"></div>
+</div>
+<script type="module" src="js/game.js?v=1"></script>
+</body>
+</html>

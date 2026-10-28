@@ -102,7 +102,7 @@ function renderHome(popId = null) {
   const map = $('#map');
   map.style.backgroundImage = I('map_bg');
   map.innerHTML = '';
-  [[8, 70, 38], [20, 34, 52], [4, 55, 30]].forEach(([top, w, dur], i) => {
+  [[3, 34, 46], [9, 24, 62], [1, 28, 38]].forEach(([top, w, dur], i) => {
     const cl = document.createElement('div');
     cl.className = 'cloud';
     Object.assign(cl.style, { top: top + '%', left: '0', width: w + '%', aspectRatio: '2.2', animationDuration: dur + 's', animationDelay: (-dur * (i * .37 + .1)) + 's' });

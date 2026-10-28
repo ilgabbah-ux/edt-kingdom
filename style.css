@@ -209,7 +209,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .cellbg { background: rgba(32,22,12,.62) !important; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255,240,200,.07); }
 .cellbg.dark { background: rgba(48,34,20,.66) !important; }
 .cellbg.hole { display: none; }
-.ticket { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); background: url('img/o_multa.webp') center/92% no-repeat; opacity: 0; transition: opacity .25s; pointer-events: none; }
+.ticket { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); background: url('img/o_multa.webp') center/104% no-repeat; opacity: 0; transition: opacity .25s; pointer-events: none; }
 .ticket.on { opacity: 1; }
 .tile.chained::after { content: ''; position: absolute; inset: -6%; background: url('img/o_catena.webp') center/100% no-repeat; pointer-events: none; }
 
@@ -242,6 +242,6 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .stars3 .ic { width: 84px; height: 84px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.3)); animation: pop .6s cubic-bezier(.2,1.6,.4,1); }
 .hammer { width: 54px; height: 54px; font-size: 0; }
 .flystar { font-size: 0; }
-.cloud { position: absolute; background: url('img/u_nuvola.webp') center/contain no-repeat; pointer-events: none; opacity: .9; animation: drift linear infinite; z-index: 1; }
+.cloud { position: absolute; background: url('img/u_nuvola.webp') center/contain no-repeat; pointer-events: none; opacity: .8; animation: drift linear infinite; z-index: 1; }
 @keyframes drift { from { transform: translateX(-40vw); } to { transform: translateX(140vw); } }
 @media (prefers-reduced-motion: reduce) { .cloud { animation: none; } }

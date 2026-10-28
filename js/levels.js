@@ -156,15 +156,15 @@ const HAND = {
     ........`),
     intro: ['forestale', 'Ho sequestrato le vostre casse di birra. E ora tiro sassi ogni 4 mosse!'] },
   16: { moves: 28, colors: 6, layout: L(`
-    MMMMMMMM
-    M......M
-    M.mmmm.M
-    M.m..m.M
-    M.m..m.M
-    M.m..m.M
-    M.mmmm.M
-    M......M
-    MMMMMMMM`),
+    ........
+    .m....m.
+    ........
+    ..MMMM..
+    ...MM...
+    ..MMMM..
+    ........
+    ........
+    mmmmmmmm`),
     intro: ['mirco', 'Questo è il sentiero dopo tre giorni di pioggia. Buona fortuna, io resto in tenda.'] },
   17: { moves: 24, colors: 6, tiles: [[4, 16], [5, 16]], layout: L(`
     ###..###
@@ -190,13 +190,13 @@ const HAND = {
     intro: ['gabbah', 'Il forte delle casse! Dentro ci sono i pezzi incatenati. Sfondalo e libera tutto.'] },
   19: { moves: 32, colors: 6, layout: L(`
     ##mmmm##
-    #mm..mm#
-    mr.tt.rm
-    m..kk..m
+    #m....m#
+    .r.tt.r.
+    ...kk...
     m.c..c.m
-    m..kk..m
-    mr....rm
-    #mm..mm#
+    ...kk...
+    .r....r.
+    #m....m#
     ##mmmm##`),
     intro: ['miti', 'Un po\' di tutto: fango, sassi, casse, catene e pure una multa. Io riprendo, tu spacca.'] },
   20: { moves: 28, colors: 6, boss: { hp: 220, every: 4 }, layout: L(`
@@ -238,6 +238,15 @@ function goalsFrom(layout = [], tiles = []) {
 }
 
 export function getLevel(n) {
+  const lv0 = baseLevel(n);
+  if (BALANCE[n]) lv0.moves = BALANCE[n];
+  return lv0;
+}
+
+// mosse calibrate con il simulatore (tools/tune.mjs)
+const BALANCE = {1: 20, 2: 20, 3: 20, 4: 16, 5: 18, 6: 16, 7: 16, 8: 18, 9: 16, 10: 16, 11: 26, 12: 16, 13: 29, 14: 26, 15: 24, 16: 30, 17: 20, 18: 34, 19: 36, 20: 28, 21: 16, 22: 26, 23: 16, 24: 27, 25: 26, 26: 23, 27: 17, 28: 36, 29: 16, 30: 28, 31: 36, 32: 21, 33: 36, 34: 27, 35: 30, 36: 32, 37: 16, 38: 23, 39: 24, 40: 34, 41: 29, 42: 29, 43: 16, 44: 28, 45: 27, 46: 31, 47: 23, 48: 30, 49: 25, 50: 36, 51: 17, 52: 30, 53: 26, 54: 27, 55: 34, 56: 28, 57: 31, 58: 24, 59: 28, 60: 34};
+
+function baseLevel(n) {
   if (HAND[n]) {
     const h = HAND[n];
     const lv = { n, moves: h.moves, colors: h.colors, layout: h.layout, boss: h.boss };
@@ -261,12 +270,30 @@ export function getLevel(n) {
   }
   const kinds = ['mud', 'rock', 'crate', 'chain', 'multa', 'mud+rock', 'mud+chain', 'crate+multa', 'tile+mud', 'tile+crate'];
   const kind = kinds[Math.floor(rng() * kinds.length)];
-  const layout = makeLayout(rng, tier, kind, rng() < 0.5);
+  const layout = thin(makeLayout(rng, tier, kind, rng() < 0.5), rng, 18 + Math.min(tier, 6));
   const tiles = kind.includes('tile') ? [[Math.floor(rng() * colors), 16 + Math.min(tier, 6) * 2]] : [];
   const goals = goalsFrom(layout, tiles);
   const weight = goals.reduce((s, g) => s + (g.type === 'tile' ? g.n / 6 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 3 : g.n / 3), 0);
   const moves = Math.round(20 + weight * 0.9 + Math.min(tier, 4));
   return { n, moves: Math.min(moves, 34), colors, goals, layout };
+}
+
+// toglie ostacoli finché il livello non è troppo lungo da completare
+function thin(layout, rng, maxWeight) {
+  const G = layout.map((r) => r.split(''));
+  const w = { m: 1 / 5, M: 2 / 5, r: 1 / 3, R: 1 / 3, c: 1 / 3, C: 1 / 3, k: 1 / 3, t: 0.5 };
+  const weight = () => G.flat().reduce((s, ch) => s + (w[ch] || 0), 0) * 3.3;
+  let guard = 0;
+  while (weight() > maxWeight && guard++ < 200) {
+    const cells = [];
+    G.forEach((row, r) => row.forEach((ch, c) => { if (w[ch]) cells.push([r, c]); }));
+    const [r, c] = cells[Math.floor(rng() * cells.length)];
+    const ch = G[r][c];
+    const c2 = 7 - c;
+    const down = ch === 'M' ? 'm' : ch === 'R' ? 'r' : ch === 'C' ? 'c' : '.';
+    G[r][c] = down; if (G[r][c2] === ch) G[r][c2] = down;
+  }
+  return G.map((r) => r.join(''));
 }
 
 function makeLayout(rng, tier, kind, holes) {
@@ -286,11 +313,11 @@ function makeLayout(rng, tier, kind, holes) {
       if (!free(r, c)) continue;
       const cr = r - 4, cc = c - 3.5;
       let on = false;
-      if (sh === 'blob') on = cr * cr / 9 + cc * cc / 8 < 1.2;
-      if (sh === 'stripes') on = r % 3 === 1;
+      if (sh === 'blob') on = cr * cr / 9 + cc * cc / 8 < 1.0;
+      if (sh === 'stripes') on = r % 4 === 1;
       if (sh === 'frame') on = r === 1 || r === ROWS - 2 || c === 0 || c === COLS - 1;
-      if (sh === 'checker') on = (r + c) % 2 === 0 && r > 1 && r < ROWS - 1;
-      if (on) G[r][c] = rng() < 0.4 ? 'M' : 'm';
+      if (sh === 'checker') on = (r + c) % 2 === 0 && r > 2 && r < ROWS - 2;
+      if (on) G[r][c] = rng() < Math.min(0.3, 0.08 + tier * 0.03) ? 'M' : 'm';
     }
   }
   const scatter = (ch, n) => {
@@ -300,9 +327,9 @@ function makeLayout(rng, tier, kind, holes) {
       sym(r, c, ch); i += 2;
     }
   };
-  if (kind.includes('rock')) scatter(rng() < 0.5 ? 'R' : 'r', 6 + Math.min(tier, 4));
-  if (kind.includes('crate')) scatter(rng() < 0.6 ? 'C' : 'c', 6 + Math.min(tier, 4));
-  if (kind.includes('chain')) scatter('k', 8 + Math.min(tier, 4));
+  if (kind.includes('rock')) scatter(rng() < 0.4 ? 'R' : 'r', 6 + Math.min(tier, 3));
+  if (kind.includes('crate')) scatter(rng() < 0.45 ? 'C' : 'c', 6 + Math.min(tier, 3));
+  if (kind.includes('chain')) scatter('k', 6 + Math.min(tier, 4));
   if (kind.includes('multa')) { G[4][3] = G[4][4] = 't'; if (tier > 5) G[2][3] = G[2][4] = 't'; }
   return G.map((row) => row.join(''));
 }

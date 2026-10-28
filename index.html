@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#2a8a37">
 <title>EDT Kingdom</title>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
 <div id="app">
+  <div id="loading"><div class="ld-title">EDT <span>Kingdom</span></div><div class="ld-bar"><i></i></div><small>Si scaldano i motori…</small></div>
 
   <!-- CAMPO BASE -->
   <section id="home" class="screen active">
@@ -65,6 +68,7 @@
   </div>
   <div id="toast" class="toast"></div>
 </div>
-<script type="module" src="js/game.js?v=6"></script>
+<script src="game.min.js?v=7"></script>
+<script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});</script>
 </body>
 </html>

@@ -333,16 +333,32 @@ export class Board {
           if (t && !movable(t)) ok = false;
         }
       }
+      // distanza da una casella alimentata dall'alto (passando di lato o in diagonale verso il basso)
+      const INF = 99;
+      const dist = reach.map((row) => row.map((v) => (v ? 0 : INF)));
+      const passable = (r, c) => !H[r][c] && !(g[r][c] && !movable(g[r][c]));
+      for (let pass = 0; pass < ROWS * COLS; pass++) {
+        let grew = false;
+        for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+          if (!passable(r, c) || dist[r][c] === 0) continue;
+          let best = dist[r][c];
+          for (const [dr, dc] of [[0, -1], [0, 1], [-1, -1], [-1, 1], [-1, 0]]) {
+            const rr = r + dr, cc = c + dc;
+            if (rr >= 0 && cc >= 0 && cc < COLS && passable(rr, cc) && dist[rr][cc] + 1 < best) best = dist[rr][cc] + 1;
+          }
+          if (best < dist[r][c]) { dist[r][c] = best; grew = true; }
+        }
+        if (!grew) break;
+      }
       let slid = false;
-      for (let r = ROWS - 2; r >= 0 && !slid; r--) for (let c = 0; c < COLS && !slid; c++) {
-        const tr = r + 1;
-        if (H[tr][c] || g[tr][c]) continue;
-        if (reach[tr][c]) continue;
-        for (const dc of [-1, 1]) {
-          const sc = c + dc;
-          if (sc < 0 || sc >= COLS) continue;
-          const t = g[r][sc];
-          if (movable(t)) { mark(t, r, sc); g[tr][c] = t; g[r][sc] = null; slid = true; break; }
+      for (let r = ROWS - 1; r >= 0 && !slid; r--) for (let c = 0; c < COLS && !slid; c++) {
+        if (H[r][c] || g[r][c] || reach[r][c] || dist[r][c] >= INF) continue;
+        // prima in diagonale dall'alto, poi di lato
+        for (const [dr, dc] of [[-1, -1], [-1, 1], [0, -1], [0, 1]]) {
+          const sr = r + dr, sc = c + dc;
+          if (sr < 0 || sc < 0 || sc >= COLS) continue;
+          const t = g[sr][sc];
+          if (movable(t) && dist[sr][sc] < dist[r][c]) { mark(t, sr, sc); g[r][c] = t; g[sr][sc] = null; slid = true; break; }
         }
       }
       if (!slid) break;

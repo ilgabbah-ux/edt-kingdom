@@ -1,8 +1,0 @@
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='#2a8a37'/><g transform='translate(14 10) scale(.72)'>
-    <path d="M70 38 h8 a12 12 0 0 1 12 12 v14 a12 12 0 0 1 -12 12 h-8" fill="none" stroke="#2b1d14" stroke-width="7"/>
-    <path d="M70 38 h8 a12 12 0 0 1 12 12 v14 a12 12 0 0 1 -12 12 h-8" fill="none" stroke="#ffd34d" stroke-width="3"/>
-    <rect x="22" y="30" width="50" height="58" rx="8" fill="#ffb81c" stroke="#2b1d14" stroke-width="5"/>
-    <rect x="30" y="42" width="7" height="38" rx="3" fill="#ffe08a"/>
-    <rect x="44" y="42" width="7" height="38" rx="3" fill="#ffe08a" opacity=".7"/>
-    <path d="M18 34 q4 -18 18 -14 q6 -12 20 -6 q12 -8 20 4 q10 2 6 16 z" fill="#fffaf0" stroke="#2b1d14" stroke-width="5" stroke-linejoin="round"/>
-    <circle cx="36" cy="26" r="4" fill="#fff"/></g><text x='50' y='94' font-size='18' font-family='Arial Black,Arial' text-anchor='middle' fill='#ffd34d' stroke='#2b1d14' stroke-width='1'>EDT</text></svg>

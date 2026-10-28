@@ -33,6 +33,7 @@ function beep(freq = 440, dur = 0.08, type = 'sine', vol = 0.12, slide = 0) {
   if (save.muted) return;
   try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
     const o = actx.createOscillator();
     const g = actx.createGain();
     o.type = type;
@@ -159,7 +160,7 @@ function lockedInfo(b) {
 
 async function tryBuild() {
   const nb = nextBuilding();
-  if (!nb || G.building) return;
+  if (!nb || G.building || pendingStar) return;
   if (save.stars < 1) {
     showCard(`${speakerHTML('gabbah', `Per costruire ci vogliono le stelle: <b>ogni livello vinto vale ${IC_S} 1</b>, e ogni stella è un pezzo di <b>${nb.name}</b>. Andiamo a guadagnarne una!`)}
       <div class="row"><button id="cNo" class="btn btn-gray">Dopo</button><button id="cGo" class="btn btn-play">Gioca!</button></div>`,
@@ -294,8 +295,8 @@ function layout() {
   G.S = Math.floor(Math.min(availW / COLS, availH / ROWS, 64));
   document.documentElement.style.setProperty('--cell', G.S + 'px');
   const wrap = $('#boardWrap');
-  wrap.style.width = G.S * COLS + 8 + 'px';
-  wrap.style.height = G.S * ROWS + 8 + 'px';
+  wrap.style.width = G.S * COLS + 'px';
+  wrap.style.height = G.S * ROWS + 'px';
 }
 
 const pos = (r, c) => `translate(${c * G.S}px, ${r * G.S}px)`;
@@ -360,6 +361,7 @@ function renderMud() {
     const m = G.mudEls[r][c];
     m.style.backgroundImage = v ? MUD_URI[v] : 'none';
     m.style.opacity = v ? 1 : 0;
+    m.classList.toggle('on', !!v);
     G.badges[r][c].hidden = v < 2;
     G.ticketEls[r][c].classList.toggle('on', !!G.board.ticket[r][c]);
     m.style.animationDelay = ((r * 7 + c * 3) % 10) * -0.3 + 's';
@@ -401,7 +403,7 @@ function fxPower(power, r, c, cells) {
   const S = G.S;
   const [x, y] = cellCenter(r, c);
   const br = $('#board').getBoundingClientRect(), ar = app.getBoundingClientRect();
-  const bx = br.left - ar.left + 4, by = br.top - ar.top + 4;
+  const bx = br.left - ar.left, by = br.top - ar.top;
   if (power === 'mH') {
     sfx.moto();
     const dir = c < COLS / 2 ? 1 : -1;
@@ -778,9 +780,11 @@ async function comboPowers(ta, tb, at, ka, kb) {
   if (res.convert) {
     sfx.power(); FX.rays(cx, cy, G.S * 5);
     const want = res.convert.power;
+    res.convert.cells = res.convert.cells.filter((k) => { const [rr, cc] = unkey(k); const t = b.grid[rr][cc]; return t && !t.chain && !t.rock; });
     for (const k of res.convert.cells) {
       const [rr, cc] = unkey(k);
       const t = b.grid[rr][cc];
+      credit('tile', rr, cc, t.color);
       t.power = want === 'mH' || want === 'mV' ? (Math.random() < 0.5 ? 'mH' : 'mV') : want;
       t.color = -1;
       refreshArt(t);
@@ -795,7 +799,7 @@ async function comboPowers(ta, tb, at, ka, kb) {
   // effetto grande
   const S = G.S;
   const br = $('#board').getBoundingClientRect(), ar = app.getBoundingClientRect();
-  const bx = br.left - ar.left + 4, by = br.top - ar.top + 4;
+  const bx = br.left - ar.left, by = br.top - ar.top;
   if (keyName === 'bomb+bomb') { FX.fire(cx, cy, S * 4); FX.ring(cx, cy, S * 5.5, '#ffe9a0', 20); }
   else if (keyName.startsWith('drone+drone')) { FX.dust(cx, cy, 14, 'rgba(220,240,255,.9)'); }
   else {
@@ -820,6 +824,7 @@ async function tapPower(cell) {
 
 async function useHammer(cell) {
   if (G.busy || G.over) return;
+  if (!G.board.get(...cell)) return;
   G.hammer = false;
   if (save.coins < 100) { renderMoves(); return; }
   save.coins -= 100; persist();
@@ -849,7 +854,7 @@ async function forestaleStrike() {
   const cand = [];
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
     const t = b.grid[r][c];
-    if (t && !t.rock && !t.power) cand.push([r, c]);
+    if (r > 0 && t && !t.rock && !t.power && !t.chain) cand.push([r, c]);
   }
   const n = 2 + Math.floor((G.level.n / 5 - 1) / 2);
   for (let i = 0; i < n && cand.length; i++) {
@@ -887,6 +892,12 @@ async function endTurn() {
     toast('Si rimescola!', 900);
     await sleep(400);
     G.board.shuffle();
+    if (!G.board.hasMoves()) {
+      const list = [];
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { const t = G.board.grid[r][c]; if (t && !t.rock && !t.chain && t.color >= 0) list.push(t); }
+      const t = list[Math.floor(Math.random() * list.length)];
+      if (t) { t.power = 'bomb'; t.color = -1; }
+    }
     repositionAll(false);
     await sleep(400);
   }
@@ -976,7 +987,7 @@ function scheduleHint() {
     const mv = G.board.findMove();
     if (!mv) return;
     mv.filter(Boolean).forEach(([r, c]) => G.els.get(G.board.grid[r][c].id)?.classList.add('hint'));
-  }, 6000);
+  }, G.level && G.level.n <= 2 ? 2500 : 6000);
 }
 function setSel(cell) {
   document.querySelectorAll('.tile.sel').forEach((e) => e.classList.remove('sel'));
@@ -988,8 +999,8 @@ function setSel(cell) {
 let drag = null;
 function cellFromEvent(e) {
   const br = $('#board').getBoundingClientRect();
-  const c = Math.floor((e.clientX - br.left - 4) / G.S);
-  const r = Math.floor((e.clientY - br.top - 4) / G.S);
+  const c = Math.floor((e.clientX - br.left) / G.S);
+  const r = Math.floor((e.clientY - br.top) / G.S);
   return inside(r, c) ? [r, c] : null;
 }
 function initInput() {
@@ -1055,11 +1066,13 @@ function placeStartPowers(list) {
     const [r, c] = cand.splice(Math.floor(Math.random() * cand.length), 1)[0];
     const t = b.grid[r][c];
     t.power = pw === 'mH' && Math.random() < .5 ? 'mV' : pw; t.color = -1;
+    refreshArt(t);
     setTimeout(() => {
-      refreshArt(t);
-      const [x, y] = cellCenter(r, c);
+      let r2 = r, c2 = c;
+      for (let rr = 0; rr < ROWS; rr++) for (let cc = 0; cc < COLS; cc++) if (G.board.grid[rr][cc] === t) { r2 = rr; c2 = cc; }
+      const [x, y] = cellCenter(r2, c2);
       FX.glow(x, y, G.S * 1.4); FX.ring(x, y, G.S * 1.3, '#fff6a0', 7);
-      G.els.get(t.id)?.animate([{ transform: pos(r, c) + ' scale(0) rotate(-90deg)' }, { transform: pos(r, c) + ' scale(1.4)' }, { transform: pos(r, c) }], { duration: 480, easing: 'ease-out' });
+      G.els.get(t.id)?.animate([{ transform: pos(r2, c2) + ' scale(0) rotate(-90deg)' }, { transform: pos(r2, c2) + ' scale(1.4)' }, { transform: pos(r2, c2) }], { duration: 480, easing: 'ease-out' });
       beep(620 + i * 120, 0.12, 'triangle', 0.1, 300);
     }, 500 + i * 280);
   });
@@ -1089,6 +1102,7 @@ async function startLevel(n, extras = []) {
 }
 
 async function openLevel() {
+  if (G.building || pendingStar) return;
   if (save.level > MAX_LEVEL) {
     await say('gabbah', 'Hai finito tutti i sentieri! Nuove zone (e nuove multe) arrivano coi prossimi aggiornamenti.');
     return;
@@ -1172,8 +1186,15 @@ window.addEventListener('resize', () => {
 });
 
 FX.initFX($('#fxc'), app);
+// precarica tutte le immagini prima di mostrare il gioco
+const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere',
+  ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
+const preload = Promise.all(ASSETS.map((n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = `img/${n}.webp`; if (im.decode) im.decode().then(res, res); })));
+document.addEventListener('visibilitychange', () => { if (document.hidden && actx && actx.state === 'running') actx.suspend(); });
 initInput();
 renderHome();
+preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
 if (!save.welcomed) {
   save.welcomed = true; persist();
   setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Ogni livello vinto vale una stella, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano.', 'Si parte!'), 300);

@@ -19,16 +19,20 @@ export function initFX(canvas, root) {
 const rnd = (a, b) => a + Math.random() * (b - a);
 const reduce = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function loop() {
+let lastT = 0;
+function loop(now = performance.now()) {
+  const dt = lastT ? Math.min(0.05, (now - lastT) / 1000) : 1 / 60; lastT = now;
+  const f = dt * 60;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cv.width, cv.height);
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
-    p.t += 1 / 60;
+    p.t += dt;
     if (p.t >= p.life) { parts.splice(i, 1); continue; }
     const k = p.t / p.life;
-    p.vx *= p.drag; p.vy = p.vy * p.drag + p.g;
-    p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    const dr = Math.pow(p.drag, f);
+    p.vx *= dr; p.vy = p.vy * dr + p.g * f;
+    p.x += p.vx * f; p.y += p.vy * f; p.rot += p.vr * f;
     ctx.save();
     ctx.globalAlpha = p.fade ? 1 - k * k : 1;
     ctx.translate(p.x, p.y);
@@ -96,6 +100,7 @@ function loop() {
     ctx.restore();
   }
   raf = parts.length ? requestAnimationFrame(loop) : 0;
+  if (!raf) lastT = 0;
 }
 function add(p) {
   parts.push({ t: 0, vx: 0, vy: 0, g: 0, drag: 1, rot: 0, vr: 0, fade: true, ...p });
@@ -133,6 +138,7 @@ export function fire(x, y, R) {
 }
 
 export function shake(intensity = 6, dur = 0.35) {
+  if (intensity >= 8) { try { navigator.vibrate && navigator.vibrate(Math.round(intensity * 4)); } catch { /* niente */ } }
   if (reduce()) return;
   app.style.setProperty('--si', intensity + 'px');
   app.style.setProperty('--sd', dur + 's');

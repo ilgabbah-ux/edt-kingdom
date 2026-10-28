@@ -1,7 +1,5 @@
 // EDT Kingdom — il Campo Base da costruire e i personaggi
 
-const O = '#2b1d14';
-const w = (inner, vb = '0 0 120 100') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}">${inner}</svg>`;
 
 export const CHARS = {
   gabbah: { name: 'Il Gabbah', img: 'c_gabbah' },
@@ -12,10 +10,11 @@ export const CHARS = {
   renard: { name: 'Renard', img: 'c_renard' },
   svetlana: { name: 'Svetlana', img: 'c_svetlana' },
   forestale: { name: 'La Forestale', img: 'forestale' },
+  forestale2: { name: 'La Forestale (in versione invernale)', img: 'forestale2' },
 };
 
 // x,y in percentuale sulla mappa
-export const BUILDINGS = [
+const VALLE = [
   { id: 'bandiera', name: 'Bandiera EDT', cost: 1, x: 50, y: 18, who: 'gabbah',
     text: 'Bandiera piantata! Da oggi questa valle è territorio EDT. Alla Forestale verrà un colpo.' },
   { id: 'bar', name: 'Bar "L\'ultimo e poi andiamo"', cost: 2, x: 20, y: 34, who: 'gabbah',
@@ -36,3 +35,36 @@ export const BUILDINGS = [
     text: 'La statua! Birra alzata al cielo e sguardo fiero. Il Campo Base EDT è completo!' },
 ];
 
+
+const PASSO = [
+  { id: 'rifugio', name: 'Rifugio della Grappa', x: 50, y: 18, who: 'gabbah',
+    text: 'Il rifugio è aperto! Stufa accesa, grappa al caldo e scarponi ad asciugare. Qui si sta da re.' },
+  { id: 'officina', name: 'Officina di montagna', x: 20, y: 34, who: 'purcello',
+    text: 'Catene da neve montate su tutte le moto. Chi si pianta nella neve lo tiro fuori io, come sempre: da dietro.' },
+  { id: 'funivia', name: 'Funivia', x: 80, y: 34, who: 'miti',
+    text: 'La funivia funziona! Dalla cabina si riprende tutto il passo. Che inquadrature, ragazzi.' },
+  { id: 'sauna', name: 'Sauna e tinozza', x: 20, y: 61, who: 'mirco',
+    text: 'Sauna pronta. Io qui dentro ci passo l\'inverno intero. Campa giù, ma al caldo.' },
+  { id: 'ghiaccio', name: 'Pista sul ghiaccio', x: 80, y: 61, who: 'costa',
+    text: 'Pista sul ghiaccio finita! E sotto il lago ghiacciato ci sono le trote più buone del Piemonte.' },
+  { id: 'salumi', name: 'Spaccio di salumi e formaggi', x: 50, y: 47, who: 'gabbah',
+    text: 'Toma, salame e lardo. Il vero carburante dell\'enduro invernale.' },
+  { id: 'elisoccorso', name: 'Elisoccorso', x: 50, y: 74, who: 'miti',
+    text: 'Elisoccorso operativo. Speriamo di non usarlo... ma conoscendovi, teniamo il motore caldo.' },
+  { id: 'festa', name: 'Baita della festa', x: 20, y: 88, who: 'svetlana',
+    text: 'Lucine, fuoco acceso e fusti al fresco nella neve. Stasera si balla in baita!' },
+  { id: 'palazzo', name: 'Palazzo di ghiaccio', x: 80, y: 88, who: 'svetlana',
+    text: 'Un palazzo di ghiaccio tutto per l\'EDT! Il Passo è conquistato. La Forestale può solo guardare.' },
+];
+
+export const ZONES = [
+  { id: 'valle', name: 'La Valle', bg: 'map_bg', boss: 'forestale', from: 1,
+    // sentiero sulla mappa (pixel dell'immagine 1280x1280) per la moto che gira
+    trail: [[448, 1280], [512, 1152], [592, 1056], [656, 976], [688, 896], [672, 816], [632, 752], [608, 704], [640, 672], [704, 632], [752, 592], [736, 536], [640, 496], [592, 472], [640, 440], [736, 408], [752, 352], [704, 312], [608, 272], [544, 240]],
+    buildings: VALLE },
+  { id: 'passo', name: 'Il Passo', bg: 'map2_bg', boss: 'forestale2', from: 31,
+    trail: [[560,1260],[640,1180],[720,1100],[730,1020],[700,940],[680,860],[720,790],[700,740],[620,700],[580,640],[620,580],[560,530],[560,470],[620,420],[740,380],[760,340],[680,310],[580,280],[560,250],[620,220],[650,200]], buildings: PASSO },
+];
+VALLE.forEach((b) => { b.zone = 'valle'; });
+PASSO.forEach((b) => { b.zone = 'passo'; });
+export const BUILDINGS = [...VALLE, ...PASSO];

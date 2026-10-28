@@ -1,9 +1,10 @@
 // EDT Kingdom — interfaccia, animazioni, campo base
 import { Board, ROWS, COLS, key, unkey, inside } from './engine.js';
 import { getLevel, MAX_LEVEL } from './levels.js';
-import { BUILDINGS, CHARS } from './kingdom.js';
+import { BUILDINGS, CHARS, ZONES } from './kingdom.js';
 import * as FX from './fx.js';
 import * as AU from './audio.js';
+import * as RANK from './rank.js';
 
 const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -16,9 +17,9 @@ const TILE_URI = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma'
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
 const ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
 const MUD_URI = [null, I('o_fango1'), I('o_fango2')];
-const FORESTALE_URI = I('forestale');
+let FORESTALE_URI = I('forestale');
 const CRATE_URI = [null, I('o_cassa1'), I('o_cassa2')];
-const CHAIN_URI = I('o_catena');
+let CHAIN_URI = I('o_catena');
 const MULTA_URI = I('o_multa');
 
 // ---------- salvataggio ----------
@@ -59,7 +60,7 @@ function toast(text, ms = 900) {
 }
 function speakerHTML(who, text) {
   const ch = CHARS[who] || CHARS.gabbah;
-  return `<div class="speaker"><div class="avatar" style="background-image:${I(ch.img)}"></div>
+  return `<div class="speaker talk-${who}"><div class="avatar talking" style="background-image:${I(ch.img)}"></div>
     <div class="bubble"><b>${ch.name}</b><p>${text}</p></div></div>`;
 }
 function say(who, text, btn = 'Ok!') {
@@ -69,20 +70,37 @@ function say(who, text, btn = 'Ok!') {
 
 // =================== CAMPO BASE ===================
 const STEPS = 3;
+const STEP_COST = 2;   // stelle per ogni tappa di costruzione
 if (!save.steps) { save.steps = {}; (save.built || []).forEach((id) => { save.steps[id] = STEPS; }); }
+if (!save.best) save.best = {};
+if (!save.inv) save.inv = { mH: 0, bomb: 0, grappa: 0 };
+// vecchi salvataggi: i livelli già vinti valgono almeno 1 stella
+for (let n = 1; n < Math.min(save.level, 61); n++) if (!save.best[n]) save.best[n] = 1;
 const stepsOf = (b) => save.steps[b.id] || 0;
 const isBuilt = (b) => stepsOf(b) >= STEPS;
 const nextBuilding = () => BUILDINGS.find((b) => !isBuilt(b));
-let pendingStar = false;
+const zoneOf = (b) => ZONES.find((z) => z.id === b.zone);
+const zoneDone = (z) => z.buildings.every(isBuilt);
+let pendingStar = 0;      // stelle in volo verso il contatore
+let viewZone = null;      // zona che si sta guardando
 
 function bldTop(b) { return 14 + b.y * 0.72; }
+function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
+
+// converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
+function mapPoint(map, x, y) {
+  const W = map.clientWidth, H = map.clientHeight, k = Math.max(W / 1280, H / 1280);
+  return [(W - 1280 * k) / 2 + x * k, (H - 1280 * k) / 2 + y * k];
+}
 
 function renderHome(popId = null) {
-  $('#hStars').textContent = save.stars - (pendingStar ? 1 : 0);
+  $('#hStars').textContent = save.stars - pendingStar;
   $('#hCoins').textContent = save.coins;
+  const zone = viewZone || currentZone();
   const map = $('#map');
-  map.style.backgroundImage = I('map_bg');
+  map.style.backgroundImage = I(zone.bg);
   map.innerHTML = '';
+  map.dataset.zone = zone.id;
   [[3, 34, 46], [9, 24, 62], [1, 28, 38]].forEach(([top, w, dur], i) => {
     const cl = document.createElement('div');
     cl.className = 'cloud';
@@ -90,7 +108,7 @@ function renderHome(popId = null) {
     map.appendChild(cl);
   });
   const nb = nextBuilding();
-  for (const b of BUILDINGS) {
+  for (const b of zone.buildings) {
     const built = isBuilt(b);
     const isNext = b === nb;
     const st = stepsOf(b);
@@ -101,28 +119,40 @@ function renderHome(popId = null) {
     d.style.top = bldTop(b) + '%';
     d.innerHTML = `<div class="img" style="background-image:${I(built || !isNext ? 'b_' + b.id : 'b_cantiere')}"></div>
       ${isNext ? `<div class="chip">${st}/${STEPS}</div>` : ''}
+      ${built && CHARS[b.who] ? `<div class="resident" style="background-image:${I(CHARS[b.who].img)};animation-delay:${(b.x + b.y) % 7 * -0.4}s"></div>` : ''}
+      ${built && (b.id === 'bar' || b.id === 'rifugio' || b.id === 'sauna') ? '<div class="smoke"><i></i><i></i><i></i></div>' : ''}
       <div class="tag">${built ? b.name : isNext ? `<i class="ic ic-hammer"></i> ${b.name}` : `<i class="ic ic-lock"></i> ${b.name}`}</div>`;
     d.onclick = () => (isNext ? tryBuild() : built ? say(b.who, b.text, 'Bello!') : lockedInfo(b));
     map.appendChild(d);
   }
-  if (nb && save.stars >= 1) {
+  if (nb && zoneOf(nb) === zone && save.stars >= STEP_COST) {
     const a = document.createElement('div');
     a.className = 'arrow'; a.textContent = '▼';
     a.style.left = nb.x + '%'; a.style.top = (bldTop(nb) - 12) + '%';
     map.appendChild(a);
   }
+  // la moto che gira sul sentiero (solo se c'è almeno un edificio costruito nella zona)
+  if (zone.trail && zone.buildings.some(isBuilt)) startTrailRider(map, zone.trail);
+  // cartello della zona e frecce per guardare le altre zone sbloccate
+  const zi = ZONES.indexOf(zone), cz = ZONES.indexOf(currentZone());
+  const sign = document.createElement('div');
+  sign.className = 'zonesign';
+  sign.innerHTML = `${zi > 0 ? '<button class="zarr" data-d="-1">◀</button>' : ''}<span>${zone.name}</span>${zi < cz ? '<button class="zarr" data-d="1">▶</button>' : ''}`;
+  sign.querySelectorAll('.zarr').forEach((bt) => { bt.onclick = (e) => { e.stopPropagation(); viewZone = ZONES[zi + +bt.dataset.d]; sfx.click(); renderHome(); }; });
+  map.appendChild(sign);
+
   const btnB = $('#btnBuild');
   if (nb) {
     $('#job').hidden = false;
     $('#jobImg').style.backgroundImage = I('b_' + nb.id);
     $('#jobName').textContent = nb.name;
     $('#jobSteps').innerHTML = Array.from({ length: STEPS }, (_, k) => `<i class="${k < stepsOf(nb) ? 'on' : ''}"></i>`).join('');
-    const ok = save.stars >= 1;
+    const ok = save.stars >= STEP_COST;
     btnB.classList.toggle('ready', ok); btnB.classList.toggle('wait', !ok);
     $('#buildLbl').textContent = 'Costruisci';
-    $('#buildCost').innerHTML = (ok ? 'usa ' : 'serve ') + IC_S + ' 1';
+    $('#buildCost').innerHTML = (ok ? 'usa ' : 'serve ') + IC_S + ' ' + STEP_COST;
   } else {
-    $('#jobImg').style.backgroundImage = I('b_statua');
+    $('#jobImg').style.backgroundImage = I('b_palazzo');
     $('#jobName').textContent = 'Campo Base completo!';
     $('#jobSteps').innerHTML = '';
     btnB.classList.remove('ready'); btnB.classList.add('wait');
@@ -131,30 +161,58 @@ function renderHome(popId = null) {
   $('#btnPlay').innerHTML = save.level > MAX_LEVEL ? 'Finito! 🏆' : `Gioca <b>livello ${save.level}</b>`;
 }
 
+let riderRAF = 0;
+function startTrailRider(map, trail) {
+  cancelAnimationFrame(riderRAF);
+  const el = document.createElement('div');
+  el.className = 'trailrider';
+  el.style.backgroundImage = POWER_URI.mH;
+  map.appendChild(el);
+  // lunghezze dei tratti per andare a velocità costante
+  const segs = []; let tot = 0;
+  for (let i = 1; i < trail.length; i++) { const d = Math.hypot(trail[i][0] - trail[i - 1][0], trail[i][1] - trail[i - 1][1]); segs.push(d); tot += d; }
+  const dur = 26000, t0 = performance.now();
+  const step = (now) => {
+    if (!el.isConnected) return;
+    let k = ((now - t0) % dur) / dur, dist = k * tot, i = 0;
+    while (i < segs.length - 1 && dist > segs[i]) { dist -= segs[i]; i++; }
+    const f = dist / segs[i];
+    const x = trail[i][0] + (trail[i + 1][0] - trail[i][0]) * f, y = trail[i][1] + (trail[i + 1][1] - trail[i][1]) * f;
+    const [px, py] = mapPoint(map, x, y);
+    const dir = trail[i + 1][0] >= trail[i][0] ? 1 : -1;
+    const sc = 0.55 + (y / 1280) * 0.6;   // più piccola in lontananza
+    el.style.transform = `translate(${px - 22}px, ${py - 30}px) scale(${dir * sc}, ${sc})`;
+    el.style.opacity = k > 0.94 ? (1 - k) / 0.06 : k < 0.04 ? k / 0.04 : 1;
+    riderRAF = requestAnimationFrame(step);
+  };
+  riderRAF = requestAnimationFrame(step);
+}
+
 function lockedInfo(b) {
   const idx = BUILDINGS.indexOf(b);
-  const before = BUILDINGS.slice(0, idx).reduce((s, x) => s + (STEPS - stepsOf(x)), 0);
+  const before = BUILDINGS.slice(0, idx).reduce((s, x) => s + (STEPS - stepsOf(x)) * STEP_COST, 0);
   const nb = nextBuilding();
-  say('gabbah', `<b>${b.name}</b> arriva più avanti. Prima finiamo <b>${nb.name}</b>: mancano ancora <b>${before} ${IC_S}</b> prima di arrivarci.`, 'Ok');
+  say('gabbah', `<b>${b.name}</b> arriva più avanti. Prima finiamo <b>${nb.name}</b>: servono ancora <b>${before} ${IC_S}</b> prima di arrivarci.`, 'Ok');
 }
 
 async function tryBuild() {
   const nb = nextBuilding();
   if (!nb || G.building || pendingStar) return;
-  if (save.stars < 1) {
-    showCard(`${speakerHTML('gabbah', `Per costruire ci vogliono le stelle: <b>ogni livello vinto vale ${IC_S} 1</b>, e ogni stella è un pezzo di <b>${nb.name}</b>. Andiamo a guadagnarne una!`)}
+  if (viewZone && viewZone !== zoneOf(nb)) { viewZone = null; renderHome(); }
+  if (save.stars < STEP_COST) {
+    showCard(`${speakerHTML('gabbah', `Ogni pezzo di <b>${nb.name}</b> costa <b>${STEP_COST} ${IC_S}</b> e ne hai ${save.stars}. Vinci i livelli: con poche mosse usate prendi fino a <b>3 ${IC_S}</b>!`)}
       <div class="row"><button id="cNo" class="btn btn-gray">Dopo</button><button id="cGo" class="btn btn-play">Gioca!</button></div>`,
       { cNo: hideCard, cGo: () => { hideCard(); openLevel(); } });
     return;
   }
   G.building = true;
-  save.stars -= 1;
+  save.stars -= STEP_COST;
   save.steps[nb.id] = stepsOf(nb) + 1;
   persist();
   const done = isBuilt(nb);
+  const zoneFinished = done && zoneDone(zoneOf(nb));
   const map = $('#map');
   const el = map.querySelector(`.bld[data-id="${nb.id}"]`);
-  // zoom sul cantiere
   map.style.transformOrigin = `${nb.x}% ${bldTop(nb)}%`;
   map.style.transform = 'scale(1.45)';
   $('#hStars').textContent = save.stars;
@@ -174,6 +232,7 @@ async function tryBuild() {
   if (done) {
     sfx.build();
     renderHome(nb.id);
+    map.style.transform = 'scale(1.45)';
     const cols = ['#ffd34d', '#ff5a3c', '#3d8bff', '#4fd25f', '#ff4fa3', '#ffffff'];
     for (let k = 0; k < 6; k++) FX.burst(cx + (Math.random() - .5) * 60, cy - 30, cols[k], 14, 1.6);
     FX.glow(cx, cy, r.width * .8); FX.flash(.4);
@@ -181,6 +240,7 @@ async function tryBuild() {
   } else {
     beep(660, 0.12, 'triangle', 0.1);
     renderHome();
+    map.style.transform = 'scale(1.45)';
     FX.banner(`Tappa ${stepsOf(nb)} di ${STEPS}`, nb.name, '#ffd34d');
   }
   await sleep(1100);
@@ -189,33 +249,160 @@ async function tryBuild() {
   G.building = false;
   if (done) {
     await say(nb.who, nb.text, 'Grande!');
-    if (!nextBuilding()) await say('forestale', 'Un campo base intero, con tanto di statua? Qui serve il blocchetto grande. Tornerò con i rinforzi!', 'Ti aspettiamo');
+    if (zoneFinished) {
+      const z = zoneOf(nb), nz = ZONES[ZONES.indexOf(z) + 1];
+      fireworks(2600);
+      if (nz) {
+        await say('forestale', `Avete preso tutta ${z.name}? Va bene, ma su a <b>${nz.name}</b> comando io. E fa un freddo cane...`, 'Andiamo su!');
+        viewZone = null; renderHome();
+        FX.banner(nz.name, 'Nuova zona sbloccata!', '#bdf0ff');
+      } else {
+        await say('forestale2', 'Anche il Passo è vostro... Mi ritiro in caserma a scrivere il rapporto. Lunghissimo.', 'EDT campione!');
+      }
+    }
+  }
+}
+
+function fireworks(ms = 2000) {
+  const ar = app.getBoundingClientRect();
+  const cols = ['#ffd34d', '#ff5a3c', '#3d8bff', '#4fd25f', '#ff4fa3', '#bdf0ff'];
+  const n = Math.round(ms / 220);
+  for (let k = 0; k < n; k++) {
+    setTimeout(() => {
+      const x = ar.width * (0.15 + Math.random() * 0.7), y = ar.height * (0.12 + Math.random() * 0.3);
+      const c = cols[k % cols.length];
+      FX.burst(x, y, c, 18, 1.8); FX.ring(x, y, 60, c, 5);
+      beep(300 + Math.random() * 300, 0.25, 'sine', 0.05, -200);
+    }, k * 220);
   }
 }
 
 function flyStarToCounter() {
   const pill = $('#hStars').parentElement.getBoundingClientRect(), ar = app.getBoundingClientRect();
-  const s2 = document.createElement('div');
-  s2.className = 'flystar ic-star';
-  s2.style.left = (ar.width / 2 - 35) + 'px'; s2.style.top = (ar.height * .45 - 35) + 'px';
-  s2.style.transform = 'scale(2.2)';
-  app.appendChild(s2);
-  FX.glow(ar.width / 2, ar.height * .45, 90);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    s2.style.transform = `translate(${pill.left - ar.left + 18 - ar.width / 2}px, ${pill.top - ar.top + 18 - ar.height * .45}px) scale(.5)`;
-  }));
-  setTimeout(() => {
-    s2.remove(); pendingStar = false;
-    $('#hStars').textContent = save.stars;
-    const p = $('#hStars').parentElement; p.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 300 });
-    FX.burst(pill.left - ar.left + 20, pill.top - ar.top + 18, '#ffd34d', 10);
-    sfx.star();
-    renderHome();
-    if (!save.tutBuild && save.stars >= 1 && nextBuilding()) {
-      save.tutBuild = true; persist();
-      setTimeout(() => say('gabbah', 'Hai guadagnato una <b>stella</b>! Le stelle servono a costruire il Campo Base: tocca <b>Costruisci</b> qui sotto, o il cantiere con la freccia.', 'Ci provo'), 250);
-    }
-  }, 950);
+  const n = pendingStar;
+  for (let i = 0; i < n; i++) {
+    setTimeout(() => {
+      const s2 = document.createElement('div');
+      s2.className = 'flystar ic-star';
+      s2.style.left = (ar.width / 2 - 35 + (i - (n - 1) / 2) * 60) + 'px'; s2.style.top = (ar.height * .45 - 35) + 'px';
+      s2.style.transform = 'scale(2.2)';
+      app.appendChild(s2);
+      FX.glow(ar.width / 2, ar.height * .45, 90);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        s2.style.transform = `translate(${pill.left - ar.left + 18 - (ar.width / 2 + (i - (n - 1) / 2) * 60)}px, ${pill.top - ar.top + 18 - ar.height * .45}px) scale(.5)`;
+      }));
+      setTimeout(() => {
+        s2.remove(); pendingStar--;
+        $('#hStars').textContent = save.stars - pendingStar;
+        const p = $('#hStars').parentElement; p.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 300 });
+        FX.burst(pill.left - ar.left + 20, pill.top - ar.top + 18, '#ffd34d', 10);
+        sfx.star();
+        if (!pendingStar) {
+          renderHome();
+          if (!save.tutBuild && save.stars >= STEP_COST && nextBuilding()) {
+            save.tutBuild = true; persist();
+            setTimeout(() => say('gabbah', `Hai abbastanza <b>stelle</b>! Ogni pezzo del Campo Base costa ${STEP_COST} ${IC_S}: tocca <b>Costruisci</b> qui sotto, o il cantiere con la freccia.`, 'Ci provo'), 250);
+          }
+        }
+      }, 950);
+    }, i * 260);
+  }
+}
+
+// ---------------- premio del giorno ----------------
+const DAILY = [
+  { coins: 50 }, { coins: 80 }, { p: 'mH' }, { coins: 120 }, { p: 'bomb' }, { coins: 200 }, { p: 'grappa', coins: 150 },
+];
+const P_NAME = { mH: 'Moto', bomb: 'Tanica', grappa: 'Grappa' };
+const P_IMG = { mH: 'p_moto', bomb: 'p_tanica', grappa: 'p_grappa' };
+function dayKey(d = new Date()) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function checkDaily() {
+  const today = dayKey();
+  if (!save.welcomed || (save.daily && save.daily.last === today)) return false;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const streak = save.daily && save.daily.last === dayKey(y) ? (save.daily.streak % 7) + 1 : 1;
+  const prize = DAILY[streak - 1];
+  const tiles = DAILY.map((d, i) => {
+    const cls = i + 1 < streak ? 'got' : i + 1 === streak ? 'today' : '';
+    const ico = d.p ? `<span class="di" style="background-image:${I(P_IMG[d.p])}"></span>` : `<span class="di" style="background-image:${I('u_moneta')}"></span>`;
+    return `<div class="day ${cls}"><small>${i === 6 ? 'Giorno 7' : 'G' + (i + 1)}</small>${ico}<b>${d.p ? P_NAME[d.p] : d.coins}</b></div>`;
+  }).join('');
+  showCard(`<h2>Premio del giorno</h2><p>${streak > 1 ? `Sei tornato <b>${streak} giorni di fila</b>!` : 'Torna ogni giorno: il premio cresce.'}</p>
+    <div class="days">${tiles}</div>
+    <div class="row"><button id="cTake" class="btn btn-play">Ritira!</button></div>`, {
+    cTake: () => {
+      if (prize.coins) save.coins += prize.coins;
+      if (prize.p) save.inv[prize.p] = (save.inv[prize.p] || 0) + 1;
+      save.daily = { last: today, streak };
+      persist(); hideCard(); sfx.coin(); fireworks(700);
+      $('#hCoins').textContent = save.coins;
+      FX.banner(prize.p ? `+1 ${P_NAME[prize.p]}` : `+${prize.coins} monete`, prize.p ? 'la trovi a inizio livello' : '', '#ffd34d');
+    },
+  });
+  return true;
+}
+
+// ---------------- classifica EDT online ----------------
+const totalStars = () => Object.values(save.best).reduce((a, b) => a + b, 0);
+function submitScore() {
+  if (!RANK.getNick()) return;
+  RANK.submit(totalStars(), save.level).then((r) => { if (r && r.taken) toast('Nome già preso da un altro telefono', 1600); }).catch(() => {});
+}
+function askNick() {
+  showCard(`<h2>Classifica EDT</h2><p>Scegli il nome con cui comparire in classifica (lo stesso di Giro Easy, se ci giochi).</p>
+    <input id="nickIn" class="nickin" maxlength="16" placeholder="Il tuo nome" value="${RANK.getNick().replace(/"/g, '')}">
+    <div class="row"><button id="cNo" class="btn btn-gray">Dopo</button><button id="cOk" class="btn btn-play">Entra</button></div>`, {
+    cNo: hideCard,
+    cOk: () => {
+      const n = RANK.cleanNick($('#nickIn').value);
+      if (n.length < 2) { toast('Nome troppo corto', 900); return; }
+      RANK.setNick(n);
+      openRanking(true);
+    },
+  });
+  setTimeout(() => $('#nickIn') && $('#nickIn').focus(), 50);
+}
+async function openRanking(justJoined = false) {
+  if (G.building || pendingStar) return;
+  if (!RANK.getNick()) { askNick(); return; }
+  const me = RANK.getNick().toLowerCase();
+  showCard(`<h2>Classifica EDT</h2><p class="rkload">Chiedo i risultati al Campo Base…</p>
+    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+  let list, taken = false;
+  try {
+    const r = totalStars() > 0 ? await RANK.submit(totalStars(), save.level) : null;
+    if (r) { list = r.list; taken = r.taken; } else list = await RANK.top();
+  } catch {
+    const p = document.querySelector('.rkload'); if (p) p.textContent = 'Niente rete: la classifica si vede quando torni online.';
+    return;
+  }
+  if (!document.querySelector('.rkload')) return;   // chiusa nel frattempo
+  const medal = ['🥇', '🥈', '🥉'];
+  const rows = list.map((e, i) => `<div class="rk${e.name.toLowerCase() === me ? ' me' : ''}"><span class="pos">${medal[i] || i + 1}</span><b>${e.name}</b><span class="st">${e.stars} ${IC_S}</span><small>liv ${e.level}</small></div>`).join('');
+  showCard(`<h2>Classifica EDT</h2>
+    ${taken ? '<p class="red">Il nome <b>' + RANK.getNick() + '</b> è già di un altro telefono: cambialo.</p>' : ''}
+    <div class="rklist">${rows || '<p>Ancora nessuno in classifica: fai tu il primo!</p>'}</div>
+    <p class="small">Sei <b>${RANK.getNick()}</b> · ${totalStars()} ${IC_S} · <a href="#" id="cNick">cambia nome</a></p>
+    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+  const cn = $('#cNick'); if (cn) cn.onclick = (e) => { e.preventDefault(); askNick(); };
+  if (justJoined && !taken) FX.banner('Sei in classifica!', '', '#ffd34d');
+}
+
+// ---------------- elenco livelli (per rigiocarli e prendere 3 stelle) ----------------
+function openLevelList() {
+  if (G.building || pendingStar) return;
+  const last = Math.min(save.level, MAX_LEVEL);
+  const cells = [];
+  for (let n = 1; n <= last; n++) {
+    const st = save.best[n] || 0;
+    const boss = n % 5 === 0;
+    cells.push(`<button class="lv${n === last && n === save.level ? ' cur' : ''}${boss ? ' boss' : ''}" data-n="${n}"><b>${n}</b><span>${[1, 2, 3].map((k) => `<i class="${k <= st ? 'on' : ''}"></i>`).join('')}</span></button>`);
+  }
+  const tot = Object.values(save.best).reduce((a, b) => a + b, 0);
+  showCard(`<h2>I tuoi livelli</h2><p>Stelle prese: <b>${tot}</b> su <b>${(last - (save.level > last ? 0 : 1)) * 3}</b>. Rigioca un livello per prendere le stelle che mancano.</p>
+    <div class="lvgrid">${cells.join('')}</div>
+    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+  document.querySelectorAll('.lv').forEach((b) => { b.onclick = () => { sfx.click(); openLevel(+b.dataset.n); }; });
 }
 
 function showScreen(id) {
@@ -902,10 +1089,15 @@ async function endTurn() {
 async function winLevel() {
   G.over = true;
   clearHint();
-  if (G.boss) await say('forestale', pick(['Va bene, passate. Ma ho preso la targa!', 'Per oggi niente multa. Ma vi tengo d\'occhio, eh.', 'Il fischietto è scarico... Passate, va.']), 'Arrivederci!');
-  else { FX.banner('Livello superato!', '', '#ffd34d'); FX.flash(.3); await sleep(1100); }
-  // bonus mosse avanzate: moto che partono a caso
+  const lv = G.level, n = lv.n;
   const left = G.moves;
+  const ratio = left / lv.moves;
+  const stars = ratio >= 0.35 ? 3 : ratio >= 0.15 ? 2 : 1;
+  if (G.boss) {
+    $('#bossFace').classList.add('beaten');
+    await say(n > 30 ? 'forestale2' : 'forestale', pick(['Va bene, passate. Ma ho preso la targa!', 'Per oggi niente multa. Ma vi tengo d\'occhio, eh.', 'Il fischietto è scarico... Passate, va.']), 'Arrivederci!');
+  } else { FX.banner('Livello superato!', '', '#ffd34d'); FX.flash(.3); await sleep(1100); }
+  // bonus mosse avanzate: moto che partono a caso
   const b = G.board;
   const shots = Math.min(left, 6);
   if (shots > 0) {
@@ -914,7 +1106,7 @@ async function winLevel() {
     for (let i = 0; i < shots; i++) {
       const r = Math.floor(Math.random() * ROWS), c = Math.floor(Math.random() * COLS);
       const t = b.grid[r][c];
-      if (!t || t.rock || t.power) continue;
+      if (!t || t.rock || t.power || t.chain) continue;
       t.power = Math.random() < 0.5 ? 'mH' : 'mV'; t.color = -1;
       refreshArt(t);
       cells.add(key(r, c));
@@ -923,21 +1115,43 @@ async function winLevel() {
     }
     await resolve({ pending: [{ cells }] });
   }
-  const coins = 50 + left * 10;
-  save.stars += 1;
-  pendingStar = true;
-  save.streak = Math.min(3, (save.streak || 0) + 1);
+  const first = n >= save.level;
+  const prev = save.best[n] || 0;
+  const gain = Math.max(0, stars - prev);
+  save.best[n] = Math.max(prev, stars);
+  const coins = first ? 50 + left * 10 : 20 + left * 3;
+  save.stars += gain;
+  pendingStar += gain;
+  if (first) save.streak = Math.min(3, (save.streak || 0) + 1);
   save.coins += coins;
-  save.level += 1;
+  save.level = Math.max(save.level, n + 1);
   persist();
+  submitScore();
   sfx.win();
   const nb = nextBuilding();
   const [who, line] = pick(WIN_LINES);
-  showCard(`<h2>${pick(WIN_TITLES)}</h2><div class="stars3"><i class="ic ic-star"></i></div>
-    <p><b>+1 stella</b> · <b>+${coins} ${IC_C}</b>${nb ? `<br>Con la stella costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
-    ${speakerHTML(who, line)}
-    <div class="row"><button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cHome: () => { hideCard(); goHome(); } });
+  const gainTxt = gain ? `<b>+${gain} ${gain > 1 ? 'stelle' : 'stella'}</b>` : (first ? '' : 'Nessuna stella nuova');
+  showCard(`<h2 class="wintitle">${pick(WIN_TITLES)}</h2>
+    <div class="stars3 fill">${[1, 2, 3].map((k) => `<i class="ic ic-star slot" data-k="${k}"></i>`).join('')}</div>
+    <p class="winsub">${stars === 3 ? 'Perfetto! Tre stelle piene.' : `Con meno mosse usate prendi ${stars === 1 ? 'fino a 3' : 'la terza'} ${IC_S}`}</p>
+    <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? `<br>Con ${STEP_COST} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
+    <div class="cheer">${speakerHTML(who, line)}</div>
+    <div class="row">${stars < 3 ? '<button id="cAgain" class="btn btn-gray">Rigioca</button>' : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
+    { cHome: () => { hideCard(); goHome(); }, cAgain: () => { hideCard(); goHome(); setTimeout(() => openLevel(n), 500); } });
+  // le stelle si riempiono una alla volta, poi fuochi d'artificio
+  const ar = app.getBoundingClientRect();
+  for (let k = 1; k <= stars; k++) {
+    await sleep(380);
+    const el = document.querySelector(`.stars3 .slot[data-k="${k}"]`);
+    if (!el) break;
+    el.classList.add('on');
+    const r = el.getBoundingClientRect();
+    FX.burst(r.left - ar.left + r.width / 2, r.top - ar.top + r.height / 2, '#ffd34d', 16, 1.4);
+    FX.ring(r.left - ar.left + r.width / 2, r.top - ar.top + r.height / 2, r.width, '#fff6a0', 5);
+    beep(520 + k * 160, 0.18, 'triangle', 0.12, 200);
+  }
+  await sleep(250);
+  fireworks(stars === 3 ? 2400 : 1300);
 }
 
 async function loseLevel() {
@@ -1143,7 +1357,14 @@ async function startLevel(n, extras = []) {
   $('#gLevel').textContent = n;
   $('#bossbar').classList.toggle('hidden', !G.boss);
   $('#bShield').style.visibility = G.boss ? 'visible' : 'hidden';
-  if (G.boss) $('#bossFace').style.backgroundImage = FORESTALE_URI;
+  const winter = n > 30;
+  FORESTALE_URI = I(winter ? 'forestale2' : 'forestale');
+  CHAIN_URI = I(winter ? 'o_ghiaccio' : 'o_catena');
+  $('#board').classList.toggle('ice', winter);
+  $('#game').classList.toggle('winter', winter);
+  const bf = $('#bossFace');
+  bf.classList.remove('beaten', 'angry', 'hit');
+  if (G.boss) bf.style.backgroundImage = FORESTALE_URI;
   showScreen('game');
   AU.playMusic(lv.boss ? 'boss' : 'game');
   layout();
@@ -1154,13 +1375,15 @@ async function startLevel(n, extras = []) {
   if (extras.length) placeStartPowers(extras);
 }
 
-async function openLevel() {
+async function openLevel(num) {
+  const n = num || save.level;
   if (G.building || pendingStar) return;
-  if (save.level > MAX_LEVEL) {
+  if (n > MAX_LEVEL) {
     await say('gabbah', 'Hai finito tutti i sentieri! Nuove zone (e nuove multe) arrivano coi prossimi aggiornamenti.');
     return;
   }
-  const lv = getLevel(save.level);
+  const lv = getLevel(n);
+  const best = save.best[n] || 0;
   const goalsHTML = lv.goals.map((g) => `<div class="goal" style="background-image:${goalURI(g)}"><b>${g.n}</b></div>`).join('');
   const TIPS = [
     ['miti', 'Consiglio da Protettore: due power-up scambiati tra loro fanno una super combo.'],
@@ -1176,27 +1399,30 @@ async function openLevel() {
   const chosen = new Set();
   const preHTML = PRE.map((p) => {
     const gift = gifts.includes(p.id);
-    return `<button class="pre${gift ? ' gift' : ''}" data-id="${p.id}" ${gift ? 'disabled' : ''}>
+    const own = save.inv[p.id] || 0;
+    return `<button class="pre${gift ? ' gift' : ''}${own && !gift ? ' own' : ''}" data-id="${p.id}" ${gift ? 'disabled' : ''}>
       <span class="pi" style="background-image:${I(p.img)}"></span><small>${p.name}</small>
-      <b>${gift ? 'Regalo' : p.cost + ' ' + IC_C}</b></button>`;
+      <b>${gift ? 'Regalo' : own ? `Ne hai ${own}` : p.cost + ' ' + IC_C}</b></button>`;
   }).join('');
   const streak = save.streak || 0;
-  showCard(`<h2>${lv.boss ? 'Arriva la Forestale!' : `Livello ${lv.n}`}</h2>${intro}
+  const bestHTML = n < save.level ? `<div class="bestrow">${[1, 2, 3].map((k) => `<i class="ic ic-star${k <= best ? '' : ' off'}"></i>`).join('')}<span>${best >= 3 ? 'già perfetto' : 'record: prova a fare meglio'}</span></div>` : '';
+  showCard(`<h2>${lv.boss ? 'Arriva la Forestale!' : `Livello ${lv.n}`}</h2>${bestHTML}${intro}
     <div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? '. Svuota la sua pazienza prima che ti riempia di sassi!' : ''}</p>
     <div class="prebox"><div class="prehead">${streak ? `🔥 Serie di vittorie: <b>${streak}</b>` : 'Parti con un aiuto?'}<span>${streak ? 'regali già in griglia' : 'vinci di fila per averli gratis'}</span></div>
     <div class="prerow">${preHTML}</div></div>
     <div class="row"><button id="cBack" class="btn btn-gray">Indietro</button><button id="cPlay" class="btn btn-play">Gioca!</button></div>`,
   { cBack: hideCard, cPlay: () => {
-    let cost = 0; chosen.forEach((id) => { cost += PRE.find((p) => p.id === id).cost; });
+    let cost = 0;
+    chosen.forEach((id) => { if (save.inv[id] > 0) save.inv[id]--; else cost += PRE.find((p) => p.id === id).cost; });
     save.coins -= cost; persist();
     hideCard(); startLevel(lv.n, [...gifts, ...chosen]);
   } });
-  const total = () => [...chosen].reduce((sum, id) => sum + PRE.find((p) => p.id === id).cost, 0);
+  const total = () => [...chosen].reduce((sum, id) => sum + (save.inv[id] > 0 ? 0 : PRE.find((p) => p.id === id).cost), 0);
   document.querySelectorAll('.pre:not(.gift)').forEach((btn) => {
     btn.onclick = () => {
       const id = btn.dataset.id;
       if (chosen.has(id)) chosen.delete(id);
-      else if (total() + PRE.find((p) => p.id === id).cost <= save.coins) chosen.add(id);
+      else if (save.inv[id] > 0 || total() + PRE.find((p) => p.id === id).cost <= save.coins) chosen.add(id);
       else { toast('Monete finite!', 900); return; }
       btn.classList.toggle('on', chosen.has(id));
     };
@@ -1214,6 +1440,8 @@ function goHome() {
 // ---------- pulsanti ----------
 $('#btnPlay').onclick = () => openLevel();
 $('#btnBuild').onclick = () => tryBuild();
+$('#btnLevels').onclick = () => { sfx.click(); openLevelList(); };
+$('#btnRank').onclick = () => { sfx.click(); openRanking(); };
 // ---------- impostazioni ----------
 function togglesHTML() {
   const row = (id, label, on) => `<button class="tog${on ? ' on' : ''}" id="${id}"><span>${label}</span><i></i></button>`;
@@ -1279,7 +1507,7 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 const preload = Promise.all(ASSETS.map((n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); })));
 document.addEventListener('visibilitychange', () => AU.pause(document.hidden));
@@ -1287,10 +1515,11 @@ initInput();
 renderHome();
 AU.playMusic('home');
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
+if (save.welcomed) setTimeout(checkDaily, 600);
 if (!save.welcomed) {
   save.welcomed = true; persist();
-  setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Ogni livello vinto vale una stella, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano.', 'Si parte!'), 300);
+  setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Ogni livello vinto vale fino a 3 stelle, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano.', 'Si parte!'), 300);
 }
 
 // per i test automatici
-window.__EDT = { G, save, startLevel, trySwap, goHome };
+window.__EDT = { G, save, startLevel, trySwap, goHome, openLevel, winLevel, checkDaily, openLevelList, renderHome };

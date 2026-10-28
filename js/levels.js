@@ -244,8 +244,14 @@ export function getLevel(n) {
 }
 
 // mosse calibrate con il simulatore (tools/tune.mjs)
-const BALANCE = {1: 20, 2: 20, 3: 20, 4: 16, 5: 18, 6: 16, 7: 16, 8: 18, 9: 16, 10: 16, 11: 26, 12: 16, 13: 29, 14: 26, 15: 24, 16: 30, 17: 20, 18: 34, 19: 36, 20: 28, 21: 16, 22: 26, 23: 16, 24: 27, 25: 26, 26: 23, 27: 17, 28: 36, 29: 16, 30: 28, 31: 36, 32: 21, 33: 36, 34: 27, 35: 30, 36: 32, 37: 16, 38: 23, 39: 24, 40: 34, 41: 29, 42: 29, 43: 16, 44: 28, 45: 27, 46: 31, 47: 23, 48: 30, 49: 25, 50: 36, 51: 17, 52: 30, 53: 26, 54: 27, 55: 34, 56: 28, 57: 31, 58: 24, 59: 28, 60: 34};
+const BALANCE = {1: 20, 2: 20, 3: 20, 4: 16, 5: 18, 6: 16, 7: 16, 8: 18, 9: 16, 10: 16, 11: 26, 12: 16, 13: 29, 14: 26, 15: 24, 16: 30, 17: 20, 18: 34, 19: 36, 20: 28, 21: 16, 22: 26, 23: 16, 24: 27, 25: 26, 26: 23, 27: 17, 28: 36, 29: 16, 30: 28, 31: 34, 32: 16, 33: 26, 34: 27, 35: 30, 36: 28, 37: 22, 38: 23, 39: 15, 40: 30, 41: 15, 42: 27, 43: 29, 44: 29, 45: 35, 46: 31, 47: 20, 48: 36, 49: 26, 50: 31, 51: 17, 52: 23, 53: 22, 54: 21, 55: 36, 56: 19, 57: 15, 58: 27, 59: 15, 60: 33};
 
+const BOSS_LINES2 = [
+  'Quassù comanda la Forestale d\'alta quota. Gomme da neve? Senza, è multa!',
+  'Ho le ciaspole, il fischietto e un blocchetto nuovo. Fate i bravi.',
+  'Il ghiaccio è dalla mia parte. Vediamo quanto scivolate.',
+  'Al Passo i limiti li decido io. E sono bassissimi.',
+];
 function baseLevel(n) {
   if (HAND[n]) {
     const h = HAND[n];
@@ -265,12 +271,15 @@ function baseLevel(n) {
     return {
       n, moves: 28, colors, boss: { hp, every: 4 },
       goals: [{ type: 'boss', n: hp }], layout,
-      intro: { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
+      intro: n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
     };
   }
-  const kinds = ['mud', 'rock', 'crate', 'chain', 'multa', 'mud+rock', 'mud+chain', 'crate+multa', 'tile+mud', 'tile+crate'];
+  // al Passo (31+) il ghiaccio (k) è l'ostacolo di casa
+  const kinds = n > 30
+    ? ['chain', 'mud+chain', 'chain', 'rock', 'tile+crate', 'mud+chain', 'multa', 'chain', 'crate+multa', 'tile+mud']
+    : ['mud', 'rock', 'crate', 'chain', 'multa', 'mud+rock', 'mud+chain', 'crate+multa', 'tile+mud', 'tile+crate'];
   const kind = kinds[Math.floor(rng() * kinds.length)];
-  const layout = thin(makeLayout(rng, tier, kind, rng() < 0.5), rng, 18 + Math.min(tier, 6));
+  const layout = thin(makeLayout(rng, tier, kind, rng() < 0.5), rng, n > 30 ? 17 : 18 + Math.min(tier, 6));
   const tiles = kind.includes('tile') ? [[Math.floor(rng() * colors), 16 + Math.min(tier, 6) * 2]] : [];
   const goals = goalsFrom(layout, tiles);
   const weight = goals.reduce((s, g) => s + (g.type === 'tile' ? g.n / 6 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 3 : g.n / 3), 0);

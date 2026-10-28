@@ -137,8 +137,10 @@ export function fire(x, y, R) {
   for (let i = 0; i < 10; i++) add({ kind: 'puff', x: x + rnd(-R / 3, R / 3), y: y + rnd(-R / 3, R / 3), vy: rnd(-1.5, -.5), drag: .97, size: rnd(14, 24), color: 'rgba(80,70,60,.5)', life: rnd(.8, 1.2) });
 }
 
+let vibra = true;
+export function setVibra(v) { vibra = v; }
 export function shake(intensity = 6, dur = 0.35) {
-  if (intensity >= 8) { try { navigator.vibrate && navigator.vibrate(Math.round(intensity * 4)); } catch { /* niente */ } }
+  if (vibra && intensity >= 8) { try { navigator.vibrate && navigator.vibrate(Math.round(intensity * 4)); } catch { /* niente */ } }
   if (reduce()) return;
   app.style.setProperty('--si', intensity + 'px');
   app.style.setProperty('--sd', dur + 's');

@@ -3,13 +3,15 @@ import { Board, ROWS, COLS, key, unkey, inside } from './engine.js';
 import { getLevel, MAX_LEVEL } from './levels.js';
 import { BUILDINGS, CHARS } from './kingdom.js';
 import * as FX from './fx.js';
+import * as AU from './audio.js';
 
 const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const app = $('#app');
 
 // ---------- grafica in cache ----------
-const I = (n) => `url('img/${n}.webp')`;
+const SRC = (n) => (window.__A && window.__A[n]) || `img/${n}.webp`;
+const I = (n) => `url('${SRC(n)}')`;
 const TILE_URI = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale'].map(I);
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
 const ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
@@ -27,36 +29,14 @@ const save = (() => {
 })();
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* niente */ } };
 
-// ---------- audio (effetti sintetizzati; la musica sarà quella del Gabbah) ----------
-let actx = null;
-function beep(freq = 440, dur = 0.08, type = 'sine', vol = 0.12, slide = 0) {
-  if (save.muted) return;
-  try {
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    if (actx.state === 'suspended') actx.resume();
-    const o = actx.createOscillator();
-    const g = actx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(freq, actx.currentTime);
-    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), actx.currentTime + dur);
-    g.gain.setValueAtTime(vol, actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
-    o.connect(g).connect(actx.destination);
-    o.start(); o.stop(actx.currentTime + dur + 0.02);
-  } catch { /* audio non disponibile */ }
-}
-const sfx = {
-  pop: (n = 0) => beep(520 + n * 70, 0.09, 'triangle', 0.1),
-  swap: () => beep(300, 0.06, 'sine', 0.08, 120),
-  bad: () => beep(180, 0.15, 'square', 0.06, -60),
-  moto: () => beep(140, 0.35, 'sawtooth', 0.07, 260),
-  boom: () => beep(90, 0.4, 'sawtooth', 0.12, -50),
-  power: () => beep(660, 0.18, 'triangle', 0.1, 400),
-  win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'triangle', 0.12), i * 120)),
-  lose: () => [392, 330, 262].forEach((f, i) => setTimeout(() => beep(f, 0.22, 'triangle', 0.1), i * 160)),
-  whistle: () => { beep(1800, 0.12, 'sine', 0.08); setTimeout(() => beep(1800, 0.3, 'sine', 0.08), 160); },
-  build: () => [392, 523, 659].forEach((f, i) => setTimeout(() => beep(f, 0.14, 'square', 0.06), i * 90)),
-};
+// ---------- audio ----------
+const sfx = AU.sfx;
+const beep = AU.beep;
+if (save.music === undefined) save.music = !save.muted;
+if (save.sfx === undefined) save.sfx = !save.muted;
+if (save.vibra === undefined) save.vibra = true;
+AU.setMusic(save.music); AU.setSfx(save.sfx); FX.setVibra(save.vibra);
+document.addEventListener('pointerdown', () => AU.unlock(), { capture: true });
 
 // ---------- overlay / toast ----------
 function showCard(html, binds = {}) {
@@ -186,7 +166,7 @@ async function tryBuild() {
   h.style.left = (cx + r.width * .2) + 'px'; h.style.top = (cy - r.height * .5) + 'px';
   app.appendChild(h);
   for (let k = 0; k < 4; k++) {
-    setTimeout(() => { FX.dust(cx + (Math.random() - .5) * r.width * .7, cy + (Math.random() - .2) * r.height * .3, 4, 'rgba(210,180,140,.9)'); beep(220 + k * 40, 0.07, 'square', 0.07); FX.shake(2, .15); }, k * 300 + 150);
+    setTimeout(() => { FX.dust(cx + (Math.random() - .5) * r.width * .7, cy + (Math.random() - .2) * r.height * .3, 4, 'rgba(210,180,140,.9)'); sfx.hammer(); FX.shake(2, .15); }, k * 300 + 150);
   }
   await sleep(1250);
   h.remove();
@@ -229,7 +209,7 @@ function flyStarToCounter() {
     $('#hStars').textContent = save.stars;
     const p = $('#hStars').parentElement; p.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 300 });
     FX.burst(pill.left - ar.left + 20, pill.top - ar.top + 18, '#ffd34d', 10);
-    beep(880, 0.12, 'triangle', 0.1, 300);
+    sfx.star();
     renderHome();
     if (!save.tutBuild && save.stars >= 1 && nextBuilding()) {
       save.tutBuild = true; persist();
@@ -420,7 +400,7 @@ function fxPower(power, r, c, cells) {
     FX.glow(x, y, S * 2.8); FX.ring(x, y, S * 3, '#ffe9a0', 14); FX.fire(x, y, S * 2.4);
     FX.flash(.35); FX.shake(10, .4);
   } else if (power === 'grappa') {
-    sfx.power();
+    sfx.grappa();
     FX.rays(x, y, S * 4); FX.glow(x, y, S * 2, 'rgba(255,240,170,.9)'); FX.flash(.45);
     let i = 0;
     for (const k of cells) {
@@ -430,7 +410,7 @@ function fxPower(power, r, c, cells) {
     }
     FX.shake(6, .35);
   } else if (power === 'drone') {
-    sfx.power();
+    sfx.drone();
     FX.ring(x, y, S * 1.6, '#c4f1ff', 8); FX.dust(x, y, 6, 'rgba(220,240,255,.9)');
   }
 }
@@ -575,7 +555,7 @@ async function doClear(clear, matched, created, pre = []) {
       b.grid[r][c] = null;
       credit(t.kind === 'crate' ? 'crate' : 'rock', r, c);
     } else {
-      refreshArt(t); credit('boss', r, c);
+      refreshArt(t); credit('boss', r, c); sfx.crack();
       const [hx, hy] = cellCenter(r, c);
       FX.burst(hx, hy, t.kind === 'crate' ? '#b07a40' : '#9a958f', 6);
       G.els.get(t.id)?.animate([{ transform: pos(r, c) + ' rotate(-8deg) scale(1.1)' }, { transform: pos(r, c) }], { duration: 260 });
@@ -585,13 +565,13 @@ async function doClear(clear, matched, created, pre = []) {
     const [r, c] = unkey(k);
     const t = b.grid[r][c];
     if (b.ticket[r][c]) {
-      b.ticket[r][c] = 0; G.ticketCleared = true; credit('multa', r, c);
+      b.ticket[r][c] = 0; G.ticketCleared = true; credit('multa', r, c); sfx.ticket();
       const [tx, ty] = cellCenter(r, c); FX.burst(tx, ty, '#ffd646', 8); FX.ring(tx, ty, G.S * .7, '#fff6a0', 5);
     }
     if (!t || t.rock !== 0 && t.rock !== undefined && t.rock > 0) continue;
     if (rockHits.has(k)) continue;
     if (t.chain) {
-      t.chain = false; refreshArt(t); credit('chain', r, c);
+      t.chain = false; refreshArt(t); credit('chain', r, c); sfx.chain();
       const [cx2, cy2] = cellCenter(r, c); FX.burst(cx2, cy2, '#b9bec8', 9); FX.ring(cx2, cy2, G.S * .8, '#e6ebf2', 6);
       if (b.mud[r][c] > 0) { b.mud[r][c]--; credit('mud', r, c); mudSplash(r, c, b.mud[r][c]); }
       continue;
@@ -627,6 +607,7 @@ async function doClear(clear, matched, created, pre = []) {
 
 let burstBudget = 0;
 function mudSplash(r, c, left) {
+  sfx.splash();
   const [mx, my] = cellCenter(r, c);
   FX.burst(mx, my, left ? '#4a2a10' : '#8a5a2e', 7, .9);
   FX.dust(mx, my, 2, 'rgba(110,70,30,.85)');
@@ -707,7 +688,7 @@ async function resolve({ pending = [], swapCells = [] } = {}) {
     if (step >= 1) {
       const lv = CASCADE[Math.min(step - 1, CASCADE.length - 1)];
       FX.banner(lv[0], `Combo x${step + 1}`, lv[1]);
-      beep(520 + step * 90, 0.12, 'triangle', 0.1, 240);
+      sfx.combo(step);
       if (step >= 2) FX.shake(2 + step * 1.5, .3);
     }
     await applyGravity();
@@ -1007,7 +988,6 @@ function initInput() {
   const el = $('#board');
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    beep(0, 0.001, 'sine', 0.0001); // sblocca l'audio su iOS
     if (G.busy || G.over) return;
     const cell = cellFromEvent(e);
     if (!cell) return;
@@ -1093,6 +1073,7 @@ async function startLevel(n, extras = []) {
   $('#bShield').style.visibility = G.boss ? 'visible' : 'hidden';
   if (G.boss) $('#bossFace').style.backgroundImage = FORESTALE_URI;
   showScreen('game');
+  AU.playMusic(lv.boss ? 'boss' : 'game');
   layout();
   buildBoardDOM();
   renderGoals();
@@ -1153,6 +1134,7 @@ async function openLevel() {
 function goHome() {
   clearHint();
   showScreen('home');
+  AU.playMusic('home');
   renderHome();
   if (pendingStar) setTimeout(flyStarToCounter, 350);
 }
@@ -1160,11 +1142,47 @@ function goHome() {
 // ---------- pulsanti ----------
 $('#btnPlay').onclick = () => openLevel();
 $('#btnBuild').onclick = () => tryBuild();
+// ---------- impostazioni ----------
+function togglesHTML() {
+  const row = (id, label, on) => `<button class="tog${on ? ' on' : ''}" id="${id}"><span>${label}</span><i></i></button>`;
+  return `<div class="toggles">${row('tMusic', 'Musica', save.music)}${row('tSfx', 'Suoni', save.sfx)}${row('tVib', 'Vibrazione', save.vibra)}</div>`;
+}
+function bindToggles() {
+  const flip = (id, key, apply) => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.onclick = () => { save[key] = !save[key]; persist(); apply(save[key]); b.classList.toggle('on', save[key]); sfx.click(); if (key === 'vibra' && save.vibra) { try { navigator.vibrate && navigator.vibrate(40); } catch { /* */ } } };
+  };
+  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : 'game') : 'home'); });
+  flip('tSfx', 'sfx', AU.setSfx);
+  flip('tVib', 'vibra', FX.setVibra);
+}
+function openSettings() {
+  if (G.building || pendingStar) return;
+  showCard(`<h2>Impostazioni</h2>${togglesHTML()}
+    <div class="row"><button id="cReset" class="btn btn-red">Ricomincia da zero</button></div>
+    <div class="row"><button id="cClose" class="btn btn-play">Fatto</button></div>`,
+  { cClose: hideCard, cReset: confirmReset });
+  bindToggles();
+}
+function confirmReset() {
+  showCard(`<h2 class="red">Ricominci da zero?</h2>
+    <p>Perdi <b>stelle, monete, livelli</b> e tutto il <b>Campo Base</b>. Non si torna indietro.</p>
+    <div class="row"><button id="cNo" class="btn btn-gray">No, tengo tutto</button><button id="cYes" class="btn btn-red">Sì, azzera</button></div>`,
+  { cNo: openSettings, cYes: () => {
+    const keep = { music: save.music, sfx: save.sfx, vibra: save.vibra };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ ...keep })); } catch { /* */ }
+    location.reload();
+  } });
+}
+$('#btnSettings').onclick = openSettings;
 $('#btnBack').onclick = () => {
   if (G.busy) return;
-  showCard(`<h2 class="red">Torni al campo?</h2><p>Se esci adesso perdi questo giro.</p>
-    <div class="row"><button id="cS" class="btn btn-play">Resto</button><button id="cL" class="btn btn-red">Esco</button></div>`,
+  showCard(`<h2>Pausa</h2>${togglesHTML()}
+    <div class="row"><button id="cL" class="btn btn-red">Esci dal livello</button><button id="cS" class="btn btn-play">Riprendi</button></div>
+    <p class="small">Se esci adesso perdi questo giro e la serie di vittorie.</p>`,
   { cS: hideCard, cL: () => { hideCard(); G.over = true; save.streak = 0; persist(); goHome(); } });
+  bindToggles();
 };
 $('#bHammer').onclick = () => {
   if (G.busy || G.over) return;
@@ -1190,10 +1208,11 @@ FX.initFX($('#fxc'), app);
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
   'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
-const preload = Promise.all(ASSETS.map((n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = `img/${n}.webp`; if (im.decode) im.decode().then(res, res); })));
-document.addEventListener('visibilitychange', () => { if (document.hidden && actx && actx.state === 'running') actx.suspend(); });
+const preload = Promise.all(ASSETS.map((n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); })));
+document.addEventListener('visibilitychange', () => AU.pause(document.hidden));
 initInput();
 renderHome();
+AU.playMusic('home');
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
 if (!save.welcomed) {
   save.welcomed = true; persist();

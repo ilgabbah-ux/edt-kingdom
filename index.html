@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#2a8a37">
 <title>EDT Kingdom</title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -20,6 +20,7 @@
     <header class="topbar">
       <div class="pill"><span class="ico"><i class="ic ic-star"></i></span><b id="hStars">0</b></div>
       <div class="title">EDT <span>Kingdom</span></div>
+      <button id="btnSettings" class="round gear" aria-label="Impostazioni">⚙</button>
       <div class="pill"><span class="ico"><i class="ic ic-coin"></i></span><b id="hCoins">0</b></div>
     </header>
     <div id="map"></div>
@@ -40,7 +41,7 @@
   <!-- PARTITA -->
   <section id="game" class="screen">
     <header class="gamebar">
-      <button id="btnBack" class="round">✕</button>
+      <button id="btnBack" class="round" aria-label="Pausa">II</button>
       <div class="goals" id="goals"></div>
       <div class="moves"><small>MOSSE</small><b id="moves">0</b></div>
     </header>
@@ -68,7 +69,7 @@
   </div>
   <div id="toast" class="toast"></div>
 </div>
-<script src="game.min.js?v=7"></script>
+<script src="game.min.js?v=8"></script>
 <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});</script>
 </body>
 </html>

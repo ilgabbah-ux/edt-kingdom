@@ -15,6 +15,9 @@ const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), gra
 const ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
 const MUD_URI = [null, I('o_fango1'), I('o_fango2')];
 const FORESTALE_URI = I('forestale');
+const CRATE_URI = [null, I('o_cassa1'), I('o_cassa2')];
+const CHAIN_URI = I('o_catena');
+const MULTA_URI = I('o_multa');
 
 // ---------- salvataggio ----------
 const SAVE_KEY = 'edtKingdom_v1';
@@ -84,56 +87,148 @@ function say(who, text, btn = 'Ok!') {
 }
 
 // =================== CAMPO BASE ===================
-const nextBuilding = () => BUILDINGS.find((b) => !save.built.includes(b.id));
+const STEPS = 3;
+if (!save.steps) { save.steps = {}; (save.built || []).forEach((id) => { save.steps[id] = STEPS; }); }
+const stepsOf = (b) => save.steps[b.id] || 0;
+const isBuilt = (b) => stepsOf(b) >= STEPS;
+const nextBuilding = () => BUILDINGS.find((b) => !isBuilt(b));
+let pendingStar = false;
+
+function bldTop(b) { return 14 + b.y * 0.72; }
 
 function renderHome(popId = null) {
-  $('#hStars').textContent = save.stars;
+  $('#hStars').textContent = save.stars - (pendingStar ? 1 : 0);
   $('#hCoins').textContent = save.coins;
-  $('#hLevel').textContent = Math.min(save.level, MAX_LEVEL);
   const map = $('#map');
   map.style.backgroundImage = I('map_bg');
   map.innerHTML = '';
   const nb = nextBuilding();
   for (const b of BUILDINGS) {
-    const built = save.built.includes(b.id);
-    const isNext = !built && b === nb;
+    const built = isBuilt(b);
+    const isNext = b === nb;
+    const st = stepsOf(b);
     const d = document.createElement('div');
     d.className = 'bld ' + (built ? 'built' : isNext ? 'next' : 'ghost') + (b.id === popId ? ' pop' : '');
+    d.dataset.id = b.id;
     d.style.left = b.x + '%';
-    d.style.top = (14 + b.y * 0.72) + '%';
+    d.style.top = bldTop(b) + '%';
     d.innerHTML = `<div class="img" style="background-image:${I(built || !isNext ? 'b_' + b.id : 'b_cantiere')}"></div>
-      <div class="tag">${built ? b.name : isNext ? `🔨 ${b.name} · ⭐${b.cost}` : `🔒 ${b.name}`}</div>`;
-    if (isNext) d.onclick = () => tryBuild();
+      ${isNext ? `<div class="chip">${st}/${STEPS}</div>` : ''}
+      <div class="tag">${built ? b.name : isNext ? `🔨 ${b.name}` : `🔒 ${b.name}`}</div>`;
+    d.onclick = () => (isNext ? tryBuild() : built ? say(b.who, b.text, 'Bello!') : lockedInfo(b));
     map.appendChild(d);
+  }
+  if (nb && save.stars >= 1) {
+    const a = document.createElement('div');
+    a.className = 'arrow'; a.textContent = '▼';
+    a.style.left = nb.x + '%'; a.style.top = (bldTop(nb) - 12) + '%';
+    map.appendChild(a);
   }
   const btnB = $('#btnBuild');
   if (nb) {
-    $('#buildCost').textContent = `⭐ ${save.stars}/${nb.cost}`;
-    btnB.disabled = false;
+    $('#job').hidden = false;
+    $('#jobImg').style.backgroundImage = I('b_' + nb.id);
+    $('#jobName').textContent = nb.name;
+    $('#jobSteps').innerHTML = Array.from({ length: STEPS }, (_, k) => `<i class="${k < stepsOf(nb) ? 'on' : ''}"></i>`).join('');
+    const ok = save.stars >= 1;
+    btnB.classList.toggle('ready', ok); btnB.classList.toggle('wait', !ok);
+    $('#buildLbl').textContent = 'Costruisci';
+    $('#buildCost').textContent = ok ? `usa ⭐ 1` : 'serve ⭐ 1';
   } else {
-    $('#buildCost').textContent = 'Campo completo!';
-    btnB.disabled = true;
+    $('#jobImg').style.backgroundImage = I('b_statua');
+    $('#jobName').textContent = 'Campo Base completo!';
+    $('#jobSteps').innerHTML = '';
+    btnB.classList.remove('ready'); btnB.classList.add('wait');
+    $('#buildLbl').textContent = 'Fatto'; $('#buildCost').textContent = '🏆';
   }
-  $('#btnPlay').innerHTML = save.level > MAX_LEVEL ? 'Finito! 🏆' : `Livello <b>${save.level}</b>`;
+  $('#btnPlay').innerHTML = save.level > MAX_LEVEL ? 'Finito! 🏆' : `Gioca <b>livello ${save.level}</b>`;
+}
+
+function lockedInfo(b) {
+  const idx = BUILDINGS.indexOf(b);
+  const before = BUILDINGS.slice(0, idx).reduce((s, x) => s + (STEPS - stepsOf(x)), 0);
+  const nb = nextBuilding();
+  say('gabbah', `<b>${b.name}</b> arriva più avanti. Prima finiamo <b>${nb.name}</b>: mancano ancora <b>${before} ⭐</b> prima di arrivarci.`, 'Ok');
 }
 
 async function tryBuild() {
   const nb = nextBuilding();
-  if (!nb) return;
-  if (save.stars < nb.cost) {
-    showCard(`${speakerHTML('gabbah', `Per <b>${nb.name}</b> servono <b>${nb.cost} ⭐</b> e ne hai ${save.stars}. Fai ancora qualche giro e torniamo col materiale.`)}
+  if (!nb || G.building) return;
+  if (save.stars < 1) {
+    showCard(`${speakerHTML('gabbah', `Per costruire ci vogliono le stelle: <b>ogni livello vinto vale ⭐ 1</b>, e ogni stella è un pezzo di <b>${nb.name}</b>. Andiamo a guadagnarne una!`)}
       <div class="row"><button id="cNo" class="btn btn-gray">Dopo</button><button id="cGo" class="btn btn-play">Gioca!</button></div>`,
       { cNo: hideCard, cGo: () => { hideCard(); openLevel(); } });
     return;
   }
-  save.stars -= nb.cost;
-  save.built.push(nb.id);
+  G.building = true;
+  save.stars -= 1;
+  save.steps[nb.id] = stepsOf(nb) + 1;
   persist();
-  sfx.build();
-  renderHome(nb.id);
-  await sleep(700);
-  await say(nb.who, nb.text, 'Grande!');
-  if (!nextBuilding()) await say('forestale', 'Un campo base intero, con tanto di statua? Qui serve il blocchetto grande. Tornerò con i rinforzi!', 'Ti aspettiamo');
+  const done = isBuilt(nb);
+  const map = $('#map');
+  const el = map.querySelector(`.bld[data-id="${nb.id}"]`);
+  // zoom sul cantiere
+  map.style.transformOrigin = `${nb.x}% ${bldTop(nb)}%`;
+  map.style.transform = 'scale(1.45)';
+  $('#hStars').textContent = save.stars;
+  await sleep(650);
+  const r = el.getBoundingClientRect(), ar = app.getBoundingClientRect();
+  const cx = r.left - ar.left + r.width / 2, cy = r.top - ar.top + r.height * .55;
+  const h = document.createElement('div');
+  h.className = 'hammer'; h.textContent = '🔨';
+  h.style.left = (cx + r.width * .2) + 'px'; h.style.top = (cy - r.height * .5) + 'px';
+  app.appendChild(h);
+  for (let k = 0; k < 4; k++) {
+    setTimeout(() => { FX.dust(cx + (Math.random() - .5) * r.width * .7, cy + (Math.random() - .2) * r.height * .3, 4, 'rgba(210,180,140,.9)'); beep(220 + k * 40, 0.07, 'square', 0.07); FX.shake(2, .15); }, k * 300 + 150);
+  }
+  await sleep(1250);
+  h.remove();
+  for (let k = 0; k < 8; k++) FX.dust(cx + (Math.random() - .5) * r.width, cy + (Math.random() - .5) * r.height * .5, 3, 'rgba(230,210,180,.95)');
+  if (done) {
+    sfx.build();
+    renderHome(nb.id);
+    const cols = ['#ffd34d', '#ff5a3c', '#3d8bff', '#4fd25f', '#ff4fa3', '#ffffff'];
+    for (let k = 0; k < 6; k++) FX.burst(cx + (Math.random() - .5) * 60, cy - 30, cols[k], 14, 1.6);
+    FX.glow(cx, cy, r.width * .8); FX.flash(.4);
+    FX.banner(nb.name, 'Costruito!', '#ffd34d');
+  } else {
+    beep(660, 0.12, 'triangle', 0.1);
+    renderHome();
+    FX.banner(`Tappa ${stepsOf(nb)} di ${STEPS}`, nb.name, '#ffd34d');
+  }
+  await sleep(1100);
+  map.style.transform = '';
+  await sleep(500);
+  G.building = false;
+  if (done) {
+    await say(nb.who, nb.text, 'Grande!');
+    if (!nextBuilding()) await say('forestale', 'Un campo base intero, con tanto di statua? Qui serve il blocchetto grande. Tornerò con i rinforzi!', 'Ti aspettiamo');
+  }
+}
+
+function flyStarToCounter() {
+  const pill = $('#hStars').parentElement.getBoundingClientRect(), ar = app.getBoundingClientRect();
+  const s2 = document.createElement('div');
+  s2.className = 'flystar'; s2.textContent = '⭐';
+  s2.style.left = (ar.width / 2 - 35) + 'px'; s2.style.top = (ar.height * .45 - 35) + 'px';
+  s2.style.transform = 'scale(2.2)';
+  app.appendChild(s2);
+  FX.glow(ar.width / 2, ar.height * .45, 90);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    s2.style.transform = `translate(${pill.left - ar.left + 18 - ar.width / 2}px, ${pill.top - ar.top + 18 - ar.height * .45}px) scale(.5)`;
+  }));
+  setTimeout(() => {
+    s2.remove(); pendingStar = false;
+    $('#hStars').textContent = save.stars;
+    const p = $('#hStars').parentElement; p.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 300 });
+    FX.burst(pill.left - ar.left + 20, pill.top - ar.top + 18, '#ffd34d', 10);
+    beep(880, 0.12, 'triangle', 0.1, 300);
+    renderHome();
+    if (!save.tutBuild && save.stars >= 1 && nextBuilding()) {
+      save.tutBuild = true; persist();
+      setTimeout(() => say('gabbah', 'Hai guadagnato una <b>stella</b>! Le stelle servono a costruire il Campo Base: tocca <b>Costruisci</b> qui sotto, o il cantiere con la freccia.', 'Ci provo'), 250);
+    }
+  }, 950);
 }
 
 function showScreen(id) {
@@ -151,6 +246,9 @@ function goalURI(gl) {
   if (gl.type === 'tile') return TILE_URI[gl.t];
   if (gl.type === 'mud') return MUD_URI[1];
   if (gl.type === 'rock') return ROCK_URI[1];
+  if (gl.type === 'crate') return CRATE_URI[2];
+  if (gl.type === 'chain') return CHAIN_URI;
+  if (gl.type === 'multa') return MULTA_URI;
   return FORESTALE_URI;
 }
 const goalLeft = (gl) => Math.max(0, gl.n - gl.done);
@@ -197,13 +295,13 @@ function layout() {
 const pos = (r, c) => `translate(${c * G.S}px, ${r * G.S}px)`;
 
 function artFor(t) {
-  if (t.rock) return ROCK_URI[t.rock];
+  if (t.rock) return t.kind === 'crate' ? CRATE_URI[t.rock] : ROCK_URI[t.rock];
   if (t.power) return POWER_URI[t.power];
   return TILE_URI[t.color];
 }
 function makeTileEl(t, r, c) {
   const el = document.createElement('div');
-  el.className = 'tile' + (t.power ? ' power' : '');
+  el.className = 'tile' + (t.power ? ' power' : '') + (t.chain ? ' chained' : '');
   el.style.backgroundImage = artFor(t);
   el.style.transform = pos(r, c);
   $('#board').appendChild(el);
@@ -215,18 +313,19 @@ function refreshArt(t) {
   if (!el) return;
   el.style.backgroundImage = artFor(t);
   el.classList.toggle('power', !!t.power);
+  el.classList.toggle('chained', !!t.chain);
 }
 
 function buildBoardDOM() {
   const b = $('#board');
   b.innerHTML = '';
   G.els.clear();
-  G.mudEls = []; G.badges = Array.from({ length: ROWS }, () => []); G.badgeEls = [];
+  G.ticketEls = Array.from({ length: ROWS }, () => []); G.mudEls = []; G.badges = Array.from({ length: ROWS }, () => []); G.badgeEls = [];
   for (let r = 0; r < ROWS; r++) {
     G.mudEls.push([]);
     for (let c = 0; c < COLS; c++) {
       const bg = document.createElement('div');
-      bg.className = 'cellbg' + ((r + c) % 2 ? ' dark' : '');
+      bg.className = 'cellbg' + ((r + c) % 2 ? ' dark' : '') + (G.board.hole[r][c] ? ' hole' : '');
       bg.style.transform = pos(r, c);
       b.appendChild(bg);
       const m = document.createElement('div');
@@ -234,6 +333,10 @@ function buildBoardDOM() {
       m.style.transform = pos(r, c);
       b.appendChild(m);
       G.mudEls[r].push(m);
+      const tk = document.createElement('div');
+      tk.className = 'ticket'; tk.style.transform = pos(r, c);
+      b.appendChild(tk);
+      G.ticketEls[r].push(tk);
       const bd = document.createElement('div');
       bd.className = 'mudbadge'; bd.textContent = '2'; bd.hidden = true;
       bd.style.transform = pos(r, c);
@@ -241,7 +344,7 @@ function buildBoardDOM() {
       G.badges[r].push(bd);
     }
   }
-  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) makeTileEl(G.board.grid[r][c], r, c);
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (G.board.grid[r][c]) makeTileEl(G.board.grid[r][c], r, c);
   G.badgeEls.forEach((bd) => b.appendChild(bd));
   renderMud();
 }
@@ -252,6 +355,7 @@ function renderMud() {
     m.style.backgroundImage = v ? MUD_URI[v] : 'none';
     m.style.opacity = v ? 1 : 0;
     G.badges[r][c].hidden = v < 2;
+    G.ticketEls[r][c].classList.toggle('on', !!G.board.ticket[r][c]);
     m.style.animationDelay = ((r * 7 + c * 3) % 10) * -0.3 + 's';
   }
 }
@@ -266,6 +370,7 @@ function repositionAll(instant = true) {
     if (instant) { void el.offsetWidth; el.style.transition = ''; }
   }
   G.badgeEls?.forEach((bd, i) => { bd.style.transform = pos(Math.floor(i / COLS), i % COLS); });
+  G.ticketEls?.flat().forEach((el, i) => { el.style.transform = pos(Math.floor(i / COLS), i % COLS); });
   document.querySelectorAll('.cellbg,#board > .mud').forEach((el, i) => {
     const k = Math.floor(i / 2);
     el.style.transform = pos(Math.floor(k / COLS), k % COLS);
@@ -365,7 +470,7 @@ function credit(type, r, c, color = -1, amount = 1) {
     if (gl.done >= gl.n) return;
     let hit = false;
     if (gl.type === type && (type !== 'tile' || gl.t === color)) hit = true;
-    if (gl.type === 'boss' && (type === 'tile' || type === 'rock' || type === 'mud')) { gl.done += type === 'rock' ? 2 : 1; hit = 'boss'; }
+    if (gl.type === 'boss' && type !== 'boss') { gl.done += type === 'tile' || type === 'mud' ? 1 : 2; hit = 'boss'; }
     if (hit === true) {
       gl.done = Math.min(gl.n, gl.done + amount);
       if (flyBudget-- > 0) flyToGoal(i, goalURI(gl), r, c); else renderGoals(i);
@@ -459,14 +564,29 @@ async function doClear(clear, matched, created, pre = []) {
     if (t.rock <= 0) {
       killTile(t, r, c);
       b.grid[r][c] = null;
-      credit('rock', r, c);
-    } else { refreshArt(t); credit('boss', r, c); }
+      credit(t.kind === 'crate' ? 'crate' : 'rock', r, c);
+    } else {
+      refreshArt(t); credit('boss', r, c);
+      const [hx, hy] = cellCenter(r, c);
+      FX.burst(hx, hy, t.kind === 'crate' ? '#b07a40' : '#9a958f', 6);
+      G.els.get(t.id)?.animate([{ transform: pos(r, c) + ' rotate(-8deg) scale(1.1)' }, { transform: pos(r, c) }], { duration: 260 });
+    }
   }
   for (const k of clear) {
     const [r, c] = unkey(k);
     const t = b.grid[r][c];
+    if (b.ticket[r][c]) {
+      b.ticket[r][c] = 0; G.ticketCleared = true; credit('multa', r, c);
+      const [tx, ty] = cellCenter(r, c); FX.burst(tx, ty, '#ffd646', 8); FX.ring(tx, ty, G.S * .7, '#fff6a0', 5);
+    }
     if (!t || t.rock !== 0 && t.rock !== undefined && t.rock > 0) continue;
     if (rockHits.has(k)) continue;
+    if (t.chain) {
+      t.chain = false; refreshArt(t); credit('chain', r, c);
+      const [cx2, cy2] = cellCenter(r, c); FX.burst(cx2, cy2, '#b9bec8', 9); FX.ring(cx2, cy2, G.S * .8, '#e6ebf2', 6);
+      if (b.mud[r][c] > 0) { b.mud[r][c]--; credit('mud', r, c); mudSplash(r, c, b.mud[r][c]); }
+      continue;
+    }
     if (protect.has(k)) {
       credit('tile', r, c, t.color);
     } else {
@@ -540,20 +660,21 @@ async function applyGravity() {
   let maxD = 0;
   for (const m of moves) {
     const el = G.els.get(m.tile.id);
-    const d = m.to - m.from;
+    if (!el) continue;
+    const d = Math.max(1, m.to - m.from);
     el.style.transitionDuration = (0.08 + d * 0.05) + 's';
     el.style.transform = pos(m.to, m.c);
     maxD = Math.max(maxD, d);
   }
-  for (const s of spawns) {
-    const el = makeTileEl(s.tile, s.from, s.c);
+  for (const s2 of spawns) {
+    const el = makeTileEl(s2.tile, s2.from, s2.fromC);
     el.style.transition = 'none';
-    el.style.transform = pos(s.from, s.c);
+    el.style.transform = pos(s2.from, s2.fromC);
     void el.offsetWidth;
-    const d = s.to - s.from;
+    const d = Math.max(1, s2.to - s2.from);
     el.style.transition = '';
     el.style.transitionDuration = (0.08 + d * 0.05) + 's';
-    el.style.transform = pos(s.to, s.c);
+    el.style.transform = pos(s2.to, s2.c);
     maxD = Math.max(maxD, d);
   }
   await sleep((0.08 + maxD * 0.05) * 1000 + 40);
@@ -737,6 +858,18 @@ async function forestaleStrike() {
 
 async function endTurn() {
   if (allDone()) { await winLevel(); return; }
+  const mg = G.goals.find((g) => g.type === 'multa');
+  if (mg && !G.ticketCleared && G.board.ticketCount() > 0) {
+    const cell = G.board.spreadTicket();
+    if (cell) {
+      mg.n++; renderMud(); renderGoals();
+      const [r, c] = cell; const [x, y] = cellCenter(r, c);
+      FX.ring(x, y, G.S, '#ffd646', 6);
+      G.ticketEls[r][c].animate([{ transform: pos(r, c) + ' scale(0) rotate(-40deg)' }, { transform: pos(r, c) + ' scale(1.2)' }, { transform: pos(r, c) }], { duration: 420, easing: 'ease-out' });
+      sfx.whistle();
+    }
+  }
+  G.ticketCleared = false;
   if (G.boss && G.boss.count <= 0 && G.moves > 0) {
     await forestaleStrike();
     G.boss.count = G.boss.every;
@@ -781,6 +914,8 @@ async function winLevel() {
   }
   const coins = 50 + left * 10;
   save.stars += 1;
+  pendingStar = true;
+  save.streak = Math.min(3, (save.streak || 0) + 1);
   save.coins += coins;
   save.level += 1;
   persist();
@@ -788,7 +923,7 @@ async function winLevel() {
   const nb = nextBuilding();
   const [who, line] = pick(WIN_LINES);
   showCard(`<h2>${pick(WIN_TITLES)}</h2><div class="stars3">⭐</div>
-    <p><b>+1 stella</b> · <b>+${coins} 🪙</b>${nb && save.stars >= nb.cost ? `<br>Hai le stelle per costruire <b>${nb.name}</b>.` : ''}</p>
+    <p><b>+1 stella</b> · <b>+${coins} 🪙</b>${nb ? `<br>Con la stella costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
     ${speakerHTML(who, line)}
     <div class="row"><button id="cHome" class="btn btn-play">Campo base</button></div>`,
     { cHome: () => { hideCard(); goHome(); } });
@@ -804,7 +939,7 @@ async function loseLevel() {
       <button id="cQuit" class="btn btn-gray">Mollo</button>
       <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>+5 mosse</button>
     </div>`, {
-    cQuit: () => { hideCard(); retryOrHome(); },
+    cQuit: () => { hideCard(); save.streak = 0; persist(); retryOrHome(); },
     cMore: () => {
       if (!canBuy) return;
       save.coins -= 200; persist();
@@ -894,13 +1029,43 @@ function onTap(cell) {
 }
 
 // ---------- avvio livello ----------
-async function startLevel(n) {
+const PRE = [
+  { id: 'mH', name: 'Moto', cost: 60, img: 'p_moto' },
+  { id: 'bomb', name: 'Tanica', cost: 90, img: 'p_tanica' },
+  { id: 'grappa', name: 'Grappa', cost: 140, img: 'p_grappa' },
+];
+const streakGifts = () => PRE.slice(0, Math.min(save.streak || 0, 3)).map((p) => p.id);
+
+function placeStartPowers(list) {
+  const b = G.board;
+  const cand = [];
+  for (let r = 2; r < ROWS - 1; r++) for (let c = 1; c < COLS - 1; c++) {
+    const t = b.grid[r][c];
+    if (t && !t.rock && !t.chain && !t.power && t.color >= 0) cand.push([r, c]);
+  }
+  list.forEach((pw, i) => {
+    if (!cand.length) return;
+    const [r, c] = cand.splice(Math.floor(Math.random() * cand.length), 1)[0];
+    const t = b.grid[r][c];
+    t.power = pw === 'mH' && Math.random() < .5 ? 'mV' : pw; t.color = -1;
+    setTimeout(() => {
+      refreshArt(t);
+      const [x, y] = cellCenter(r, c);
+      FX.glow(x, y, G.S * 1.4); FX.ring(x, y, G.S * 1.3, '#fff6a0', 7);
+      G.els.get(t.id)?.animate([{ transform: pos(r, c) + ' scale(0) rotate(-90deg)' }, { transform: pos(r, c) + ' scale(1.4)' }, { transform: pos(r, c) }], { duration: 480, easing: 'ease-out' });
+      beep(620 + i * 120, 0.12, 'triangle', 0.1, 300);
+    }, 500 + i * 280);
+  });
+}
+
+async function startLevel(n, extras = []) {
   const lv = getLevel(n);
   G.level = lv;
   G.board = new Board(lv);
   G.moves = lv.moves;
   G.goals = lv.goals.map((g) => ({ ...g, done: 0 }));
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
+  G.ticketCleared = false;
   G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null;
   $('#goals').innerHTML = '';
   $('#gLevel').textContent = n;
@@ -913,6 +1078,7 @@ async function startLevel(n) {
   renderGoals();
   renderMoves();
   scheduleHint();
+  if (extras.length) placeStartPowers(extras);
 }
 
 async function openLevel() {
@@ -932,16 +1098,42 @@ async function openLevel() {
   ];
   const tip = lv.intro || (() => { const t = TIPS[lv.n % TIPS.length]; return { who: t[0], text: t[1] }; })();
   const intro = speakerHTML(tip.who, tip.text);
+  const gifts = streakGifts();
+  const chosen = new Set();
+  const preHTML = PRE.map((p) => {
+    const gift = gifts.includes(p.id);
+    return `<button class="pre${gift ? ' gift' : ''}" data-id="${p.id}" ${gift ? 'disabled' : ''}>
+      <span class="pi" style="background-image:${I(p.img)}"></span><small>${p.name}</small>
+      <b>${gift ? 'Regalo' : p.cost + ' 🪙'}</b></button>`;
+  }).join('');
+  const streak = save.streak || 0;
   showCard(`<h2>${lv.boss ? 'Arriva la Forestale!' : `Livello ${lv.n}`}</h2>${intro}
     <div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? '. Svuota la sua pazienza prima che ti riempia di sassi!' : ''}</p>
+    <div class="prebox"><div class="prehead">${streak ? `🔥 Serie di vittorie: <b>${streak}</b>` : 'Parti con un aiuto?'}<span>${streak ? 'regali già in griglia' : 'vinci di fila per averli gratis'}</span></div>
+    <div class="prerow">${preHTML}</div></div>
     <div class="row"><button id="cBack" class="btn btn-gray">Indietro</button><button id="cPlay" class="btn btn-play">Gioca!</button></div>`,
-  { cBack: hideCard, cPlay: () => { hideCard(); startLevel(lv.n); } });
+  { cBack: hideCard, cPlay: () => {
+    let cost = 0; chosen.forEach((id) => { cost += PRE.find((p) => p.id === id).cost; });
+    save.coins -= cost; persist();
+    hideCard(); startLevel(lv.n, [...gifts, ...chosen]);
+  } });
+  const total = () => [...chosen].reduce((sum, id) => sum + PRE.find((p) => p.id === id).cost, 0);
+  document.querySelectorAll('.pre:not(.gift)').forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      if (chosen.has(id)) chosen.delete(id);
+      else if (total() + PRE.find((p) => p.id === id).cost <= save.coins) chosen.add(id);
+      else { toast('Monete finite!', 900); return; }
+      btn.classList.toggle('on', chosen.has(id));
+    };
+  });
 }
 
 function goHome() {
   clearHint();
   showScreen('home');
   renderHome();
+  if (pendingStar) setTimeout(flyStarToCounter, 350);
 }
 
 // ---------- pulsanti ----------
@@ -951,7 +1143,7 @@ $('#btnBack').onclick = () => {
   if (G.busy) return;
   showCard(`<h2 class="red">Torni al campo?</h2><p>Se esci adesso perdi questo giro.</p>
     <div class="row"><button id="cS" class="btn btn-play">Resto</button><button id="cL" class="btn btn-red">Esco</button></div>`,
-  { cS: hideCard, cL: () => { hideCard(); G.over = true; goHome(); } });
+  { cS: hideCard, cL: () => { hideCard(); G.over = true; save.streak = 0; persist(); goHome(); } });
 };
 $('#bHammer').onclick = () => {
   if (G.busy || G.over) return;

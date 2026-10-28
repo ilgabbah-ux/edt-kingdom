@@ -23,19 +23,27 @@ export class Board {
     this.colors = level.colors;
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
     this.mud = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    this.hole = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    this.ticket = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
     const lay = level.layout || [];
+    const chains = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const ch = (lay[r] || '')[c] || '.';
         if (ch === 'm') this.mud[r][c] = 1;
         if (ch === 'M') this.mud[r][c] = 2;
+        if (ch === '#') this.hole[r][c] = true;
+        if (ch === 't') this.ticket[r][c] = 1;
+        if (ch === 'k') chains.push([r, c]);
         if (ch === 'r') this.grid[r][c] = newTile(-1, null, 1);
         else if (ch === 'R') this.grid[r][c] = newTile(-1, null, 2);
+        else if (ch === 'c' || ch === 'C') { const t = newTile(-1, null, ch === 'c' ? 1 : 2); t.kind = 'crate'; this.grid[r][c] = t; }
       }
     }
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++)
-        if (!this.grid[r][c]) this.grid[r][c] = newTile(this.safeColor(r, c));
+        if (!this.grid[r][c] && !this.hole[r][c]) this.grid[r][c] = newTile(this.safeColor(r, c));
+    for (const [r, c] of chains) if (this.grid[r][c]) this.grid[r][c].chain = true;
     this.fixMatches();
     let guard = 0;
     while (!this.hasMoves() && guard++ < 50) { this.shuffle(); this.fixMatches(); }
@@ -48,6 +56,7 @@ export class Board {
       for (const g of gs) for (const k of g.cells) {
         const [r, c] = unkey(k);
         const t = this.grid[r][c];
+        if (t.power || t.rock) continue;
         t.color = (t.color + 1 + Math.floor(this.rng() * (this.colors - 1))) % this.colors;
       }
     }
@@ -73,7 +82,7 @@ export class Board {
 
   get(r, c) { return inside(r, c) ? this.grid[r][c] : null; }
   isMatchable(t) { return t && t.color >= 0 && !t.power && !t.rock; }
-  isSwappable(t) { return t && !t.rock; }
+  isSwappable(t) { return t && !t.rock && !t.chain; }
 
   swap(a, b) {
     const t = this.grid[a[0]][a[1]];
@@ -204,11 +213,15 @@ export class Board {
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const k = key(r, c);
       if (exclude.has(k)) continue;
+      if (this.hole[r][c]) continue;
       const t = this.grid[r][c];
       let w = 1;
       for (const gl of goals) {
         if (gl.done >= gl.n) continue;
-        if (gl.type === 'rock' && t && t.rock) w += 6;
+        if (gl.type === 'rock' && t && t.rock && t.kind !== 'crate') w += 6;
+        if (gl.type === 'crate' && t && t.kind === 'crate') w += 6;
+        if (gl.type === 'chain' && t && t.chain) w += 5;
+        if (gl.type === 'multa' && this.ticket[r][c]) w += 6;
         if (gl.type === 'mud' && this.mud[r][c] > 0) w += 5;
         if (gl.type === 'tile' && t && t.color === gl.t && !t.power) w += 3;
       }
@@ -280,30 +293,87 @@ export class Board {
   }
 
   // Gravità: restituisce gli spostamenti e le nuove tessere
+  // Gravità: sassi, casse e tessere incatenate restano ferme; le tessere scendono
+  // in verticale e, se sotto un ostacolo c'è un buco, scivolano in diagonale.
   gravity() {
-    const moves = [];
-    const spawns = [];
-    for (let c = 0; c < COLS; c++) {
-      let write = ROWS - 1;
-      for (let r = ROWS - 1; r >= 0; r--) {
-        const t = this.grid[r][c];
-        if (t) {
-          if (write !== r) {
-            this.grid[write][c] = t;
-            this.grid[r][c] = null;
-            moves.push({ tile: t, from: r, to: write, c });
-          }
-          write--;
+    const start = new Map();
+    const spawnedTiles = new Set();
+    const spawnCount = Array(COLS).fill(0);
+    const movable = (t) => t && !t.rock && !t.chain;
+    const g = this.grid, H = this.hole;
+    const topRow = (c) => { for (let r = 0; r < ROWS; r++) if (!H[r][c]) return r; return -1; };
+    const mark = (t, r, c) => { if (!start.has(t.id)) start.set(t.id, { tile: t, r, c }); };
+    let guard = 0;
+    while (guard++ < 800) {
+      let changed = false;
+      for (let r = ROWS - 2; r >= 0; r--) for (let c = 0; c < COLS; c++) {
+        const t = g[r][c];
+        if (movable(t) && !H[r + 1][c] && !g[r + 1][c]) { mark(t, r, c); g[r + 1][c] = t; g[r][c] = null; changed = true; }
+      }
+      for (let c = 0; c < COLS; c++) {
+        const tr = topRow(c);
+        if (tr >= 0 && !g[tr][c]) {
+          const t = newTile(this.randColor());
+          spawnCount[c]++;
+          start.set(t.id, { tile: t, r: tr - spawnCount[c], c });
+          spawnedTiles.add(t.id);
+          g[tr][c] = t; changed = true;
         }
       }
-      for (let r = write, i = 1; r >= 0; r--, i++) {
-        const t = newTile(this.randColor());
-        this.grid[r][c] = t;
-        spawns.push({ tile: t, from: -i, to: r, c });
+      if (changed) continue;
+      // scivolata diagonale verso le caselle che non possono essere riempite dall'alto
+      const reach = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+      for (let c = 0; c < COLS; c++) {
+        let ok = true, seen = false;
+        for (let r = 0; r < ROWS; r++) {
+          if (H[r][c]) { if (seen) ok = false; continue; }
+          seen = true;
+          const t = g[r][c];
+          reach[r][c] = ok;
+          if (t && !movable(t)) ok = false;
+        }
       }
+      let slid = false;
+      for (let r = ROWS - 2; r >= 0 && !slid; r--) for (let c = 0; c < COLS && !slid; c++) {
+        const tr = r + 1;
+        if (H[tr][c] || g[tr][c]) continue;
+        if (reach[tr][c]) continue;
+        for (const dc of [-1, 1]) {
+          const sc = c + dc;
+          if (sc < 0 || sc >= COLS) continue;
+          const t = g[r][sc];
+          if (movable(t)) { mark(t, r, sc); g[tr][c] = t; g[r][sc] = null; slid = true; break; }
+        }
+      }
+      if (!slid) break;
+    }
+    const moves = [], spawns = [];
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const t = g[r][c];
+      if (!t || !start.has(t.id)) continue;
+      const st = start.get(t.id);
+      const m = { tile: t, from: st.r, fromC: st.c, to: r, c };
+      if (spawnedTiles.has(t.id)) spawns.push(m); else if (st.r !== r || st.c !== c) moves.push(m);
     }
     return { moves, spawns };
   }
+
+  // le multe della Forestale si allargano se non ne togli nessuna
+  spreadTicket() {
+    const cand = [];
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (!this.ticket[r][c]) continue;
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const rr = r + dr, cc = c + dc;
+        if (inside(rr, cc) && !this.hole[rr][cc] && !this.ticket[rr][cc]) cand.push([rr, cc]);
+      }
+    }
+    if (!cand.length) return null;
+    const [r, c] = cand[Math.floor(this.rng() * cand.length)];
+    this.ticket[r][c] = 1;
+    return [r, c];
+  }
+  ticketCount() { return this.ticket.flat().reduce((a, b) => a + b, 0); }
 
   wouldMatch(a, b) {
     const ta = this.get(...a), tb = this.get(...b);
@@ -332,7 +402,7 @@ export class Board {
     const tiles = [];
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const t = this.grid[r][c];
-      if (t && !t.rock) { cells.push([r, c]); tiles.push(t); }
+      if (t && !t.rock && !t.chain) { cells.push([r, c]); tiles.push(t); }
     }
     for (let tries = 0; tries < 60; tries++) {
       for (let i = tiles.length - 1; i > 0; i--) {

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#2a8a37">
 <title>EDT Kingdom</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 </head>
@@ -21,8 +21,16 @@
     </header>
     <div id="map"></div>
     <div class="homebar">
-      <button id="btnBuild" class="btn btn-build">🔨 Costruisci <small id="buildCost"></small></button>
-      <button id="btnPlay" class="btn btn-play">Livello <b id="hLevel">1</b></button>
+      <div class="job" id="job">
+        <div class="jobimg" id="jobImg"></div>
+        <div class="jobtxt">
+          <small>Prossimo lavoro</small>
+          <b id="jobName">Bandiera EDT</b>
+          <div class="steps" id="jobSteps"></div>
+        </div>
+        <button id="btnBuild" class="btn btn-build"><span id="buildLbl">Costruisci</span><small id="buildCost">⭐ 1</small></button>
+      </div>
+      <button id="btnPlay" class="btn btn-play">Gioca <b id="hLevel">1</b></button>
     </div>
   </section>
 
@@ -57,6 +65,6 @@
   </div>
   <div id="toast" class="toast"></div>
 </div>
-<script type="module" src="js/game.js?v=4"></script>
+<script type="module" src="js/game.js?v=5"></script>
 </body>
 </html>

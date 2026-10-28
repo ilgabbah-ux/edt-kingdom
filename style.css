@@ -258,7 +258,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .ld-bar { width: 60%; height: 16px; border: 3px solid var(--ink); border-radius: 10px; background: #fff6e0; overflow: hidden; }
 .ld-bar i { display: block; height: 100%; width: 40%; background: linear-gradient(#ffe27a, #f5a623); animation: ld 1s ease-in-out infinite alternate; }
 @keyframes ld { to { transform: translateX(150%); } }
-#loading small { font: 800 14px var(--fb); color: #fff6e0; }
+#loading small { font: 800 14px var(--fb); color: #fff6e0; text-align: center; line-height: 1.5; padding: 0 24px; }
 
 /* impostazioni */
 .topbar .title { font-size: 25px; }

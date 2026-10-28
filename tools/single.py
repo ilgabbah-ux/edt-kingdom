@@ -2,7 +2,7 @@
 import base64, os, re, subprocess
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(root)
-subprocess.run(['npx', '-y', 'esbuild@0.24.0', 'js/game.js', '--bundle', '--format=iife', '--minify', '--outfile=dist/bundle.js'], check=True, capture_output=True)
+subprocess.run(['npx', '-y', 'esbuild@0.24.0', 'js/game.js', '--bundle', '--format=iife', '--minify', '--target=es2017', '--outfile=dist/bundle.js'], check=True, capture_output=True)
 b64 = lambda p: base64.b64encode(open(p, 'rb').read()).decode()
 css = open('style.css').read()
 css = re.sub(r"url\('img/([\w]+)\.webp'\)", lambda m: f"url('data:image/webp;base64,{b64('img/' + m.group(1) + '.webp')}')", css)
@@ -23,7 +23,15 @@ out = f'''<!doctype html>
 <link rel="apple-touch-icon" href="{icon}">
 <style>{css}</style>
 </head>
-<body>{body}<script>{amap}</script>
+<body>{body}<script>
+window.addEventListener('error', function () {{ window.__err = 1; }});
+setTimeout(function () {{
+  var l = document.getElementById('loading');
+  if (!l) return;
+  if (window.__EDT) {{ l.parentNode.removeChild(l); return; }}
+  l.querySelector('small').innerHTML = 'Questo visualizzatore non riesce ad avviare il gioco.<br>Apri il file con <b>Chrome</b> (Android) o <b>Safari</b> (iPhone):<br>tieni premuto il file → Apri con → Chrome.';
+}}, 7000);
+</script><script>{amap}</script>
 <script>{open('dist/bundle.js').read()}</script>
 </body>
 </html>'''

@@ -2,7 +2,7 @@
 # Crea game.min.js (un solo file, caricamento più veloce) e aggiorna la cache del service worker
 set -e
 cd "$(dirname "$0")/.."
-npx -y esbuild@0.24.0 js/game.js --bundle --format=iife --minify --outfile=game.min.js
+npx -y esbuild@0.24.0 js/game.js --bundle --format=iife --minify --target=es2017 --outfile=game.min.js
 V=$(date +%s)
 {
   echo "const CACHE = 'edtk-$V';"

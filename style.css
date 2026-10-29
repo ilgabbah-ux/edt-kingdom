@@ -790,3 +790,8 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .helper i { width: 80px; height: 80px; flex: none; border-radius: 50%; background: #fff center 18%/120% no-repeat; border: 3px solid #fff; margin: -24px 0; box-shadow: 0 4px 10px rgba(0,0,0,.4); }
 .helper span { font: 400 24px var(--fd); color: #fff; text-shadow: 0 3px 0 #0e1d3d; }
 @keyframes helperIn { 15% { transform: none; } 80% { transform: none; opacity: 1; } 100% { transform: translateX(110%); opacity: 0; } }
+/* edificio da costruire: fermo, solo un bagliore leggero */
+.bld.next, .bld.next .img { animation: none !important; }
+.bld.next .img.rise, .bld.next .img.scaf { filter: drop-shadow(0 0 6px rgba(255,211,77,.55)) !important; }
+.bld.next::before { content: ''; position: absolute; left: 10%; right: 10%; bottom: 6%; height: 22%; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,226,122,.55), rgba(255,226,122,0) 70%); animation: nextGlow 2.8s ease-in-out infinite; pointer-events: none; }
+@keyframes nextGlow { 50% { opacity: .45; } }

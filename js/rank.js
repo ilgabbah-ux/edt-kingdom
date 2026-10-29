@@ -75,3 +75,14 @@ export async function weSubmit(id, pts, rider = L`EDT Kingdom weekend`) {
   const d = await call({ action: 'add', act: String(WE_MODE), name, score: id * 1000 + Math.min(999, pts), mode: WE_MODE, rider, time: 0, win: 0, v: '1', k: getCode() });
   return { taken: !!d.taken, list: weOf(d) };
 }
+
+// ---- forziere di squadra EDT: percorso 17 (libero in Giro Easy). Punteggio = settimana * 10000 + vittorie della settimana.
+export const TEAM_MODE = 17;
+const teamOf = (d) => ((d.boards && d.boards[TEAM_MODE]) || []).map((e) => ({ name: e.n, w: Math.floor(e.s / 10000), wins: e.s % 10000, rider: e.r || '' }));
+export async function teamTop() { return teamOf(await call({ action: 'top', act: String(TEAM_MODE) })); }
+export async function teamSubmit(w, wins, rider = 'EDT Kingdom team') {
+  const name = getNick();
+  if (!name || wins <= 0) return null;
+  const d = await call({ action: 'add', act: String(TEAM_MODE), name, score: w * 10000 + Math.min(9999, wins), mode: TEAM_MODE, rider, time: 0, win: 0, v: '1', k: getCode() });
+  return { taken: !!d.taken, list: teamOf(d) };
+}

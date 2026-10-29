@@ -71,9 +71,9 @@ export async function shareImage(opts, text, url) {
 }
 
 // vittoria di un livello: immagine + link-sfida
-export function shareWin(n, stars, bg) {
+export function shareWin(n, stars, bg, duel = null) {
   const nick = X.getNick() || L`Un amico`;
-  const url = gameURL({ sfida: n, s: stars, da: nick });
+  const url = gameURL({ sfida: n, s: stars, da: nick, ...(duel ? { seme: duel.seed, m: duel.left } : {}) });
   X.sfx.click();
   shareImage({ bg, title: L`LIVELLO ${n} SUPERATO!`, line1: L`${nick} ti sfida`, stars, who: R(['gabbah', 'miti', 'purcello', 'svetlana']), footer: L`MI BATTI? 🍺` },
     L`🏍️🍺 Ho fatto ${stars} ⭐ al livello ${n} di Enduro Drinking Kingdom! Mi batti?`, url);
@@ -86,6 +86,8 @@ export function readChallenge() {
     const n = parseInt(q.get('sfida'), 10);
     if (n > 0 && n <= X.MAX_LEVEL) {
       X.save.challenge = { n, s: Math.min(3, Math.max(1, parseInt(q.get('s'), 10) || 1)), da: String(q.get('da') || L`Un amico`).replace(/[<>"'`\\]/g, '').slice(0, 16) };
+      const seed = parseInt(q.get('seme'), 10), m = parseInt(q.get('m'), 10);
+      if (seed > 0) { X.save.challenge.seed = seed; X.save.challenge.m = m >= 0 ? m : 0; }
       X.persist();
       history.replaceState(null, '', location.pathname);
     }
@@ -93,7 +95,7 @@ export function readChallenge() {
 }
 export function offerChallenge() {
   const ch = X.save.challenge; if (!ch) return false;
-  X.showCard(L`<h2>🏁 Sfida!</h2>${X.speakerHTML('gabbah', L`<b>${esc(ch.da)}</b> ti sfida: fai almeno <b>${ch.s} ${X.IC_S}</b> al <b>livello ${ch.n}</b>. Ce la fai?`)}
+  X.showCard(L`<h2>🏁 Sfida!</h2>${X.speakerHTML('gabbah', ch.seed ? L`<b>${esc(ch.da)}</b> ti sfida a duello sul <b>livello ${ch.n}</b>, con la <b>stessa identica griglia</b>: ha finito con <b>${ch.m} mosse avanzate</b>. Fai meglio?` : L`<b>${esc(ch.da)}</b> ti sfida: fai almeno <b>${ch.s} ${X.IC_S}</b> al <b>livello ${ch.n}</b>. Ce la fai?`)}
     <div class="chstars">${[1, 2, 3].map((k) => `<i class="ic ic-star${k <= ch.s ? ' on' : ''}"></i>`).join('')}</div>
     <div class="row"><button id="cLater" class="btn btn-gray">Dopo</button><button id="cGo" class="btn btn-play">Accetto!</button></div>`, {
     cLater: X.hideCard,
@@ -102,9 +104,15 @@ export function offerChallenge() {
   return true;
 }
 // a fine livello: com'è andata la sfida
-export function challengeResult(n, stars, won) {
+export function challengeResult(n, stars, won, left = 0) {
   const ch = X.save.challenge;
   if (!ch || ch.n !== n) return '';
+  if (ch.seed) {   // duello sulla stessa griglia: vince chi avanza più mosse
+    const res = !won ? 'lose' : left > ch.m ? 'win' : left === ch.m ? 'tie' : 'lose';
+    if (won) { X.save.challenge = null; X.persist(); }
+    return `<div class="duel ${res}"><div><b>${L`Tu`}</b><span>${won ? left : '—'}</span></div><em>VS</em><div><b>${esc(ch.da)}</b><span>${ch.m}</span></div></div>
+      <p class="chres${res === 'win' ? ' ok' : ''}">${res === 'win' ? L`🏆 Duello vinto contro <b>${esc(ch.da)}</b>!` : res === 'tie' ? L`🤝 Pareggio con <b>${esc(ch.da)}</b>!` : L`${esc(ch.da)} ha avanzato più mosse: rilancia la sfida!`}</p>`;
+  }
   if (won && stars >= ch.s) { X.save.challenge = null; X.persist(); return L`<p class="chres ok">🏆 Sfida vinta contro <b>${esc(ch.da)}</b>!</p>`; }
   return L`<p class="chres">${esc(ch.da)} ne ha fatte <b>${ch.s} ${X.IC_S}</b>: riprova!</p>`;
 }
@@ -499,4 +507,42 @@ export async function shareVideo(n, stars, bg) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   try { await navigator.clipboard.writeText(`${text} ${url}`); } catch { /* */ }
   X.toast(L`Video salvato! Caricalo su TikTok o Reels`, 1800);
+}
+
+// ---------------- regali tra amici (via link, senza server) ----------------
+const GIFTS = { mH: [L`una Moto`, 'p_moto'], bomb: [L`una Tanica`, 'p_tanica'], grappa: [L`una Grappa`, 'p_grappa'] };
+const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
+export const canGiftToday = () => (X.save.giftSent || 0) !== today();
+export async function shareGift() {
+  if (!canGiftToday()) { X.toast(L`Oggi hai già regalato: torna domani!`, 1500); return; }
+  const g = R(['mH', 'mH', 'bomb', 'grappa']);
+  const nick = X.getNick() || L`Un amico`;
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify({ d: nick.slice(0, 16), g, t: today(), id: Math.random().toString(36).slice(2, 9) })))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const url = gameURL({ regalo: code });
+  const text = L`🎁 Ti ho regalato ${GIFTS[g][0]} in Enduro Drinking Kingdom! Aprilo qui e ricambia:`;
+  X.save.giftSent = today(); X.persist();
+  try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') { X.save.giftSent = 0; X.persist(); return; } }
+  try { await navigator.clipboard.writeText(text + ' ' + url); X.toast(L`Link del regalo copiato! Mandalo a un amico`, 1800); } catch { prompt(L`Copia questo link:`, url); }
+}
+export function readGift() {
+  let code = null;
+  try { code = new URLSearchParams(location.search).get('regalo'); } catch { /* */ }
+  if (!code) return false;
+  try { history.replaceState(null, '', location.pathname); } catch { /* */ }
+  let g;
+  try { g = JSON.parse(decodeURIComponent(escape(atob(code.replace(/-/g, '+').replace(/_/g, '/'))))); } catch { return false; }
+  if (!g || !GIFTS[g.g] || !g.id) return false;
+  const got = X.save.giftsGot || (X.save.giftsGot = { day: 0, n: 0, ids: [] });
+  if (got.day !== today()) { got.day = today(); got.n = 0; }
+  const from = String(g.d || L`Un amico`).replace(/[<>"'`\\]/g, '').slice(0, 16);
+  if (got.ids.includes(g.id)) { X.toast(L`Questo regalo l'hai già aperto`, 1500); return false; }
+  if (got.n >= 3) { X.toast(L`Oggi hai già aperto 3 regali: riprova domani!`, 1800); return false; }
+  got.ids = [...got.ids.slice(-40), g.id]; got.n++;
+  X.save.inv[g.g] = (X.save.inv[g.g] || 0) + 1; X.persist();
+  X.showCard(L`<h2>🎁 Un regalo!</h2><div class="giftbox" style="background-image:${X.I(GIFTS[g.g][1])}"></div>
+    <p><b>${esc(from)}</b> ti ha regalato <b>${GIFTS[g.g][0]}</b>: la trovi prima di ogni livello, nei "Parti con un aiuto?".</p>
+    <div class="row"><button id="cLater" class="btn btn-gray">Grazie!</button><button id="cBack" class="btn btn-share">🎁 Ricambia</button></div>`, {
+    cLater: X.hideCard, cBack: () => { X.hideCard(); shareGift(); },
+  });
+  return true;
 }

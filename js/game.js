@@ -578,8 +578,49 @@ async function openRanking(justJoined = false) {
   bindRkTabs();
   if (justJoined && !taken) FX.banner(L`Sei in classifica!`, '', '#ffd34d');
 }
-const RK_TABS = (on) => L`<div class="gtabs"><button class="gtab${on === 0 ? ' on' : ''}" data-rk="0">Generale</button><button class="gtab${on === 1 ? ' on' : ''}" data-rk="1">🏁 Gara del weekend</button></div>`;
-function bindRkTabs() { document.querySelectorAll('.gtab[data-rk]').forEach((b) => { b.onclick = () => { sfx.click(); if (b.dataset.rk === '1') openWeekend(); else openRanking(); }; }); }
+const RK_TABS = (on) => `<div class="gtabs"><button class="gtab${on === 0 ? ' on' : ''}" data-rk="0">${L`Generale`}</button><button class="gtab${on === 1 ? ' on' : ''}" data-rk="1">${L`🏁 Weekend`}</button><button class="gtab${on === 2 ? ' on' : ''}" data-rk="2">${L`🤝 Squadra`}</button></div>`;
+function bindRkTabs() { document.querySelectorAll('.gtab[data-rk]').forEach((b) => { b.onclick = () => { sfx.click(); if (b.dataset.rk === '1') openWeekend(); else if (b.dataset.rk === '2') openTeam(); else openRanking(); }; }); }
+// ---------------- forziere di squadra: le vittorie di tutta l'EDT nella settimana riempiono un forziere comune ----------------
+const teamWeek = () => Math.floor((Date.now() / 86400000 + 3) / 7);   // settimane che iniziano il lunedì
+const TEAM_GOALS = [{ n: 30, coins: 150, txt: L`150 monete` }, { n: 80, coins: 200, pw: 'bomb', txt: L`200 monete + 1 Tanica` }, { n: 150, coins: 400, pw: 'grappa', txt: L`400 monete + 1 Grappa` }];
+function teamTrack() {
+  const w = teamWeek();
+  if (!save.team || save.team.w !== w) save.team = { w, wins: 0, claimed: [] };
+  save.team.wins++; persist();
+  if (RANK.getNick()) RANK.teamSubmit(w, save.team.wins, V.riderTag()).catch(() => {});
+}
+async function openTeam() {
+  if (!RANK.getNick()) { askNick(); return; }
+  const w = teamWeek(), me = RANK.getNick().toLowerCase();
+  if (!save.team || save.team.w !== w) { save.team = { w, wins: 0, claimed: [] }; persist(); }
+  showCard(`<h2>${L`Forziere di squadra`}</h2>${RK_TABS(2)}<p class="rkload">${L`Conto le vittorie dell'EDT…`}</p><div class="row"><button id="cClose" class="btn btn-play">${L`Chiudi`}</button></div>`, { cClose: hideCard });
+  bindRkTabs();
+  let list;
+  try { const r = save.team.wins ? await RANK.teamSubmit(w, save.team.wins, V.riderTag()) : null; list = r ? r.list : await RANK.teamTop(); }
+  catch { const p = document.querySelector('.rkload'); if (p) p.textContent = L`Niente rete: riprova quando torni online.`; return; }
+  if (!document.querySelector('.rkload')) return;
+  const cur = list.filter((e) => e.w === w).sort((a, b) => b.wins - a.wins);
+  const tot = Math.max(cur.reduce((a, e) => a + e.wins, 0), save.team.wins);
+  const max = TEAM_GOALS[TEAM_GOALS.length - 1].n;
+  const goals = TEAM_GOALS.map((g, i) => {
+    const ok = tot >= g.n, got = save.team.claimed.includes(i);
+    return `<div class="tgoal${ok ? ' ok' : ''}"><b>${g.n}</b><span>${g.txt}</span>${ok && !got ? `<button class="btn btn-play tclaim" data-i="${i}">${L`Ritira!`}</button>` : got ? '<em>✔</em>' : '<em>🔒</em>'}</div>`;
+  }).join('');
+  const rows = cur.slice(0, 12).map((e, i) => `<div class="rk${String(e.name).toLowerCase() === me ? ' me' : ''}"><span class="pos">${i + 1}</span>${V.avatarHTML(String(e.name).toLowerCase() === me ? V.me() : V.parseRider(e.rider))}<b>${esc(e.name)}</b><span class="st">${e.wins} 🏁</span></div>`).join('');
+  showCard(`<h2>${L`Forziere di squadra`}</h2>${RK_TABS(2)}
+    <p class="small">${L`Ogni livello vinto da chiunque dell'EDT riempie il forziere della settimana. Più vincete insieme, più premi per tutti!`}</p>
+    <div class="tbar"><i style="width:${Math.min(100, tot / max * 100)}%"></i><span>${tot} / ${max} ${L`vittorie`}</span></div>
+    <div class="tgoals">${goals}</div>
+    <div class="rklist short">${rows || `<p>${L`Questa settimana ancora nessuno: vinci un livello e apri le danze!`}</p>`}</div>
+    <div class="row"><button id="cGift" class="btn btn-share">${V.canGiftToday() ? L`🎁 Regala un aiuto a un amico` : L`🎁 Regalo di oggi già fatto`}</button></div>
+    <div class="row"><button id="cClose" class="btn btn-play">${L`Chiudi`}</button></div>`, { cClose: hideCard, cGift: () => V.shareGift() });
+  bindRkTabs();
+  document.querySelectorAll('.tclaim').forEach((b) => { b.onclick = () => {
+    const i = +b.dataset.i, g = TEAM_GOALS[i]; if (save.team.claimed.includes(i)) return;
+    save.team.claimed.push(i); save.coins += g.coins; if (g.pw) save.inv[g.pw] = (save.inv[g.pw] || 0) + 1; persist();
+    sfx.win(); fireworks(900); renderHome(); openTeam();
+  }; });
+}
 async function openWeekend() {
   if (!RANK.getNick()) { askNick(); return; }
   const w = V.weekendInfo(), me = RANK.getNick().toLowerCase();
@@ -1258,7 +1299,7 @@ async function resolve({ pending = [], swapCells = [] } = {}) {
       const lv = CASCADE[Math.min(step - 1, CASCADE.length - 1)];
       FX.banner(lv[0], `Combo x${step + 1}`, lv[1]);
       sfx.combo(step);
-      if (step >= 2) peekSay(PEEK_LINES[Math.min(step - 2, PEEK_LINES.length - 1)]);
+      if (step >= 2) { if (G.buddyObj) { budCheerT = 0; buddyCheer('combo'); } else peekSay(PEEK_LINES[Math.min(step - 2, PEEK_LINES.length - 1)]); }
       if (step >= 2) FX.shake(2 + step * 1.5, .3);
     }
     await applyGravity();
@@ -1600,6 +1641,7 @@ async function endTurn() {
   if ((G.moveCount || 0) % 2 === 0) placeEventTokens();
   if ((G.moveCount || 0) % 4 === 0 && Math.random() < 0.6) makeGold();
   if (!G.boss && !G.helped && !G.exhibit && (G.moveCount || 0) >= 5 && G.moves > 3 && Math.random() < 0.22) await surpriseHelper();
+  if (G.buddyObj && !G.nearSaid && !G.time && G.goals.reduce((a, g) => a + goalLeft(g), 0) <= 3) { G.nearSaid = true; budCheerT = 0; buddyCheer('near'); }
   if (G.buddyObj && G.buddyObj.perk.sprint && !G.sprinted && !G.time && G.moves <= 5 && G.moves > 0) { G.sprinted = true; placeStartPowers(['mH']); peekSay(L`Maggie: sprint finale, tieni una moto!`); }
   saveRun();
   if (G.explainQ.size) { const ks = [...G.explainQ]; G.explainQ.clear(); await explain(ks, ks.length > 1 ? L`Nuovi potenziamenti!` : L`Nuovo potenziamento!`); }
@@ -1651,15 +1693,16 @@ async function winLevel() {
     save.coins += 20; persist(); sfx.win();
     showCard(L`<h2 class="wintitle">Sfida superata!</h2>
       <div class="stars3 fill">${[1, 2, 3].map((k) => `<i class="ic ic-star slot${k <= stars ? ' on' : ''}" data-k="${k}"></i>`).join('')}</div>
-      ${V.challengeResult(n, stars, true)}<p>Questo livello lo sblocchi davvero più avanti: intanto <b>+20 ${IC_C}</b>.</p>
+      ${V.challengeResult(n, stars, true, left)}<p>Questo livello lo sblocchi davvero più avanti: intanto <b>+20 ${IC_C}</b>.</p>
       <button id="cShare" class="btn btn-share">📣 Rilancia la sfida</button>
       <div class="row"><button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg), cHome: () => { hideCard(); goHome(); } });
+    { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg, { seed: G.seed, left }), cHome: () => { hideCard(); goHome(); } });
     fireworks(1500);
     return;
   }
   const first = n >= save.level;
   if (first) weekTrack('win');   // contano solo i livelli nuovi, non quelli rigiocati
+  teamTrack();
   const prev = save.best[n] || 0;
   const gain = Math.max(0, stars - prev);
   save.best[n] = Math.max(prev, stars);
@@ -1676,7 +1719,7 @@ async function winLevel() {
   // figurina: sempre al primo passaggio, a volte rigiocando
   const sticker = first || Math.random() < 0.4 ? V.drawSticker() : null;
   const chest = V.chestTick(true);
-  const chRes = V.challengeResult(n, stars, true);
+  const chRes = V.challengeResult(n, stars, true, left);
   sfx.win();
   const nb = nextBuilding();
   const [who, line] = pick(WIN_LINES);
@@ -1691,7 +1734,7 @@ async function winLevel() {
     ${sticker ? L`<p class="stkhint">📒 Hai trovato una figurina!</p>` : ''}
     <div class="row sharerow"><button id="cShare" class="btn btn-share">📣 Condividi e sfida</button><button id="cVid" class="btn btn-share vid">🎬 Video TikTok</button></div>
     <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg), cVid: () => V.shareVideo(n, stars, ZONES[zoneOfLevel(n)].bg),
+    { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[zoneOfLevel(n)].bg),
       cHome: async () => { hideCard(); await afterWin(); explain(['coins'], L`Hai guadagnato monete!`).then(goHome); },
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
   async function afterWin() { await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
@@ -2110,6 +2153,24 @@ async function announceBuddies() {
     fireworks(900);
   }
 }
+// il compagno entra in scena: vola al centro con nome e aiuto, poi torna in basso a sinistra
+function buddyEntrance(b) {
+  if (G.over || !$('#game').classList.contains('active')) return;
+  const d = document.createElement('div'); d.className = 'budfly';
+  d.innerHTML = `<span class="bav" style="background-image:${I('c_' + b.id)}"></span><div class="budtag"><b>${b.name}</b><small>${b.nick}</small></div>`;
+  app.appendChild(d);
+  beep(520, .08, 'triangle', .08, 200); setTimeout(() => beep(780, .1, 'triangle', .08, 200), 120);
+  setTimeout(() => { d.classList.add('back'); }, 1350);
+  setTimeout(() => { d.remove(); peekSay(pick(b.lines)); const pk = $('#peek'); if (pk) { pk.classList.add('hop'); setTimeout(() => pk.classList.remove('hop'), 600); } }, 1900);
+}
+// il compagno esulta durante la partita (combo, potenziamenti, quasi fatta)
+const BUD_CHEER = [L`Che manetta!`, L`Così si fa!`, L`Easy!`, L`Vai che ci siamo!`, L`Campa giù!`, L`Spettacolo!`];
+let budCheerT = 0;
+function buddyCheer(kind) {
+  if (!G.buddyObj || performance.now() - budCheerT < 4000) return;
+  budCheerT = performance.now();
+  peekSay(kind === 'near' ? L`Manca pochissimo!` : Math.random() < .35 ? pick(G.buddyObj.lines) : pick(BUD_CHEER));
+}
 // applica l'aiuto del compagno all'inizio del livello
 function applyBuddy(extras) {
   const b = G.buddyObj; if (!b) return extras;
@@ -2117,7 +2178,7 @@ function applyBuddy(extras) {
   if (p.moves) { if (G.time) { G.time += p.moves * 4; G.timeLeft += p.moves * 4; } else G.moves += p.moves; }
   if (p.hammer) G.freeHammer = p.hammer;
   if (p.clear) setTimeout(() => buddyClear(p.clear, p.n), 1700);
-  setTimeout(() => peekSay(`${b.name}: ${pick(b.lines)}`), 900);
+  setTimeout(() => buddyEntrance(b), 350);
   return p.power ? [...extras, ...p.power] : extras;
 }
 async function buddyClear(type, n) {
@@ -2140,6 +2201,8 @@ async function buddyClear(type, n) {
   if (allDone()) { await winLevel(); return; }
   saveRun(); scheduleHint();
 }
+// numeri casuali con seme: stessa griglia e stesse tessere in arrivo per i duelli tra amici
+function seededRng(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const PRE = [
   { id: 'mH', name: L`Moto`, cost: 60, img: 'p_moto' },
   { id: 'bomb', name: L`Tanica`, cost: 90, img: 'p_tanica' },
@@ -2203,14 +2266,16 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   const lv = getLevel(n);
   G.exhibit = challenge && n > save.level;   // sfida di un amico su un livello non ancora sbloccato: si gioca ma non fa avanzare
   G.level = lv;
-  G.board = new Board(lv);
+  const dSeed = challenge && save.challenge && save.challenge.n === n && save.challenge.seed ? save.challenge.seed : 0;
+  G.seed = dSeed || (1 + Math.floor(Math.random() * 2147483000));
+  G.board = new Board(lv, seededRng(G.seed));
   G.moves = lv.moves;
   G.goals = lv.goals.map((g) => ({ ...g, done: 0 }));
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
   G.ticketCleared = false; G.explainQ = new Set(); G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
   G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null; G.droneFix = null; G.helped = false; G.moveCount = 0;
   G.time = lv.time || 0; G.timeLeft = resume && resume.time != null ? resume.time : G.time;
-  G.buddyObj = resume ? (resume.buddy ? BUDDY[resume.buddy] : null) : curBuddy(); G.freeHammer = 0; G.buddySaved = !!(resume && resume.bsaved); G.sprinted = !!(resume && resume.sprint);
+  G.buddyObj = resume ? (resume.buddy ? BUDDY[resume.buddy] : null) : challenge ? null : curBuddy(); G.freeHammer = 0; G.buddySaved = !!(resume && resume.bsaved); G.sprinted = !!(resume && resume.sprint); G.nearSaid = false;
   clearPreview(); clearHint();
   if (resume) {
     const b = G.board;
@@ -2255,7 +2320,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   showScreen('game');
   AU.playMusic(lv.boss ? 'boss' : 'game');
   layout();
-  { const pk = document.querySelector('#peek i'); if (pk) pk.style.backgroundImage = I(CHARS[V.me().who].img); }
+  { const pk = document.querySelector('#peek i'); if (pk) pk.style.backgroundImage = G.buddyObj ? I('c_' + G.buddyObj.id) : I(CHARS[V.me().who].img); $('#peek').classList.toggle('bud', !!G.buddyObj); }
   buildBoardDOM();
   if (!G.boss) setTimeout(makeGold, 900);
   setTimeout(placeEventTokens, 1000);
@@ -2457,7 +2522,7 @@ AU.playMusic('home');
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
 const firstStory = !save.story.intro;
 const offerEvent = () => { const ep = V.eventProgress(); if (!ep || save.evSeen === ep.st.id) return false; save.evSeen = ep.st.id; persist(); V.openEvent(); return true; };
-const startup = async () => { if (await V.readProgressLink()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
+const startup = async () => { if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
 if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
 else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {

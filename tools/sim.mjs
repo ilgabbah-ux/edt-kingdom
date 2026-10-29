@@ -47,13 +47,16 @@ function doClear(st, clear, matched, created, pre = []) {
   for (const k of rockHits) {
     const [r, c] = unkey(k); const t = b.grid[r][c];
     t.rock--;
-    if (t.rock <= 0) { b.grid[r][c] = null; credit(st, t.kind === 'crate' ? 'crate' : 'rock'); } else credit(st, 'boss');
+    if (t.rock <= 0) { b.grid[r][c] = null; credit(st, t.kind === 'crate' ? 'crate' : t.kind === 'velox' ? 'velox' : t.kind === 'gomme' ? 'gomme' : t.kind === 'mug' ? 'mug' : 'rock');
+      if (t.kind === 'mug') for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if (inside(rr, cc) && b.grid[rr][cc] && !b.grid[rr][cc].rock) clear.add(key(rr, cc)); }
+    } else credit(st, 'boss');
   }
   for (const k of clear) {
     const [r, c] = unkey(k); const t = b.grid[r][c];
     if (b.ticket[r][c]) { b.ticket[r][c] = 0; st.ticketCleared = true; credit(st, 'multa'); }
     if (!t || t.rock > 0) continue;
     if (rockHits.has(k)) continue;
+    if (t.drop) continue;
     if (t.chain) { t.chain = false; credit(st, 'chain'); if (b.mud[r][c] > 0) { b.mud[r][c]--; credit(st, 'mud'); } continue; }
     if (protect.has(k)) credit(st, 'tile', t.color);
     else { if (t.color >= 0) credit(st, 'tile', t.color); else credit(st, 'boss'); b.grid[r][c] = null; }
@@ -72,6 +75,7 @@ function resolve(st, pending = [], swapCells = []) {
     pending = [];
     doClear(st, clear, matched, created, pre);
     st.board.gravity();
+    for (let g = 0; g < 4; g++) { const ds = st.board.collectDrops(); if (!ds.length) break; for (const [r, c] of ds) { st.board.grid[r][c] = null; credit(st, 'drop'); } st.board.gravity(); }
   }
 }
 
@@ -113,7 +117,10 @@ function runLevel(n, skill = 1) {
   const lv = getLevel(n);
   const ov = (process.env.EDT_MOVES || '').split(':'); if (+ov[0] === n) lv.moves = +ov[1];
   const st = { board: new Board(lv), goals: lv.goals.map((g) => ({ ...g, done: 0 })), ticketCleared: false };
-  let moves = lv.moves, bossCount = lv.boss ? lv.boss.every : 0;
+  let moves = lv.time ? Math.round(lv.time / 4.5) : lv.moves, bossCount = lv.boss ? lv.boss.every : 0;
+  let turn = 0;
+  const topUp = () => { const gl = st.goals.find((g) => g.type === 'drop'); if (!gl) return; const b = st.board; let need = gl.n - gl.done - b.dropCount(); for (let c = 0; c < COLS && need > 0 && b.dropCount() < 2; c++) { const cc = (c * 5 + turn) % COLS; let r = 0; while (r < ROWS && b.hole[r][cc]) r++; const t = b.grid[r] && b.grid[r][cc]; if (!t || t.rock || t.chain || t.power || t.drop) continue; t.drop = true; t.color = -1; need--; } };
+  topUp();
   while (moves > 0) {
     const cands = candidates(st.board);
     if (!cands.length) { st.board.shuffle(); continue; }
@@ -138,6 +145,9 @@ function runLevel(n, skill = 1) {
       const k = 2 + Math.floor((n / 5 - 1) / 2);
       for (let i = 0; i < k && cand.length; i++) { const t = cand.splice(Math.floor(Math.random() * cand.length), 1)[0]; t.rock = 1; t.color = -1; }
     }
+    turn++;
+    topUp();
+    if (turn % 3 === 0) { const b = st.board; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { const t = b.grid[r][c]; if (t && t.kind === 'velox') { const cand = b.veloxTargets(r, c); if (cand.length) { const [vr, vc] = cand[Math.floor(Math.random() * cand.length)]; b.grid[vr][vc].chain = true; } } } }
     if (!st.board.hasMoves()) st.board.shuffle();
   }
   return { win: false, left: 0, prog: progress(st.goals) / st.goals.length };

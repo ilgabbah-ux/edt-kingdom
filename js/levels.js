@@ -245,7 +245,7 @@ function goalsFrom(layout = [], tiles = []) {
 }
 
 // livelli difficili (come in Royal Match): uno ogni 10, segnati in rosso e pagati il doppio
-const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 96, 107, 117, 127, 137, 147]);
+const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 98, 107, 117, 127, 137, 147]);
 export const isHard = (n) => HARD.has(n);
 export function getLevel(n) {
   const lv0 = baseLevel(n);
@@ -285,7 +285,7 @@ function moroccoLevel(n, rng, tier) {
     const a = Math.floor(rng() * colors), b2 = (a + 1 + Math.floor(rng() * (colors - 1))) % colors;
     const layout = thin(makeLayout(rng, tier, rng() < .5 ? 'mud' : 'chain', rng() < .4), rng, 10);
     const goals = [{ type: 'tile', t: a, n: 22 + Math.min(tier, 6) }, { type: 'tile', t: b2, n: 22 + Math.min(tier, 6) }, ...goalsFrom(layout)];
-    return { n, moves: 999, time: 95 + goals.length * 10, colors, goals, layout };
+    return { n, moves: 999, time: 105 + goals.length * 10, colors, goals, layout };
   }
   const base = kind.includes('sand') ? 'chain' : kind.includes('water') ? 'multa' : kind.includes('mud') ? 'mud' : '';
   const G = makeLayout(rng, tier, base || 'none', rng() < 0.45).map((r) => r.split(''));
@@ -303,9 +303,10 @@ function moroccoLevel(n, rng, tier) {
   layout = thin(layout, rng, 18);
   const goals = goalsFrom(layout);
   if (drops) goals.unshift({ type: 'drop', n: drops });
-  const weight = goals.reduce((s2, g) => s2 + (g.type === 'drop' ? g.n * 2.2 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 3 : g.type === 'velox' ? g.n * 1.6 : g.type === 'gomme' ? g.n * 1.4 : g.n / 3), 0);
-  const moves = Math.round(20 + weight * 0.9 + 3);
-  return { n, moves: Math.min(moves, 38), colors, goals, layout, drops };
+  // pesi ritarati col simulatore (ott. 2026): i fusti sono duri, autovelox/gomme/acqua erano troppo facili
+  const weight = goals.reduce((s2, g) => s2 + (g.type === 'drop' ? g.n * 3.6 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 0 : g.type === 'velox' ? g.n * 1.0 : g.type === 'gomme' ? g.n * 0.5 : g.n / 3), 0);
+  const moves = Math.round(17 + weight * 0.9 + 3);
+  return { n, moves: Math.min(moves, drops ? 44 : 38), colors, goals, layout, drops };
 }
 // Oktoberfest (121+): festoni (k), conti da pagare (t), boccali da riempire (b), fusti (d), livelli a tempo
 function oktoberLevel(n, rng, tier) {
@@ -317,7 +318,7 @@ function oktoberLevel(n, rng, tier) {
     const a = Math.floor(rng() * colors), b2 = (a + 2) % colors;
     const layout = thin(makeLayout(rng, tier, rng() < .5 ? 'mud' : 'chain', rng() < .4), rng, 10);
     const goals = [{ type: 'tile', t: a, n: 24 + Math.min(tier, 6) }, { type: 'tile', t: b2, n: 24 + Math.min(tier, 6) }, ...goalsFrom(layout)];
-    return { n, moves: 999, time: 95 + goals.length * 10, colors, goals, layout };
+    return { n, moves: 999, time: 105 + goals.length * 10, colors, goals, layout };
   }
   const base = kind.includes('garland') ? 'chain' : kind.includes('bill') ? 'multa' : kind.includes('mud') ? 'mud' : kind.includes('crate') ? 'crate' : '';
   const G = makeLayout(rng, tier, base || 'none', rng() < 0.45).map((r) => r.split(''));
@@ -333,9 +334,9 @@ function oktoberLevel(n, rng, tier) {
   let layout = thin(G.map((r) => r.join('')), rng, 18);
   const goals = goalsFrom(layout);
   if (drops) goals.unshift({ type: 'drop', n: drops });
-  const weight = goals.reduce((s2, g) => s2 + (g.type === 'drop' ? g.n * 2.2 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 3 : g.type === 'mug' ? g.n * 1.5 : g.n / 3), 0);
-  const moves = Math.round(21 + weight * 0.9 + 3);
-  return { n, moves: Math.min(moves, 38), colors, goals, layout, drops };
+  const weight = goals.reduce((s2, g) => s2 + (g.type === 'drop' ? g.n * 3.6 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 0 : g.type === 'mug' ? g.n * 1.2 : g.n / 3), 0);
+  const moves = Math.round(18 + weight * 0.9 + 3);
+  return { n, moves: Math.min(moves, drops ? 44 : 38), colors, goals, layout, drops };
 }
 const BOSS_LINES5 = [
   L`Ozapft is! E anche la multa è servita.`,
@@ -362,7 +363,7 @@ function baseLevel(n) {
     const hp = 220 + (tier - 3) * 15;
     const layout = makeLayout(rng, tier, n > 120 ? (rng() < 0.5 ? 'crate' : 'chain') : n > 90 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
     return {
-      n, moves: n > 90 ? 40 : 28, colors, boss: { hp, every: 4 },
+      n, moves: n > 90 ? 42 : 28, colors, boss: { hp, every: 4 },
       goals: [{ type: 'boss', n: hp }], layout,
       intro: n > 120 ? { who: 'forestale5', text: BOSS_LINES5[tier % BOSS_LINES5.length] } : n > 90 ? { who: 'forestale4', text: BOSS_LINES4[tier % BOSS_LINES4.length] } : n > 60 ? { who: 'forestale3', text: BOSS_LINES3[tier % BOSS_LINES3.length] } : n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
     };

@@ -942,3 +942,9 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 #card.precard .pre .pi { width: 38px !important; height: 38px !important; }
 #card.precard .prehelp { font-size: 11px; line-height: 1.2; }
 #card.precard > .row:last-child { position: sticky; bottom: 0; margin: 4px -16px 0; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(rgba(255,248,230,0), var(--cream) 30%); z-index: 2; }
+#card.precard .speaker p { font-size: 13px; }
+#card.precard .newsbox .hlist p, #card.precard .newsbox .hrow p { font-size: 12.5px; line-height: 1.25; }
+#card.precard .stars3, #card.precard .goalrow { margin: 2px 0; }
+@media (max-height: 700px) { #card.precard h2 { font-size: 28px; } #card.precard .prehelp { display: none; } }
+#card.precard .buddy b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#card.precard .goalrow { margin-bottom: 8px; }

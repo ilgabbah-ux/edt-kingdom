@@ -2363,7 +2363,8 @@ async function openLevel(num) {
   ];
   const tip = lv.intro || (() => { const t = TIPS[lv.n % TIPS.length]; return { who: t[0], text: t[1] }; })();
   const bud = curBuddy();
-  const intro = bud ? (lv.intro ? speakerHTML(tip.who, tip.text) : '') + buddyBoxHTML(bud, '') : speakerHTML(tip.who, tip.text);
+  const hasNews = levelThings(lv).some((k) => !save.seen[k]);   // se c'è la scheda delle novità, la battuta del personaggio non serve
+  const intro = bud ? (lv.intro && !hasNews ? speakerHTML(tip.who, tip.text) : '') + buddyBoxHTML(bud, '') : hasNews ? '' : speakerHTML(tip.who, tip.text);
   const news = levelThings(lv).filter((k) => !save.seen[k]);
   const newsHTML = news.length ? L`<div class="newsbox"><div class="prehead">Novità in questo livello</div><div class="hlist">${news.map(helpRow).join('')}</div></div>` : '';
   const gifts = streakGifts();

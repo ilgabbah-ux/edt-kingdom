@@ -38,21 +38,24 @@ function loop(now = performance.now()) {
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rot);
     if (p.kind === 'chunk') {
-      const s = p.size * (1 - k * 0.5);
-      ctx.fillStyle = p.color;
-      ctx.strokeStyle = 'rgba(43,29,20,.85)'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(-s, -s * .6); ctx.lineTo(s * .8, -s); ctx.lineTo(s, s * .7); ctx.lineTo(-s * .6, s); ctx.closePath();
-      ctx.fill(); ctx.stroke();
+      // scheggia lucida che gira su se stessa (si schiaccia e si riapre come se ruotasse in 3D)
+      const s = p.size * (1 - k * 0.45) * 3.2;
+      const flip = Math.cos(p.t * p.spin);
+      ctx.scale(Math.max(0.18, Math.abs(flip)), 1);
+      ctx.drawImage(gemSprite(p.color, p.shape), -s / 2, -s / 2, s, s);
     } else if (p.kind === 'spark') {
-      const s = p.size * (1 - k);
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      for (let j = 0; j < 4; j++) {
-        const a = j * Math.PI / 2;
-        ctx.lineTo(Math.cos(a) * s * 2.2, Math.sin(a) * s * 2.2);
-        ctx.lineTo(Math.cos(a + Math.PI / 4) * s * .5, Math.sin(a + Math.PI / 4) * s * .5);
-      }
-      ctx.closePath(); ctx.fill();
+      // scintilla luminosa a 4 punte con alone
+      const s = p.size * (1 - k) * (0.8 + 0.4 * Math.sin(p.t * 30));
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.drawImage(SPARK(), -s * 3, -s * 3, s * 6, s * 6);
+    } else if (p.kind === 'flame') {
+      // fiammata: nucleo bianco, poi colore, sfumata e additiva (niente dischi piatti)
+      const r = p.size * (0.5 + k * 1.1);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = (1 - k) * 0.9;
+      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      gr.addColorStop(0, 'rgba(255,255,235,1)'); gr.addColorStop(0.35, p.color); gr.addColorStop(1, 'rgba(255,80,0,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
     } else if (p.kind === 'puff') {
       const s = p.size * (0.6 + k * 1.4);
       ctx.globalAlpha = (1 - k) * 0.7;
@@ -108,17 +111,69 @@ function add(p) {
   if (!raf) raf = requestAnimationFrame(loop);
 }
 
-// pezzi colorati che schizzano via da una tessera distrutta
+// sprite delle schegge: una per colore e forma, disegnate una volta sola
+const gemCache = new Map();
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  if (f > 0) { r += (255 - r) * f; g += (255 - g) * f; b += (255 - b) * f; } else { r *= 1 + f; g *= 1 + f; b *= 1 + f; }
+  return `rgb(${r | 0},${g | 0},${b | 0})`;
+}
+function gemSprite(color, shape) {
+  const key = color + shape;
+  let c = gemCache.get(key);
+  if (c) return c;
+  c = document.createElement('canvas'); c.width = c.height = 48;
+  const g = c.getContext('2d');
+  const hex = /^#[0-9a-f]{6}$/i.test(color) ? color : '#ffd34d';
+  g.translate(24, 24);
+  g.beginPath();
+  if (shape === 0) { g.moveTo(0, -18); g.quadraticCurveTo(15, -4, 13, 6); g.quadraticCurveTo(8, 17, 0, 17); g.quadraticCurveTo(-11, 15, -14, 3); g.quadraticCurveTo(-13, -7, 0, -18); }   // goccia
+  else if (shape === 1) { g.moveTo(0, -17); g.lineTo(15, -3); g.lineTo(8, 15); g.lineTo(-9, 15); g.lineTo(-15, -3); g.closePath(); }   // gemma
+  else { g.ellipse(0, 0, 15, 11, 0.4, 0, 7); }   // sassolino tondo
+  g.closePath();
+  const gr = g.createRadialGradient(-5, -7, 1, 0, 0, 20);
+  gr.addColorStop(0, shade(hex, 0.7)); gr.addColorStop(0.45, hex); gr.addColorStop(1, shade(hex, -0.45));
+  g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 3; g.shadowOffsetY = 2;
+  g.fillStyle = gr; g.fill();
+  g.shadowColor = 'transparent';
+  g.lineWidth = 1.6; g.strokeStyle = shade(hex, -0.55); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.85)';
+  g.beginPath(); g.ellipse(-5, -8, 5, 2.6, -0.6, 0, 7); g.fill();
+  gemCache.set(key, c);
+  return c;
+}
+let sparkC = null;
+function SPARK() {
+  if (sparkC) return sparkC;
+  sparkC = document.createElement('canvas'); sparkC.width = sparkC.height = 64;
+  const g = sparkC.getContext('2d'); g.translate(32, 32);
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, 30);
+  gr.addColorStop(0, 'rgba(255,255,230,1)'); gr.addColorStop(0.25, 'rgba(255,230,140,.55)'); gr.addColorStop(1, 'rgba(255,200,80,0)');
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 30, 0, 7); g.fill();
+  g.fillStyle = '#fffdf0';
+  g.beginPath();
+  for (let j = 0; j < 4; j++) { const a = j * Math.PI / 2; g.lineTo(Math.cos(a) * 28, Math.sin(a) * 28); g.lineTo(Math.cos(a + Math.PI / 4) * 4, Math.sin(a + Math.PI / 4) * 4); }
+  g.closePath(); g.fill();
+  return sparkC;
+}
+
+// schegge lucide colorate che schizzano via da una tessera distrutta
 export function burst(x, y, color, n = 8, power = 1) {
   if (reduce()) n = Math.ceil(n / 3);
   for (let i = 0; i < n; i++) {
     const a = rnd(0, Math.PI * 2), v = rnd(2, 5.5) * power;
-    add({ kind: 'chunk', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2.5, g: .28, drag: .985, size: rnd(3, 6.5), color, vr: rnd(-.3, .3), life: rnd(.55, .85) });
+    add({ kind: 'chunk', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2.5, g: .28, drag: .985, size: rnd(3, 6.5), color, shape: i % 3, spin: rnd(8, 16), rot: rnd(0, 6), vr: rnd(-.25, .25), life: rnd(.55, .85) });
   }
   for (let i = 0; i < Math.ceil(n / 2); i++) {
     const a = rnd(0, Math.PI * 2), v = rnd(1, 3.5) * power;
-    add({ kind: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: .93, size: rnd(2.5, 4.5), color: '#fffbe0', life: rnd(.35, .6) });
+    add({ kind: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: .93, size: rnd(2.5, 4.5), color: '#fffbe0', vr: rnd(-.1, .1), life: rnd(.35, .6) });
   }
+  // lampo morbido del colore della tessera
+  add({ kind: 'glow', x, y, size: 16 + n * 1.5, color: hexA(color, .55), life: .3 });
+}
+function hexA(hex, a) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return 'rgba(255,214,90,' + a + ')';
+  const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 }
 export function dust(x, y, n = 3, color = 'rgba(196,150,96,.9)') {
   for (let i = 0; i < n; i++) add({ kind: 'puff', x: x + rnd(-6, 6), y: y + rnd(-6, 6), vx: rnd(-1, 1), vy: rnd(-1.4, -.2), drag: .96, size: rnd(6, 12), color, life: rnd(.5, .9) });
@@ -129,15 +184,15 @@ export function glow(x, y, R, color = 'rgba(255,214,90,.8)') { add({ kind: 'glow
 export function streak(x1, y1, x2, y2, color = '#fffbe0', w = 6) { add({ kind: 'streak', x: x1, y: y1, dx: x2 - x1, dy: y2 - y1, color, w, life: .4 }); }
 export function rays(x, y, R) { add({ kind: 'rays', x, y, size: R, color: 'rgba(255,236,150,.55)', vr: .02, life: .9 }); }
 export function fire(x, y, R) {
-  const cols = ['#ffef8a', '#ffc531', '#ff8a1c', '#ff3b2f'];
-  for (let i = 0; i < 26; i++) {
-    const a = rnd(0, Math.PI * 2), v = rnd(2, 7) * R / 120;
-    add({ kind: 'puff', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: .9, size: rnd(8, 18) * R / 120, color: cols[i % 4], life: rnd(.4, .7) });
+  const cols = ['rgba(255,230,120,.9)', 'rgba(255,170,40,.85)', 'rgba(255,110,30,.8)'];
+  add({ kind: 'flame', x, y, size: R * .55, color: 'rgba(255,200,80,.9)', life: .35 });
+  for (let i = 0; i < 16; i++) {
+    const a = rnd(0, Math.PI * 2), v = rnd(2, 6) * R / 120;
+    add({ kind: 'flame', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: .9, size: rnd(14, 26) * R / 120, color: cols[i % 3], life: rnd(.3, .55) });
   }
-  for (let i = 0; i < 10; i++) add({ kind: 'puff', x: x + rnd(-R / 3, R / 3), y: y + rnd(-R / 3, R / 3), vy: rnd(-1.5, -.5), drag: .97, size: rnd(14, 24), color: 'rgba(80,70,60,.5)', life: rnd(.8, 1.2) });
+  add({ kind: 'ring', x, y, size: R * 1.1, color: 'rgba(255,240,200,.9)', w: 8, life: .4 });
+  for (let i = 0; i < 6; i++) add({ kind: 'puff', x: x + rnd(-R / 3, R / 3), y: y + rnd(-R / 3, R / 3), vy: rnd(-1.5, -.5), drag: .97, size: rnd(12, 20), color: 'rgba(70,60,55,.35)', life: rnd(.7, 1) });
 }
-
-let vibra = true;
 export function setVibra(v) { vibra = v; }
 export function shake(intensity = 6, dur = 0.35) {
   if (vibra && intensity >= 8) { try { navigator.vibrate && navigator.vibrate(Math.round(intensity * 4)); } catch { /* niente */ } }

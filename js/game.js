@@ -50,6 +50,8 @@ document.addEventListener('pointerdown', () => AU.unlock(), { capture: true });
 // ---------- overlay / toast ----------
 function showCard(html, binds = {}) {
   $('#card').innerHTML = html;
+  $('#card').classList.toggle('precard', html.includes('class="prebox"'));
+  $('#card').scrollTop = 0;
   $('#overlay').classList.remove('hidden');
   for (const [id, fn] of Object.entries(binds)) {
     const b = document.getElementById(id);

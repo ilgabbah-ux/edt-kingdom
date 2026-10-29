@@ -14,6 +14,7 @@ const app = $('#app');
 const SRC = (n) => (window.__A && window.__A[n]) || `img/${n}.webp`;
 const I = (n) => `url('${SRC(n)}')`;
 const TILE_URI = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale'].map(I);
+const RIDER_UP = I('r_up'), RIDER_DOWN = I('r_down');
 const RIDE_URI = { mH: I('fx_moto'), mV: I('fx_moto_v'), drone: I('fx_drone') };   // senza medaglione, per le animazioni
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
 const ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
@@ -163,27 +164,47 @@ function renderHome(popId = null) {
 }
 
 let riderRAF = 0;
+// Miti che fa il giro del Campo Base: sale sul sentiero e poi torna giù, con sobbalzi e polvere
 function startTrailRider(map, trail) {
   cancelAnimationFrame(riderRAF);
   const el = document.createElement('div');
   el.className = 'trailrider';
-  el.style.backgroundImage = RIDE_URI.mH;
+  el.innerHTML = '<i></i>';
+  const spr = el.firstChild;
+  el.onclick = (e) => { e.stopPropagation(); sfx.moto(); say('miti', 'Sono io che faccio il giro del Campo Base per riprendere i lavori con la GoPro! Più edifici costruisci, più è bello il giro.', 'Vai Miti!'); };
   map.appendChild(el);
-  // lunghezze dei tratti per andare a velocità costante
   const segs = []; let tot = 0;
   for (let i = 1; i < trail.length; i++) { const d = Math.hypot(trail[i][0] - trail[i - 1][0], trail[i][1] - trail[i - 1][1]); segs.push(d); tot += d; }
-  const dur = 26000, t0 = performance.now();
+  const leg = 30000, t0 = performance.now();   // 30 s in salita, 30 s in discesa
+  let lastDust = 0;
+  const at = (dist) => {
+    let i = 0;
+    while (i < segs.length - 1 && dist > segs[i]) { dist -= segs[i]; i++; }
+    const f = Math.min(1, dist / segs[i]);
+    return [trail[i][0] + (trail[i + 1][0] - trail[i][0]) * f, trail[i][1] + (trail[i + 1][1] - trail[i][1]) * f];
+  };
   const step = (now) => {
     if (!el.isConnected) return;
-    let k = ((now - t0) % dur) / dur, dist = k * tot, i = 0;
-    while (i < segs.length - 1 && dist > segs[i]) { dist -= segs[i]; i++; }
-    const f = dist / segs[i];
-    const x = trail[i][0] + (trail[i + 1][0] - trail[i][0]) * f, y = trail[i][1] + (trail[i + 1][1] - trail[i][1]) * f;
+    const ph = ((now - t0) % (leg * 2)) / leg;   // 0..2
+    const up = ph < 1;
+    // velocità che rallenta un po' nelle curve: si usa una piccola ondulazione
+    const k = up ? ph : 2 - ph;
+    const dist = k * tot;
+    const [x, y] = at(dist);
+    const [x2, y2] = at(Math.min(tot, Math.max(0, dist + (up ? 14 : -14))));
     const [px, py] = mapPoint(map, x, y);
-    const dir = trail[i + 1][0] >= trail[i][0] ? 1 : -1;
-    const sc = 0.55 + (y / 1280) * 0.6;   // più piccola in lontananza
-    el.style.transform = `translate(${px - 22}px, ${py - 30}px) scale(${dir * sc}, ${sc})`;
-    el.style.opacity = k > 0.94 ? (1 - k) / 0.06 : k < 0.04 ? k / 0.04 : 1;
+    const dirX = x2 >= x ? 1 : -1;
+    const sc = 0.55 + (y / 1280) * 0.55;   // più piccolo in lontananza
+    const bob = Math.abs(Math.sin(now / 90)) * 2.2;
+    spr.style.backgroundImage = up ? RIDER_UP : RIDER_DOWN;
+    el.style.transform = `translate(${px}px, ${py}px) scale(${sc})`;
+    spr.style.transform = `translate(-50%, ${-88 - bob}%) scaleX(${dirX})`;
+    if (now - lastDust > 140) {
+      lastDust = now;
+      const p = document.createElement('b'); p.className = 'tdust';
+      p.style.transform = `translate(${px - 6 + Math.random() * 6}px, ${py - 6}px) scale(${sc})`;
+      map.appendChild(p); setTimeout(() => p.remove(), 900);
+    }
     riderRAF = requestAnimationFrame(step);
   };
   riderRAF = requestAnimationFrame(step);
@@ -432,6 +453,7 @@ function renderGoals(bumpIdx = -1) {
   const box = $('#goals');
   if (!box.children.length || box.children.length !== G.goals.length) {
     box.innerHTML = G.goals.map((gl, i) => `<div class="goal" data-i="${i}" style="background-image:${goalURI(gl)}"><b></b></div>`).join('');
+    [...box.children].forEach((el, i) => { el.onclick = () => goalInfo(G.goals[i]); });
   }
   G.goals.forEach((gl, i) => {
     const el = box.children[i];
@@ -446,6 +468,22 @@ function renderGoals(bumpIdx = -1) {
     $('#bossTxt').textContent = `Pazienza della Forestale: ${goalLeft(gl)}`;
     $('#bossCount').textContent = G.boss.count;
   }
+}
+function goalInfo(gl) {
+  sfx.click();
+  if (gl.type === 'tile') { tipBubble('t0_birra', `Togli <b>${goalLeft(gl)}</b> di queste tessere facendo tris con loro.`, goalURI(gl)); return; }
+  const k = gl.type === 'chain' && G.level.n > 30 ? 'ice' : gl.type;
+  const h = HELP[k]; if (h) tipBubble(h.img, `<b>${h.t}</b>: ${h.d}`);
+}
+function tipBubble(img, html, uri) {
+  $('#coach')?.remove();
+  const d = document.createElement('div');
+  d.id = 'coach';
+  d.innerHTML = `<div class="cav sq" style="background-image:${uri || I(img)}"></div><p>${html}</p>`;
+  d.onclick = () => d.remove();
+  $('#game').appendChild(d);
+  setTimeout(() => d.classList.add('out'), 6500);
+  setTimeout(() => d.remove(), 6900);
 }
 function renderMoves() {
   $('#moves').textContent = G.moves;
@@ -795,6 +833,7 @@ async function doClear(clear, matched, created, pre = []) {
     const [x, y] = cellCenter(r, c);
     FX.glow(x, y, G.S * 1.3); FX.ring(x, y, G.S * 1.2, '#fff6a0', 6);
     floater(POWER_SHOUT[cr.power], r, c);
+    if (!save.seen[KIND(cr.power)]) G.explainQ.add(KIND(cr.power));
   }
   sfx.pop(Math.min(n, 8) / 2);
   renderMud();
@@ -1081,6 +1120,7 @@ async function endTurn() {
     repositionAll(false);
     await sleep(400);
   }
+  if (G.explainQ.size) { const ks = [...G.explainQ]; G.explainQ.clear(); await explain(ks, ks.length > 1 ? 'Nuovi potenziamenti!' : 'Nuovo potenziamento!'); }
   G.busy = false;
   checkStuck();
   scheduleHint();
@@ -1313,6 +1353,77 @@ function onTap(cell) {
   if (t && !t.rock) setSel(cell); else setSel(null);
 }
 
+// =================== GUIDA E SPIEGAZIONI ===================
+// ogni cosa del gioco ha una scheda: si vede la prima volta che la incontri e sempre nella Guida (?)
+const HELP = {
+  // come si gioca
+  swap: { img: 't0_birra', t: 'Fai tris', d: 'Trascina una tessera sulla vicina (o toccale una dopo l\'altra) per scambiarle. Se ne metti <b>3 o più uguali in fila</b> spariscono e quelle sopra cadono.' },
+  goals: { img: 't1_casco', t: 'Obiettivi e mosse', d: 'In alto vedi cosa devi togliere e quante <b>mosse</b> hai. Ogni scambio è una mossa. Finisci gli obiettivi prima che finiscano le mosse.' },
+  stars: { img: 'u_stella', t: 'Stelle', d: 'Vinci = da <b>1 a 3 stelle</b>. Più mosse ti avanzano, più stelle prendi (2 stelle se avanzi il 15%, 3 se avanzi il 35%). Puoi rigiocare i livelli per migliorare.' },
+  // potenziamenti
+  mH: { img: 'p_moto', t: 'Moto', how: '4 tessere in fila', d: 'Parte a manetta e si porta via <b>tutta la riga</b> (o tutta la colonna, se la moto è in piedi). Scambiala con una tessera vicina o <b>toccala due volte</b>.' },
+  bomb: { img: 'p_tanica', t: 'Tanica', how: 'tessere a L o a T', d: 'Esplode e pulisce un <b>quadrato 5×5</b> intorno a sé: perfetta per sassi, casse e fango. Scambiala o toccala due volte.' },
+  drone: { img: 'p_drone', t: 'Drone', how: '4 tessere a quadrato', d: 'Pulisce una croce dove si trova e poi <b>vola da solo</b> su una tessera che ti serve per l\'obiettivo. Scambialo o toccalo due volte.' },
+  grappa: { img: 'p_grappa', t: 'Grappa di San Braulio', how: '5 tessere in fila', d: 'Toglie <b>tutte le tessere di un colore</b>: scambiala con la tessera del colore che vuoi far sparire.' },
+  combo: { img: 'p_grappa', t: 'Super combo', how: 'scambia due potenziamenti tra loro', d: 'Due potenziamenti vicini, scambiati, fanno un colpo molto più forte: moto+moto = croce, tanica+moto = tre righe e tre colonne, tanica+tanica = esplosione enorme, drone+drone = tre droni, grappa+qualcosa = trasforma un colore intero in quel potenziamento, grappa+grappa = <b>pulisce tutta la griglia</b>.' },
+  // ostacoli
+  mud: { img: 'o_fango1', t: 'Fango', d: 'Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Il fango scuro va pulito due volte.' },
+  rock: { img: 'o_sasso1', t: 'Sasso', d: 'Non si sposta e blocca la caduta. Si spacca con un tris <b>accanto</b>, o colpendolo con moto e taniche. Quelli grossi vanno colpiti due volte.' },
+  crate: { img: 'o_cassa1', t: 'Cassa', d: 'Blocca la casella e non cade. Un tris <b>accanto</b> la rompe, moto e taniche la prendono anche da lontano. Le casse già crepate vanno colpite ancora una volta.' },
+  chain: { img: 'o_catena', t: 'Catena', d: 'La tessera incatenata non si può spostare. Mettila in un tris con le tessere vicine (o colpiscila con un potenziamento) e la catena salta.' },
+  ice: { img: 'o_ghiaccio', t: 'Ghiaccio', d: 'Al Passo le tessere possono essere congelate: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.' },
+  multa: { img: 'o_multa', t: 'Multa', d: 'Copre la casella. Si toglie con un tris accanto. Attento: se in un turno <b>non togli nessuna multa</b>, la Forestale ne aggiunge un\'altra.' },
+  boss: { img: 'forestale', t: 'La Forestale (boss)', d: 'Ogni tessera che rompi le toglie <b>pazienza</b> (la barra rossa). Ogni poche mosse (il numero col sasso) ti tira dei <b>sassi</b> sulla griglia. Svuota la barra per vincere.' },
+  // aiuti
+  hammer: { img: 'u_martello', t: 'Martello di Renard', d: 'Costa <b>100 monete</b>. Tocca il martello, poi tocca una casella: spacca quella tessera o ostacolo senza usare mosse.' },
+  shield: { img: 'u_scudo', t: 'Scudo di Miti', d: 'Solo coi boss. Costa <b>150 monete</b> e para il prossimo lancio di sassi della Forestale.' },
+  hint: { img: 'u_stella', t: 'Aiuto', d: 'Ti mostra una mossa buona (cerchio arancio e manina) e ti ricorda come togliere gli ostacoli. È gratis.' },
+  pre: { img: 'p_tanica', t: 'Aiuti di partenza', d: 'Prima del livello puoi mettere in griglia una Moto, una Tanica o una Grappa (con le monete o gratis se li hai vinti). Se vinci più livelli di fila li ricevi in <b>regalo</b>.' },
+  // campo base
+  build: { img: 'b_cantiere', t: 'Costruire', d: 'Ogni edificio ha <b>3 pezzi</b> e ogni pezzo costa <b>2 stelle</b>. Tocca <b>Costruisci</b> o il cantiere con la freccia. Finita una zona, se ne apre una nuova.' },
+  zones: { img: 'map2_bg', t: 'Zone', d: 'Prima <b>La Valle</b>, poi <b>Il Passo</b> sulla neve (dal livello 31), con edifici, ostacoli e boss nuovi. Col cartello in alto guardi le zone già sbloccate.' },
+  daily: { img: 'u_moneta', t: 'Premio del giorno', d: 'Apri il gioco ogni giorno: il premio cresce per 7 giorni (monete, Moto, Tanica e al settimo la Grappa). Se salti un giorno si riparte dal primo.' },
+  levels: { img: 'u_stella', t: 'Livelli', d: 'Dal pulsante <b>Livelli</b> rigiochi quelli già fatti per prendere le stelle che mancano.' },
+  rank: { img: 'u_lucchetto', t: 'Classifica EDT', d: 'Dal pulsante <b>Classifica</b> scegli il nome e sfidi gli altri dell\'EDT: conta chi ha più stelle.' },
+  rider: { img: 'fx_moto', t: 'Il giro di Miti', d: 'Quando costruisci il primo edificio di una zona, Miti inizia a girare sul sentiero del Campo Base. Non serve a niente: fa scena.' },
+};
+const GUIDE = [
+  ['Come si gioca', ['swap', 'goals', 'stars', 'hint']],
+  ['Potenziamenti', ['mH', 'bomb', 'drone', 'grappa', 'combo']],
+  ['Ostacoli', ['mud', 'rock', 'crate', 'chain', 'ice', 'multa', 'boss']],
+  ['Aiuti', ['hammer', 'shield', 'pre']],
+  ['Campo Base', ['build', 'zones', 'daily', 'levels', 'rank']],
+];
+if (!save.seen) { save.seen = {}; if (save.level > 3) { save.seen.swap = 1; save.seen.goals = 1; } }
+const helpRow = (k) => { const h = HELP[k]; return `<div class="hrow"><span class="hi" style="background-image:${I(h.img)}"></span><div><b>${h.t}</b>${h.how ? `<em>Si crea con: ${h.how}</em>` : ''}<p>${h.d}</p></div></div>`; };
+function openGuide(tab = 0) {
+  const tabs = GUIDE.map(([n], i) => `<button class="gtab${i === tab ? ' on' : ''}" data-t="${i}">${n}</button>`).join('');
+  showCard(`<h2>Guida</h2><div class="gtabs">${tabs}</div><div class="hlist">${GUIDE[tab][1].map(helpRow).join('')}</div>
+    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+  document.querySelectorAll('.gtab').forEach((b) => { b.onclick = () => { sfx.click(); openGuide(+b.dataset.t); }; });
+}
+// scheda "Novità!" la prima volta che incontri una cosa (si ferma il gioco finché non tocchi Ok)
+function explain(keys, title = 'Novità!') {
+  keys = keys.filter((k) => HELP[k] && !save.seen[k]);
+  if (!keys.length) return Promise.resolve();
+  keys.forEach((k) => { save.seen[k] = 1; }); persist();
+  return new Promise((res) => showCard(`<h2>${title}</h2><div class="hlist">${keys.map(helpRow).join('')}</div>
+    <div class="row"><button id="cOk" class="btn btn-play">Ho capito!</button></div>`, { cOk: () => { hideCard(); res(); } }));
+}
+const KIND = (p) => (p === 'mV' ? 'mH' : p);
+// tipi di ostacoli presenti in un livello
+function levelThings(lv) {
+  const L = lv.layout.join('');
+  const out = [];
+  if (/[mM]/.test(L)) out.push('mud');
+  if (/[rR]/.test(L)) out.push('rock');
+  if (/[cC]/.test(L)) out.push('crate');
+  if (/k/.test(L)) out.push(lv.n > 30 ? 'ice' : 'chain');
+  if (/t/.test(L)) out.push('multa');
+  if (lv.boss) out.push('boss');
+  return out;
+}
+
 // ---------- avvio livello ----------
 const PRE = [
   { id: 'mH', name: 'Moto', cost: 60, img: 'p_moto' },
@@ -1352,7 +1463,7 @@ async function startLevel(n, extras = []) {
   G.moves = lv.moves;
   G.goals = lv.goals.map((g) => ({ ...g, done: 0 }));
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
-  G.ticketCleared = false; G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
+  G.ticketCleared = false; G.explainQ = new Set(); G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
   G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null;
   $('#goals').innerHTML = '';
   $('#gLevel').textContent = n;
@@ -1374,6 +1485,11 @@ async function startLevel(n, extras = []) {
   renderMoves();
   scheduleHint();
   if (extras.length) placeStartPowers(extras);
+  setTimeout(async () => {
+    if (G.level !== lv || G.over) return;
+    const ks = ['swap', 'goals', ...extras.map(KIND)];
+    if (ks.some((k) => !save.seen[k])) { G.busy = true; await explain(ks, n === 1 ? 'Come si gioca' : 'Novità!'); G.busy = false; }
+  }, extras.length ? 1400 : 500);
 }
 
 async function openLevel(num) {
@@ -1396,6 +1512,8 @@ async function openLevel(num) {
   ];
   const tip = lv.intro || (() => { const t = TIPS[lv.n % TIPS.length]; return { who: t[0], text: t[1] }; })();
   const intro = speakerHTML(tip.who, tip.text);
+  const news = levelThings(lv).filter((k) => !save.seen[k]);
+  const newsHTML = news.length ? `<div class="newsbox"><div class="prehead">Novità in questo livello</div><div class="hlist">${news.map(helpRow).join('')}</div></div>` : '';
   const gifts = streakGifts();
   const chosen = new Set();
   const preHTML = PRE.map((p) => {
@@ -1408,14 +1526,15 @@ async function openLevel(num) {
   const streak = save.streak || 0;
   const bestHTML = n < save.level ? `<div class="bestrow">${[1, 2, 3].map((k) => `<i class="ic ic-star${k <= best ? '' : ' off'}"></i>`).join('')}<span>${best >= 3 ? 'già perfetto' : 'record: prova a fare meglio'}</span></div>` : '';
   showCard(`<h2>${lv.boss ? 'Arriva la Forestale!' : `Livello ${lv.n}`}</h2>${bestHTML}${intro}
-    <div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? '. Svuota la sua pazienza prima che ti riempia di sassi!' : ''}</p>
+    ${newsHTML}<div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? '. Svuota la sua pazienza prima che ti riempia di sassi!' : ''}</p>
     <div class="prebox"><div class="prehead">${streak ? `🔥 Serie di vittorie: <b>${streak}</b>` : 'Parti con un aiuto?'}<span>${streak ? 'regali già in griglia' : 'vinci di fila per averli gratis'}</span></div>
-    <div class="prerow">${preHTML}</div></div>
+    <div class="prerow">${preHTML}</div><div class="prehelp"><b>Moto</b> pulisce una riga · <b>Tanica</b> esplode 5×5 · <b>Grappa</b> via un colore</div></div>
     <div class="row"><button id="cBack" class="btn btn-gray">Indietro</button><button id="cPlay" class="btn btn-play">Gioca!</button></div>`,
   { cBack: hideCard, cPlay: () => {
     let cost = 0;
     chosen.forEach((id) => { if (save.inv[id] > 0) save.inv[id]--; else cost += PRE.find((p) => p.id === id).cost; });
     save.coins -= cost; persist();
+    news.forEach((k) => { save.seen[k] = 1; }); persist();
     hideCard(); startLevel(lv.n, [...gifts, ...chosen]);
   } });
   const total = () => [...chosen].reduce((sum, id) => sum + (save.inv[id] > 0 ? 0 : PRE.find((p) => p.id === id).cost), 0);
@@ -1443,6 +1562,7 @@ $('#btnPlay').onclick = () => openLevel();
 $('#btnBuild').onclick = () => tryBuild();
 $('#btnLevels').onclick = () => { sfx.click(); openLevelList(); };
 $('#btnRank').onclick = () => { sfx.click(); openRanking(); };
+$('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
 // ---------- impostazioni ----------
 function togglesHTML() {
   const row = (id, label, on) => `<button class="tog${on ? ' on' : ''}" id="${id}"><span>${label}</span><i></i></button>`;
@@ -1480,21 +1600,25 @@ $('#btnSettings').onclick = openSettings;
 $('#btnBack').onclick = () => {
   if (G.busy) return;
   showCard(`<h2>Pausa</h2>${togglesHTML()}
+    <div class="row"><button id="cG" class="btn btn-gray">? Guida</button></div>
     <div class="row"><button id="cL" class="btn btn-red">Esci dal livello</button><button id="cS" class="btn btn-play">Riprendi</button></div>
     <p class="small">Se esci adesso perdi questo giro e la serie di vittorie.</p>`,
-  { cS: hideCard, cL: () => { hideCard(); G.over = true; save.streak = 0; persist(); goHome(); } });
+  { cS: hideCard, cG: () => openGuide(), cL: () => { hideCard(); G.over = true; save.streak = 0; persist(); goHome(); } });
   bindToggles();
 };
+$('#bossbar').onclick = () => { if (G.boss) goalInfo({ type: 'boss' }); };
 $('#bHelp').onclick = () => { if (G.busy || G.over) return; sfx.click(); showHint(); const open = G.goals.filter((g) => g.done < g.n).map((g) => g.type); const k = open.find((t) => !G.coached.has(t)) || open[0]; if (k && COACH[k]) coach(k, true); };
-$('#bHammer').onclick = () => {
+$('#bHammer').onclick = async () => {
   if (G.busy || G.over) return;
+  if (!save.seen.hammer) { await explain(['hammer']); }
   if (!G.hammer && save.coins < 100) { toast('Servono 100 monete', 1000); return; }
   G.hammer = !G.hammer;
   if (G.hammer) toast('Tocca cosa spaccare', 1000);
   renderMoves();
 };
-$('#bShield').onclick = () => {
+$('#bShield').onclick = async () => {
   if (G.busy || G.over || G.shield) return;
+  if (!save.seen.shield) { await explain(['shield']); return; }
   if (save.coins < 150) { toast('Servono 150 monete', 900); return; }
   save.coins -= 150; persist();
   G.shield = true;
@@ -1508,7 +1632,7 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'fx_moto', 'fx_moto_v', 'fx_drone',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 const preload = Promise.all(ASSETS.map((n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); })));
 document.addEventListener('visibilitychange', () => AU.pause(document.hidden));
@@ -1519,7 +1643,7 @@ preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); 
 if (save.welcomed) setTimeout(checkDaily, 600);
 if (!save.welcomed) {
   save.welcomed = true; persist();
-  setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Ogni livello vinto vale fino a 3 stelle, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano.', 'Si parte!'), 300);
+  setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Ogni livello vinto vale fino a 3 stelle, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano. Se hai un dubbio, tocca <b>?</b> per la guida.', 'Si parte!'), 300);
 }
 
 // per i test automatici

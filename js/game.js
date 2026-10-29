@@ -14,6 +14,7 @@ const app = $('#app');
 const SRC = (n) => (window.__A && window.__A[n]) || `img/${n}.webp`;
 const I = (n) => `url('${SRC(n)}')`;
 const TILE_URI = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale'].map(I);
+const RIDE_URI = { mH: I('fx_moto'), mV: I('fx_moto_v'), drone: I('fx_drone') };   // senza medaglione, per le animazioni
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
 const ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
 const MUD_URI = [null, I('o_fango1'), I('o_fango2')];
@@ -166,7 +167,7 @@ function startTrailRider(map, trail) {
   cancelAnimationFrame(riderRAF);
   const el = document.createElement('div');
   el.className = 'trailrider';
-  el.style.backgroundImage = POWER_URI.mH;
+  el.style.backgroundImage = RIDE_URI.mH;
   map.appendChild(el);
   // lunghezze dei tratti per andare a velocità costante
   const segs = []; let tot = 0;
@@ -583,12 +584,12 @@ function fxPower(power, r, c, cells) {
   if (power === 'mH') {
     sfx.moto();
     const dir = c < COLS / 2 ? 1 : -1;
-    FX.rideAcross(POWER_URI.mH, dir > 0 ? bx - S : bx + COLS * S + S, y, dir > 0 ? bx + COLS * S + S : bx - S, y, 360);
+    FX.rideAcross(RIDE_URI.mH, dir > 0 ? bx - S : bx + COLS * S + S, y, dir > 0 ? bx + COLS * S + S : bx - S, y, 360);
     FX.streak(bx, y, bx + COLS * S, y, '#fff6c8', S * 0.55);
     FX.shake(4, .25);
   } else if (power === 'mV') {
     sfx.moto();
-    FX.rideAcross(POWER_URI.mV, x, by + ROWS * S + S, x, by - S, 380);
+    FX.rideAcross(RIDE_URI.mV, x, by + ROWS * S + S, x, by - S, 380);
     FX.streak(x, by + ROWS * S, x, by, '#fff6c8', S * 0.55);
     FX.shake(4, .25);
   } else if (power === 'bomb') {
@@ -622,7 +623,7 @@ async function flyDrone(fromK, toK) {
   const [x1, y1] = cellCenter(r1, c1), [x2, y2] = cellCenter(r2, c2);
   const d = document.createElement('div');
   d.className = 'flyer';
-  d.style.backgroundImage = POWER_URI.drone;
+  d.style.backgroundImage = RIDE_URI.drone;
   d.style.transform = `translate(${x1 - 20}px, ${y1 - 20}px) scale(1.2)`;
   app.appendChild(d);
   void d.offsetWidth;
@@ -983,8 +984,8 @@ async function comboPowers(ta, tb, at, ka, kb) {
   else {
     const w = keyName.includes('bomb') ? S * 2.6 : S * .9;
     FX.streak(bx, cy, bx + COLS * S, cy, '#fff6c8', w); FX.streak(cx, by, cx, by + ROWS * S, '#fff6c8', w);
-    FX.rideAcross(POWER_URI.mH, bx - S, cy, bx + COLS * S + S, cy, 380);
-    FX.rideAcross(POWER_URI.mV, cx, by + ROWS * S + S, cx, by - S, 400);
+    FX.rideAcross(RIDE_URI.mH, bx - S, cy, bx + COLS * S + S, cy, 380);
+    FX.rideAcross(RIDE_URI.mV, cx, by + ROWS * S + S, cx, by - S, 400);
     if (keyName.includes('bomb')) FX.fire(cx, cy, S * 2.5);
   }
   sfx.boom();
@@ -1507,7 +1508,7 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'fx_moto', 'fx_moto_v', 'fx_drone',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 const preload = Promise.all(ASSETS.map((n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); })));
 document.addEventListener('visibilitychange', () => AU.pause(document.hidden));

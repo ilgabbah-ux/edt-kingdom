@@ -429,3 +429,49 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .tile.dirH::before { transform: translate(-50%, 62%); }
 .tile.dirV::before { transform: translate(-50%, -50%) rotate(90deg) translateY(-112%); }
 @keyframes arrowPulse { 50% { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 2px 1px rgba(0,0,0,.35)); } }
+
+/* anteprima del colpo */
+.prevcell { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); pointer-events: none; z-index: 4; }
+.prevcell::before { content: ''; position: absolute; inset: 2px; border-radius: 12px; background: rgba(255,230,120,.32); border: 3px solid rgba(255,200,60,.95); box-shadow: inset 0 0 12px rgba(255,210,80,.8); animation: prevIn .25s ease-out both, ringPulse .9s .25s ease-in-out infinite; animation-delay: inherit; }
+.prevcell.src::before { background: rgba(255,255,255,.25); border-color: #fff; }
+.prevcell.target::before { border-color: #6fc3ff; background: rgba(110,195,255,.3); box-shadow: 0 0 14px #6fc3ff; }
+@keyframes prevIn { from { transform: scale(.4); opacity: 0; } }
+.prevtip { position: fixed !important; width: max-content; max-width: 88vw; left: 50%; bottom: 122px; top: auto; transform: translateX(-50%); background: rgba(43,29,20,.88); color: #fff6d8; font: 800 13px var(--fb); padding: 6px 12px; border-radius: 999px; white-space: nowrap; pointer-events: none; z-index: 30; animation: fade .2s; }
+/* scritte dei potenziamenti */
+.floater.pop { font-size: 30px; -webkit-text-stroke: 8px var(--ink); paint-order: stroke fill; animation: floatPop 1.2s cubic-bezier(.2,1.5,.4,1) forwards; z-index: 6; }
+@keyframes floatPop { 0% { transform: translate(-50%, 10px) scale(.2) rotate(-12deg); opacity: 0; } 18% { transform: translate(-50%, -8px) scale(1.25) rotate(4deg); opacity: 1; } 32% { transform: translate(-50%, -12px) scale(1) rotate(0); } 75% { transform: translate(-50%, -26px) scale(1); opacity: 1; } 100% { transform: translate(-50%, -44px) scale(.9); opacity: 0; } }
+
+/* sfida della settimana */
+.sidebtn { position: relative; }
+.wkpct { position: absolute; right: -6px; top: -6px; background: #3d8bff; color: #fff; font: 800 10px var(--fb); border: 2px solid var(--ink); border-radius: 999px; padding: 1px 5px; }
+.sidebtn.ready .wkpct { background: #ff5a3c; animation: pulse 1s ease-in-out infinite; }
+.wk { display: flex; gap: 10px; align-items: center; text-align: left; background: #fff; border: 2px solid var(--ink); border-radius: 12px; padding: 8px; }
+.wk .hi { width: 56px; height: 56px; flex: none; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.wk > div { flex: 1; } .wk p { margin: 0 0 6px; }
+.wkbar { position: relative; height: 20px; border: 2px solid var(--ink); border-radius: 999px; background: #eadfc8; overflow: hidden; }
+.wkbar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#8be36f, #3fae3a); border-radius: 999px; }
+.wkbar span { position: relative; display: block; text-align: center; font: 800 12px/16px var(--fb); }
+
+#board.tape .tile.chained::after { background-image: url('img/o_nastro.webp'); inset: -4%; }
+#game.quarry { background: linear-gradient(#f3d9a8, #e9cfa0 60%, #d8b98a); }
+#map[data-zone="cava"] .zonesign { background: #b8732f; }
+
+/* ===== tema EDT: blu dello scudo, strisce rosse e bianche, scritte giallo-rosse come il logo ===== */
+:root { --edtb: #2f5fa8; --edtb2: #1b3566; --edtr: #e8322a; }
+.title.brand { display: flex; flex-direction: column; align-items: center; line-height: 1; gap: 0; }
+.brandlogo { height: 44px; width: auto; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.title.brand span { font-size: 15px; margin-top: -4px; color: #ffd34d; -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; letter-spacing: 2px; }
+#loading { background: radial-gradient(circle at 50% 38%, #3f78d0, var(--edtb2)) !important; }
+.ld-shield { width: 150px; height: auto; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); animation: ldPop .8s cubic-bezier(.2,1.6,.4,1); }
+@keyframes ldPop { from { transform: scale(.3) rotate(-10deg); opacity: 0; } }
+.ld-title span { color: #ffd34d; }
+/* pannello obiettivi e mosse in stile scudo EDT */
+.goals { background: linear-gradient(180deg, #ffffff 0 5px, var(--edtr) 5px 11px, #ffffff 11px 14px, #3a6dbd 14px, var(--edtb) 60%, #24498a) !important; }
+.moves { background: linear-gradient(#ffe27a, #ffb52e) !important; }
+/* titoli delle schede col colore del logo EDT */
+.card h2 { color: #ffd34d !important; text-shadow: 0 3px 0 var(--edtr), 0 6px 0 var(--ink) !important; }
+.card h2.red { color: #ff8a7a !important; }
+.bubble > b { color: var(--edtr) !important; }
+.card { border-top: 8px solid var(--edtb) !important; background: linear-gradient(180deg, #e9effa 0, var(--cream) 70px) !important; }
+.zonesign { background: var(--edtb); }
+.wintitle::before { content: ''; display: block; width: 70px; height: 80px; margin: -50px auto 2px; background: url('img/edt_shield.webp') center/contain no-repeat; filter: drop-shadow(0 4px 4px rgba(0,0,0,.35)); }

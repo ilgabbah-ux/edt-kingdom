@@ -11,6 +11,7 @@ export const CHARS = {
   svetlana: { name: 'Svetlana', img: 'c_svetlana' },
   forestale: { name: 'La Forestale', img: 'forestale' },
   forestale2: { name: 'La Forestale (in versione invernale)', img: 'forestale2' },
+  forestale3: { name: 'La Forestale del cantiere', img: 'forestale3' },
 };
 
 // x,y in percentuale sulla mappa
@@ -57,6 +58,27 @@ const PASSO = [
     text: 'Un palazzo di ghiaccio tutto per l\'EDT! Il Passo è conquistato. La Forestale può solo guardare.' },
 ];
 
+const CAVA = [
+  { id: 'miniera', name: 'Birreria della Miniera', x: 50, y: 18, who: 'gabbah',
+    text: 'Una vecchia miniera trasformata in birreria. Fresco tutto l\'anno e nessun forestale sa dov\'è l\'ingresso.' },
+  { id: 'ruspa', name: 'Ruspa di Purcello', x: 20, y: 34, who: 'purcello',
+    text: 'Con la ruspa sposto massi, moto piantate e amici in difficoltà. Arrivo sempre da dietro, si sa.' },
+  { id: 'cingoli', name: 'Officina della Cava', x: 80, y: 34, who: 'renard',
+    text: 'Officina nuova, attrezzi nuovi. La mia moto? Quella la sistemo domani. Forse.' },
+  { id: 'laghetto', name: 'Laghetto della Cava', x: 20, y: 61, who: 'costa',
+    text: 'Acqua turchese e trote che nessuno ha mai pescato. Fino a oggi. Grigliata stasera!' },
+  { id: 'amaca', name: 'Angolo relax di Mirco', x: 80, y: 61, who: 'mirco',
+    text: 'Amaca, ombrellone e borsa frigo. Io da qui vi guardo lavorare. Campa giù!' },
+  { id: 'torre', name: 'Torretta del Protettore', x: 50, y: 47, who: 'miti',
+    text: 'Da quassù vedo tutta la cava. Nessuno si perde, nessuno si fa male: il Protettore veglia.' },
+  { id: 'hillclimb', name: 'Salita impossibile', x: 50, y: 74, who: 'purcello',
+    text: 'La salita più ripida del Piemonte. Chi si pianta a metà... lo spingo io fino in cima.' },
+  { id: 'palco', name: 'Palco del concerto', x: 20, y: 88, who: 'svetlana',
+    text: 'Luci, casse e palla da discoteca. Stasera concerto in cava e io sono la regina della serata!' },
+  { id: 'monumento', name: 'Monumento all\'EDT', x: 80, y: 88, who: 'gabbah',
+    text: 'Una ruota e un boccale scolpiti nel marmo, per sempre. La Cava è nostra: EDT nella storia!' },
+];
+
 export const ZONES = [
   { id: 'valle', name: 'La Valle', bg: 'map_bg', boss: 'forestale', from: 1,
     // sentiero sulla mappa (pixel dell'immagine 1280x1280) per la moto che gira
@@ -64,7 +86,12 @@ export const ZONES = [
     buildings: VALLE },
   { id: 'passo', name: 'Il Passo', bg: 'map2_bg', boss: 'forestale2', from: 31,
     trail: [[560,1260],[640,1180],[720,1100],[730,1020],[700,940],[680,860],[720,790],[700,740],[620,700],[580,640],[620,580],[560,530],[560,470],[620,420],[740,380],[760,340],[680,310],[580,280],[560,250],[620,220],[650,200]], buildings: PASSO },
+  { id: 'cava', name: 'La Cava', bg: 'map3_bg', boss: 'forestale3', from: 61,
+    trail: [[610,1275],[600,1180],[590,1090],[610,1020],[630,960],[580,900],[540,860],[600,820],[670,790],[680,740],[620,700],[590,650],[640,620],[690,590],[640,550],[590,520],[610,470],[680,440],[700,400],[640,380],[610,340],[680,300],[720,260],[670,220],[680,170],[700,140]], buildings: CAVA },
 ];
 VALLE.forEach((b) => { b.zone = 'valle'; });
 PASSO.forEach((b) => { b.zone = 'passo'; });
-export const BUILDINGS = [...VALLE, ...PASSO];
+CAVA.forEach((b) => { b.zone = 'cava'; });
+export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA];
+// zona di un livello: 0 = Valle, 1 = Passo, 2 = Cava
+export const zoneOfLevel = (n) => (n > 60 ? 2 : n > 30 ? 1 : 0);

@@ -34,6 +34,14 @@ export function setMusic(on) {
   if (on && wantTrack && !timer) startTrack(wantTrack);
 }
 export function setSfx(on) { state.sfx = on; if (ctx) sfxBus.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.02); }
+// abbassa la musica mentre parla un personaggio
+export function duck(sec = 1.5) {
+  if (!ctx || !state.music) return;
+  const t = ctx.currentTime;
+  musicBus.gain.cancelScheduledValues(t);
+  musicBus.gain.setTargetAtTime(0.1, t, 0.05);
+  musicBus.gain.setTargetAtTime(0.32, t + sec, 0.3);
+}
 export function pause(p) { if (!ctx) return; if (p) ctx.suspend(); else if (unlocked) ctx.resume(); }
 
 // ---------------- mattoni sonori ----------------
@@ -65,17 +73,46 @@ function noise(bus, { t = 0, a = 0.002, d = 0.2, vol = 0.3, type = 'bandpass', f
   s.start(t0, Math.random() * 0.5); s.stop(t0 + a + d + 0.05);
 }
 
+
+// motore a scoppio: dente di sega modulato da un "battito" (i colpi del monocilindrico)
+function engine(bus, { f = 60, f2 = 180, t = 0, d = 0.5, vol = 0.18, rate = 22, rate2 = 60 }) {
+  if (!ensure()) return;
+  const t0 = ctx.currentTime + t;
+  const o = ctx.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(f, t0); o.frequency.exponentialRampToValueAtTime(f2, t0 + d * 0.7); o.frequency.exponentialRampToValueAtTime(f2 * 0.8, t0 + d);
+  const lfo = ctx.createOscillator(); lfo.type = 'square';
+  lfo.frequency.setValueAtTime(rate, t0); lfo.frequency.exponentialRampToValueAtTime(rate2, t0 + d * 0.7);
+  const lg = ctx.createGain(); lg.gain.value = 0.5;
+  const am = ctx.createGain(); am.gain.value = 0.5;
+  lfo.connect(lg).connect(am.gain);
+  const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(700, t0); fl.frequency.exponentialRampToValueAtTime(2600, t0 + d * 0.6); fl.Q.value = 4;
+  const g = ctx.createGain(); env(g, t0, 0.02, vol, d);
+  o.connect(am).connect(fl).connect(g).connect(bus);
+  o.start(t0); lfo.start(t0); o.stop(t0 + d + 0.05); lfo.stop(t0 + d + 0.05);
+}
+// ronzio con vibrato (eliche del drone)
+function buzz(bus, { f = 220, t = 0, d = 0.6, vol = 0.07, vib = 38 }) {
+  if (!ensure()) return;
+  const t0 = ctx.currentTime + t;
+  const o = ctx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(f, t0); o.frequency.linearRampToValueAtTime(f * 1.5, t0 + d * 0.4); o.frequency.linearRampToValueAtTime(f * 1.25, t0 + d);
+  const v = ctx.createOscillator(); v.frequency.value = vib; const vg = ctx.createGain(); vg.gain.value = f * 0.06; v.connect(vg).connect(o.frequency);
+  const fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f * 4; fl.Q.value = 1.2;
+  const g = ctx.createGain(); env(g, t0, 0.06, vol, d);
+  o.connect(fl).connect(g).connect(bus);
+  o.start(t0); v.start(t0); o.stop(t0 + d + 0.05); v.stop(t0 + d + 0.05);
+}
+
 // ---------------- effetti ----------------
 const S = () => (state.sfx && ensure() ? sfxBus : null);
 export const sfx = {
   pop(n = 0) { const b = S(); if (!b) return; const f = 520 * Math.pow(1.06, Math.min(n, 12)); tone(b, { f, f2: f * 1.6, type: 'triangle', d: 0.09, vol: 0.18 }); tone(b, { f: f * 2, type: 'sine', t: 0.01, d: 0.06, vol: 0.06 }); },
   swap() { const b = S(); if (!b) return; noise(b, { f: 900, f2: 2600, d: 0.09, vol: 0.08, q: 2 }); tone(b, { f: 300, f2: 420, d: 0.07, vol: 0.06 }); },
   bad() { const b = S(); if (!b) return; tone(b, { f: 200, f2: 150, type: 'square', d: 0.12, vol: 0.07, lp: 900 }); tone(b, { f: 160, f2: 120, type: 'square', t: 0.1, d: 0.12, vol: 0.06, lp: 900 }); },
-  moto() { const b = S(); if (!b) return; tone(b, { f: 70, f2: 210, type: 'sawtooth', a: 0.02, d: 0.42, vol: 0.16, lp: 1400 }); tone(b, { f: 72, f2: 216, type: 'sawtooth', a: 0.02, d: 0.42, vol: 0.12, detune: 18, lp: 1400 }); noise(b, { f: 400, f2: 1800, d: 0.4, vol: 0.06, q: 0.7 }); },
-  boom() { const b = S(); if (!b) return; noise(b, { type: 'lowpass', f: 1800, f2: 120, a: 0.004, d: 0.6, vol: 0.55 }); tone(b, { f: 110, f2: 38, type: 'sine', d: 0.5, vol: 0.45 }); },
+  moto() { const b = S(); if (!b) return; engine(b, { f: 55, f2: 190, d: 0.55, vol: 0.22 }); engine(b, { f: 110, f2: 380, d: 0.5, vol: 0.06, rate: 30, rate2: 80 }); noise(b, { type: 'lowpass', f: 600, f2: 2400, a: 0.05, d: 0.5, vol: 0.08 }); noise(b, { f: 3500, t: 0.42, d: 0.12, vol: 0.06, q: 2 }); },
+  boom() { const b = S(); if (!b) return; noise(b, { type: 'highpass', f: 2500, d: 0.05, vol: 0.3 }); noise(b, { type: 'lowpass', f: 2200, f2: 90, a: 0.003, d: 0.9, vol: 0.6 }); tone(b, { f: 95, f2: 30, type: 'sine', d: 0.7, vol: 0.55 }); tone(b, { f: 60, f2: 25, type: 'triangle', t: 0.05, d: 0.8, vol: 0.3 }); noise(b, { type: 'bandpass', f: 400, t: 0.25, d: 0.6, vol: 0.12, q: 0.6 }); },
   power() { const b = S(); if (!b) return; [0, 4, 7, 12].forEach((s, i) => tone(b, { f: 523 * Math.pow(2, s / 12), type: 'triangle', t: i * 0.04, d: 0.18, vol: 0.12 })); noise(b, { type: 'highpass', f: 5000, d: 0.3, vol: 0.05 }); },
-  grappa() { const b = S(); if (!b) return; [0, 7, 12, 16, 19, 24].forEach((s, i) => tone(b, { f: 392 * Math.pow(2, s / 12), type: 'sine', t: i * 0.05, d: 0.5, vol: 0.09 })); },
-  drone() { const b = S(); if (!b) return; tone(b, { f: 300, f2: 520, type: 'sawtooth', a: 0.05, d: 0.45, vol: 0.06, lp: 2200 }); noise(b, { f: 3000, d: 0.45, vol: 0.05, q: 3 }); },
+  grappa() { const b = S(); if (!b) return; [0, 4, 7, 12].forEach((s) => { tone(b, { f: 262 * Math.pow(2, s / 12), type: 'sine', a: 0.15, d: 1.1, vol: 0.07 }); tone(b, { f: 262 * Math.pow(2, s / 12), type: 'sine', a: 0.15, d: 1.1, vol: 0.04, detune: 9 }); }); [0, 7, 12, 16, 19, 24].forEach((s, i) => tone(b, { f: 784 * Math.pow(2, s / 12), type: 'triangle', t: 0.1 + i * 0.06, d: 0.35, vol: 0.05 })); noise(b, { type: 'highpass', f: 7000, t: 0.1, d: 0.9, vol: 0.04 }); },
+  drone() { const b = S(); if (!b) return; buzz(b, { f: 190, d: 0.7, vol: 0.08 }); buzz(b, { f: 197, d: 0.7, vol: 0.05, vib: 43 }); noise(b, { type: 'highpass', f: 4000, d: 0.6, vol: 0.03 }); tone(b, { f: 880, f2: 1320, type: 'sine', t: 0.6, d: 0.12, vol: 0.06 }); },
   combo(step) { const b = S(); if (!b) return; const base = 392 * Math.pow(2, Math.min(step, 7) * 2 / 12); [0, 4, 7].forEach((s, i) => tone(b, { f: base * Math.pow(2, s / 12), type: 'square', t: i * 0.05, d: 0.12, vol: 0.06, lp: 3000 })); },
   coin() { const b = S(); if (!b) return; tone(b, { f: 988, type: 'square', d: 0.07, vol: 0.06, lp: 4000 }); tone(b, { f: 1319, type: 'square', t: 0.07, d: 0.18, vol: 0.06, lp: 4000 }); },
   star() { const b = S(); if (!b) return; [0, 5, 9, 12].forEach((s, i) => tone(b, { f: 659 * Math.pow(2, s / 12), type: 'triangle', t: i * 0.06, d: 0.25, vol: 0.1 })); },

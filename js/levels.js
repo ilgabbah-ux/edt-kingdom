@@ -244,8 +244,14 @@ export function getLevel(n) {
 }
 
 // mosse calibrate con il simulatore (tools/tune.mjs)
-const BALANCE = {1: 20, 2: 20, 3: 20, 4: 16, 5: 18, 6: 16, 7: 16, 8: 18, 9: 16, 10: 16, 11: 26, 12: 16, 13: 29, 14: 26, 15: 24, 16: 30, 17: 20, 18: 34, 19: 36, 20: 28, 21: 16, 22: 26, 23: 16, 24: 27, 25: 26, 26: 23, 27: 17, 28: 36, 29: 16, 30: 28, 31: 34, 32: 16, 33: 26, 34: 27, 35: 30, 36: 28, 37: 22, 38: 23, 39: 15, 40: 30, 41: 15, 42: 27, 43: 29, 44: 29, 45: 35, 46: 31, 47: 20, 48: 36, 49: 26, 50: 31, 51: 17, 52: 23, 53: 22, 54: 21, 55: 36, 56: 19, 57: 15, 58: 27, 59: 15, 60: 33};
+const BALANCE = {1: 20, 2: 20, 3: 20, 4: 16, 5: 18, 6: 16, 7: 16, 8: 18, 9: 16, 10: 16, 11: 26, 12: 16, 13: 29, 14: 26, 15: 24, 16: 30, 17: 20, 18: 34, 19: 36, 20: 28, 21: 16, 22: 26, 23: 16, 24: 27, 25: 26, 26: 23, 27: 17, 28: 36, 29: 16, 30: 28, 31: 34, 32: 16, 33: 26, 34: 27, 35: 30, 36: 28, 37: 22, 38: 23, 39: 15, 40: 30, 41: 15, 42: 27, 43: 29, 44: 29, 45: 35, 46: 31, 47: 20, 48: 36, 49: 26, 50: 31, 51: 17, 52: 23, 53: 22, 54: 21, 55: 36, 56: 19, 57: 15, 58: 27, 59: 15, 60: 33, 61: 21, 62: 22, 63: 28, 64: 23, 65: 34, 66: 21, 67: 32, 68: 35, 69: 25, 70: 37, 71: 15, 72: 20, 73: 26, 74: 28, 75: 36, 76: 24, 77: 15, 78: 15, 79: 19, 80: 38, 81: 31, 82: 15, 83: 25, 84: 40, 85: 40, 86: 29, 87: 28, 88: 22, 89: 40, 90: 40};
 
+const BOSS_LINES3 = [
+  'Cantiere chiuso! Caschetto, giubbino arancione e un blocchetto nuovo di zecca.',
+  'In cava si va a passo d\'uomo. Voi andate a passo di moto: multa!',
+  'Ho chiamato anche i rinforzi. Sono io, con un altro cappello.',
+  'Qui ogni sasso è sotto sequestro. E presto anche voi.',
+];
 const BOSS_LINES2 = [
   'Quassù comanda la Forestale d\'alta quota. Gomme da neve? Senza, è multa!',
   'Ho le ciaspole, il fischietto e un blocchetto nuovo. Fate i bravi.',
@@ -271,11 +277,13 @@ function baseLevel(n) {
     return {
       n, moves: 28, colors, boss: { hp, every: 4 },
       goals: [{ type: 'boss', n: hp }], layout,
-      intro: n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
+      intro: n > 60 ? { who: 'forestale3', text: BOSS_LINES3[tier % BOSS_LINES3.length] } : n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
     };
   }
   // al Passo (31+) il ghiaccio (k) è l'ostacolo di casa
-  const kinds = n > 30
+  const kinds = n > 60
+    ? ['chain', 'rock', 'crate', 'mud+chain', 'crate+multa', 'tile+crate', 'rock', 'chain', 'mud+rock', 'multa']
+    : n > 30
     ? ['chain', 'mud+chain', 'chain', 'rock', 'tile+crate', 'mud+chain', 'multa', 'chain', 'crate+multa', 'tile+mud']
     : ['mud', 'rock', 'crate', 'chain', 'multa', 'mud+rock', 'mud+chain', 'crate+multa', 'tile+mud', 'tile+crate'];
   const kind = kinds[Math.floor(rng() * kinds.length)];
@@ -343,4 +351,4 @@ function makeLayout(rng, tier, kind, holes) {
   return G.map((row) => row.join(''));
 }
 
-export const MAX_LEVEL = 60;
+export const MAX_LEVEL = 90;

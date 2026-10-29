@@ -1,7 +1,7 @@
 // EDT Kingdom — interfaccia, animazioni, campo base
 import { Board, ROWS, COLS, key, unkey, inside, newTile } from './engine.js';
 import { getLevel, MAX_LEVEL } from './levels.js';
-import { BUILDINGS, CHARS, ZONES } from './kingdom.js';
+import { BUILDINGS, CHARS, ZONES, zoneOfLevel } from './kingdom.js';
 import * as FX from './fx.js';
 import * as AU from './audio.js';
 import * as RANK from './rank.js';
@@ -65,7 +65,28 @@ function speakerHTML(who, text) {
   return `<div class="speaker talk-${who}"><div class="avatar talking" style="background-image:${I(ch.img)}"></div>
     <div class="bubble"><b>${ch.name}</b><p>${text}</p></div></div>`;
 }
-function say(who, text, btn = 'Ok!') {
+// voci dei personaggi (ElevenLabs): 0 e 1 = battute, 2 = esultanza (per la Forestale: resa)
+const VOICED = ['gabbah', 'miti', 'mirco', 'purcello', 'costa', 'renard', 'svetlana', 'forestale'];
+let vAudio = null, lastVoice = 0;
+if (save.voice === undefined) save.voice = true;
+function voice(who, idx = -1, minGap = 0) {
+  if (!save.voice || !save.sfx) return;
+  const w = (who || '').startsWith('forestale') ? 'forestale' : who;
+  if (!VOICED.includes(w)) return;
+  const now = performance.now();
+  if (now - lastVoice < minGap) return;
+  lastVoice = now;
+  const i = idx >= 0 ? idx : Math.floor(Math.random() * 2);
+  const src = (window.__V && window.__V['v_' + w + i]) || `audio/v_${w}${i}.mp3`;
+  try {
+    if (vAudio) vAudio.pause();
+    vAudio = new Audio(src); vAudio.volume = 1;
+    vAudio.play().catch(() => {});
+    AU.duck(1.8);
+  } catch { /* niente */ }
+}
+function say(who, text, btn = 'Ok!', vIdx = -1) {
+  voice(who, vIdx);
   return new Promise((res) => showCard(`${speakerHTML(who, text)}<div class="row"><button id="cOk" class="btn btn-play">${btn}</button></div>`,
     { cOk: () => { hideCard(); res(); } }));
 }
@@ -96,6 +117,7 @@ function mapPoint(map, x, y) {
 }
 
 function renderHome(popId = null) {
+  renderWeekBadge();
   $('#hStars').textContent = save.stars - pendingStar;
   $('#hCoins').textContent = save.coins;
   const zone = viewZone || currentZone();
@@ -275,11 +297,11 @@ async function tryBuild() {
       const z = zoneOf(nb), nz = ZONES[ZONES.indexOf(z) + 1];
       fireworks(2600);
       if (nz) {
-        await say('forestale', `Avete preso tutta ${z.name}? Va bene, ma su a <b>${nz.name}</b> comando io. E fa un freddo cane...`, 'Andiamo su!');
+        await say('forestale', `Avete preso tutta ${z.name}? Va bene, ma a <b>${nz.name}</b> comando io. ${nz.id === 'passo' ? 'E fa un freddo cane...' : 'E lì è tutto cantiere: caschetto obbligatorio!'}`, 'Andiamo su!');
         viewZone = null; renderHome();
         FX.banner(nz.name, 'Nuova zona sbloccata!', '#bdf0ff');
       } else {
-        await say('forestale2', 'Anche il Passo è vostro... Mi ritiro in caserma a scrivere il rapporto. Lunghissimo.', 'EDT campione!');
+        await say(z.boss, 'Anche questa zona è vostra... Mi ritiro in caserma a scrivere il rapporto. Lunghissimo.', 'EDT campione!', 2);
       }
     }
   }
@@ -362,6 +384,59 @@ function checkDaily() {
     },
   });
   return true;
+}
+
+// ---------------- sfida della settimana ----------------
+const WEEKLY = [
+  { t: 'Togli <b>400 birre</b>', kind: 'tile', color: 0, n: 400, img: 't0_birra' },
+  { t: 'Pulisci <b>120 pozze di fango</b>', kind: 'mud', n: 120, img: 'o_fango1' },
+  { t: 'Spacca <b>80 sassi o casse</b>', kind: 'block', n: 80, img: 'o_sasso1' },
+  { t: 'Crea <b>30 potenziamenti</b>', kind: 'power', n: 30, img: 'p_tanica' },
+  { t: 'Vinci <b>12 livelli</b>', kind: 'win', n: 12, img: 'u_stella' },
+  { t: 'Togli <b>400 caschi</b>', kind: 'tile', color: 1, n: 400, img: 't1_casco' },
+  { t: 'Togli <b>400 gomme</b>', kind: 'tile', color: 4, n: 400, img: 't4_gomma' },
+];
+function weekNo(d = new Date()) {   // numero della settimana (si cambia il lunedì)
+  const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = (x.getUTCDay() + 6) % 7; x.setUTCDate(x.getUTCDate() - day + 3);
+  const first = new Date(Date.UTC(x.getUTCFullYear(), 0, 4));
+  return x.getUTCFullYear() * 100 + 1 + Math.round(((x - first) / 864e5 - 3 + ((first.getUTCDay() + 6) % 7)) / 7);
+}
+function weekly() {
+  const k = weekNo();
+  if (!save.week || save.week.k !== k) { save.week = { k, done: 0, claimed: false }; persist(); }
+  return { ...WEEKLY[k % WEEKLY.length], ...save.week };
+}
+function weekTrack(kind, color = -1, amount = 1) {
+  const w = weekly();
+  if (w.claimed || w.done >= w.n || w.kind !== kind || (kind === 'tile' && w.color !== color)) return;
+  save.week.done = Math.min(w.n, w.done + amount);
+  if (save.week.done >= w.n) { persist(); setTimeout(() => toast('Sfida della settimana completata!', 1600), 400); }
+  renderWeekBadge();
+}
+function renderWeekBadge() {
+  const b = $('#weekPct'); if (!b) return;
+  const w = weekly();
+  b.textContent = w.claimed ? '✓' : w.done >= w.n ? '!' : Math.floor(w.done / w.n * 100) + '%';
+  b.parentElement.classList.toggle('ready', !w.claimed && w.done >= w.n);
+}
+function openWeekly() {
+  const w = weekly();
+  const pct = Math.min(100, w.done / w.n * 100);
+  const daysLeft = 7 - ((new Date().getDay() + 6) % 7);
+  showCard(`<h2>Sfida della settimana</h2>
+    <div class="wk"><span class="hi" style="background-image:${I(w.img)}"></span><div><p>${w.t} entro domenica.</p>
+    <div class="wkbar"><i style="width:${pct}%"></i><span>${w.done} / ${w.n}</span></div></div></div>
+    <p class="small">Premio: <b>300 ${IC_C}</b> + <b>1 Grappa</b> + <b>1 Tanica</b> · ${w.claimed ? 'già ritirato, la prossima sfida arriva lunedì' : `mancano ${daysLeft} giorni`}</p>
+    <div class="row">${!w.claimed && w.done >= w.n ? '<button id="cClaim" class="btn btn-play">Ritira il premio!</button>' : '<button id="cClose" class="btn btn-play">Ok</button>'}</div>`, {
+    cClose: hideCard,
+    cClaim: () => {
+      save.week.claimed = true; save.coins += 300; save.inv.grappa = (save.inv.grappa || 0) + 1; save.inv.bomb = (save.inv.bomb || 0) + 1;
+      persist(); hideCard(); sfx.coin(); fireworks(1500); voice('gabbah', 2);
+      $('#hCoins').textContent = save.coins; renderWeekBadge();
+      FX.banner('Sfida vinta!', '+300 monete, Grappa e Tanica', '#ffd34d');
+    },
+  });
 }
 
 // ---------------- classifica EDT online ----------------
@@ -472,7 +547,8 @@ function renderGoals(bumpIdx = -1) {
 function goalInfo(gl) {
   sfx.click();
   if (gl.type === 'tile') { tipBubble('t0_birra', `Togli <b>${goalLeft(gl)}</b> di queste tessere facendo tris con loro.`, goalURI(gl)); return; }
-  const k = gl.type === 'chain' && G.level.n > 30 ? 'ice' : gl.type;
+  const zl = zoneOfLevel(G.level.n);
+  const k = gl.type === 'chain' && zl ? (zl === 2 ? 'tape' : 'ice') : gl.type;
   const h = HELP[k]; if (h) tipBubble(h.img, `<b>${h.t}</b>: ${h.d}`);
 }
 function tipBubble(img, html, uri) {
@@ -621,6 +697,7 @@ function fxPower(power, r, c, cells) {
   const [x, y] = cellCenter(r, c);
   const br = $('#board').getBoundingClientRect(), ar = app.getBoundingClientRect();
   const bx = br.left - ar.left, by = br.top - ar.top;
+  FX.buzz({ mH: [30, 30, 70], mV: [30, 30, 70], bomb: [90, 40, 140], grappa: [20, 30, 20, 30, 20, 30, 90], drone: [15, 20, 15, 20, 15, 20, 15] }[power] || 20);
   if (power === 'mH') {
     sfx.moto();
     const dir = c < COLS / 2 ? 1 : -1;
@@ -651,12 +728,21 @@ function fxPower(power, r, c, cells) {
     FX.ring(x, y, S * 1.6, '#c4f1ff', 8); FX.dust(x, y, 6, 'rgba(220,240,255,.9)');
   }
 }
+// scritte sulla griglia: una alla volta, grandi, con rimbalzo e il colore del potenziamento
+let floatQ = 0;
+const FLOAT_COL = { 'Moto!': '#ffb347', 'Tanica!': '#ff6b4a', 'Drone!': '#6fc3ff', 'San Braulio!': '#ffe066' };
 function floater(text, r, c) {
   const S = G.S;
-  const d = fxEl('floater', (c + 0.5) * S, r * S, 0, 0);
-  d.style.width = 'auto'; d.style.height = 'auto';
-  d.textContent = text;
-  setTimeout(() => d.remove(), 1100);
+  const delay = Math.max(0, floatQ - performance.now());
+  floatQ = performance.now() + delay + 260;
+  setTimeout(() => {
+    const x = Math.min(Math.max((c + 0.5) * S, S * 1.6), S * (COLS - 1.6));
+    const d = fxEl('floater pop', x, r * S, 0, 0);
+    d.style.width = 'auto'; d.style.height = 'auto';
+    if (FLOAT_COL[text]) d.style.color = FLOAT_COL[text];
+    d.textContent = text;
+    setTimeout(() => d.remove(), 1200);
+  }, delay);
 }
 async function flyDrone(fromK, toK) {
   const [r1, c1] = unkey(fromK), [r2, c2] = unkey(toK);
@@ -691,6 +777,9 @@ function flyToGoal(goalIdx, uri, r, c) {
 // ---------- obiettivi ----------
 let flyBudget = 0;
 function credit(type, r, c, color = -1, amount = 1) {
+  if (type === 'tile') weekTrack('tile', color, amount);
+  else if (type === 'mud') weekTrack('mud');
+  else if (type === 'rock' || type === 'crate') weekTrack('block');
   G.goals.forEach((gl, i) => {
     if (gl.done >= gl.n) return;
     let hit = false;
@@ -836,6 +925,7 @@ async function doClear(clear, matched, created, pre = []) {
     FX.glow(x, y, G.S * 1.3); FX.ring(x, y, G.S * 1.2, '#fff6a0', 6);
     floater(POWER_SHOUT[cr.power], r, c);
     if (!save.seen[KIND(cr.power)]) G.explainQ.add(KIND(cr.power));
+    weekTrack('power');
   }
   sfx.pop(Math.min(n, 8) / 2);
   renderMud();
@@ -945,6 +1035,7 @@ function useMove() {
 
 async function trySwap(a, bCell) {
   if (G.busy || G.over || !inside(...bCell)) return;
+  clearPreview();
   const b = G.board;
   const ta = b.get(...a), tb = b.get(...bCell);
   if (!b.isSwappable(ta) || !b.isSwappable(tb)) { sfx.bad(); return; }
@@ -995,6 +1086,7 @@ async function comboPowers(ta, tb, at, ka, kb) {
   const keyName = [ta.power, tb.power].sort().join('+');
   const nm = COMBO_NAMES[keyName] || (keyName.includes('grappa') ? 'Benedizione di San Braulio!' : 'Super combo!');
   FX.banner(nm, 'SUPER COMBO', '#ffd34d');
+  voice(pick(['gabbah', 'miti', 'purcello', 'costa', 'svetlana']), 2, 5000);
   const [cx, cy] = cellCenter(r, c);
   FX.flash(.7); FX.shake(12, .5); FX.glow(cx, cy, G.S * 3.5); FX.ring(cx, cy, G.S * 4.5, '#ffffff', 16);
   if (res.convert) {
@@ -1036,6 +1128,7 @@ async function comboPowers(ta, tb, at, ka, kb) {
 
 async function tapPower(cell) {
   if (G.busy || G.over) return;
+  clearPreview();
   G.busy = true; clearHint(); setSel(null);
   useMove();
   await resolve({ pending: [{ cells: new Set([key(...cell)]) }] });
@@ -1068,6 +1161,7 @@ async function forestaleStrike() {
     await sleep(900);
     return;
   }
+  voice('forestale', Math.random() < .5 ? 0 : 1, 8000);
   toast('MULTA!', 1000); $('#toast').classList.add('red'); setTimeout(() => $('#toast').classList.remove('red'), 1000);
   await sleep(500);
   const b = G.board;
@@ -1140,7 +1234,7 @@ async function winLevel() {
   const stars = ratio >= 0.35 ? 3 : ratio >= 0.15 ? 2 : 1;
   if (G.boss) {
     $('#bossFace').classList.add('beaten');
-    await say(n > 30 ? 'forestale2' : 'forestale', pick(['Va bene, passate. Ma ho preso la targa!', 'Per oggi niente multa. Ma vi tengo d\'occhio, eh.', 'Il fischietto è scarico... Passate, va.']), 'Arrivederci!');
+    await say(ZONES[zoneOfLevel(n)].boss, pick(['Va bene, passate. Ma ho preso la targa!', 'Per oggi niente multa. Ma vi tengo d\'occhio, eh.', 'Il fischietto è scarico... Passate, va.']), 'Arrivederci!', 2);
   } else { FX.banner('Livello superato!', '', '#ffd34d'); FX.flash(.3); await sleep(1100); }
   // bonus mosse avanzate: moto che partono a caso
   const b = G.board;
@@ -1160,6 +1254,7 @@ async function winLevel() {
     }
     await resolve({ pending: [{ cells }] });
   }
+  weekTrack('win');
   const first = n >= save.level;
   const prev = save.best[n] || 0;
   const gain = Math.max(0, stars - prev);
@@ -1175,6 +1270,7 @@ async function winLevel() {
   sfx.win();
   const nb = nextBuilding();
   const [who, line] = pick(WIN_LINES);
+  setTimeout(() => voice(who, 2), 900);
   const gainTxt = gain ? `<b>+${gain} ${gain > 1 ? 'stelle' : 'stella'}</b>` : (first ? '' : 'Nessuna stella nuova');
   showCard(`<h2 class="wintitle">${pick(WIN_TITLES)}</h2>
     <div class="stars3 fill">${[1, 2, 3].map((k) => `<i class="ic ic-star slot" data-k="${k}"></i>`).join('')}</div>
@@ -1353,8 +1449,38 @@ function onTap(cell) {
     if (adj) { trySwap(prev, cell); return; }
     if (r === cell[0] && c === cell[1]) { setSel(null); if (t?.power) tapPower(cell); return; }
   }
-  if (t?.power) { tapPower(cell); return; }
+  if (t?.power) {
+    if (G.armed && G.armed[0] === cell[0] && G.armed[1] === cell[1]) { clearPreview(); tapPower(cell); return; }
+    showPreview(cell, t); return;
+  }
+  clearPreview();
   if (t && !t.rock) setSel(cell); else setSel(null);
+}
+// anteprima del colpo: si illuminano le caselle che il potenziamento prenderà
+function clearPreview() { G.armed = null; document.querySelectorAll('.prevcell,.prevtip').forEach((e) => e.remove()); }
+function showPreview(cell, t) {
+  clearPreview(); clearHint(); setSel(null);
+  G.armed = cell;
+  const cells = G.board.blast(t.power, cell[0], cell[1], G.goals);
+  const fx = $('#fx');
+  let i = 0;
+  for (const k of cells) {
+    const [r, c] = unkey(k);
+    const d = document.createElement('div');
+    d.className = 'prevcell' + (k === key(...cell) ? ' src' : '');
+    d.style.transform = pos(r, c);
+    d.style.animationDelay = (i++ % 12) * 25 + 'ms';
+    fx.appendChild(d);
+  }
+  if (cells.droneTarget) {
+    const [r, c] = unkey(cells.droneTarget);
+    const d = document.createElement('div'); d.className = 'prevcell target'; d.style.transform = pos(r, c); fx.appendChild(d);
+  }
+  const tip = document.createElement('div');
+  tip.className = 'prevtip';
+  tip.textContent = t.power === 'grappa' ? 'Scambiala col colore da togliere, o toccala di nuovo' : 'Tocca di nuovo per usarla, o scambiala';
+  app.appendChild(tip);
+  sfx.click();
 }
 
 // =================== GUIDA E SPIEGAZIONI ===================
@@ -1366,7 +1492,7 @@ const HELP = {
   stars: { img: 'u_stella', t: 'Stelle', d: 'Vinci = da <b>1 a 3 stelle</b>. Più mosse ti avanzano, più stelle prendi (2 stelle se avanzi il 15%, 3 se avanzi il 35%). Puoi rigiocare i livelli per migliorare.' },
   // potenziamenti
   mH: { img: 'p_moto', t: 'Moto', how: '4 tessere in fila', d: 'Parte a manetta e si porta via <b>tutta la riga</b> (o tutta la colonna, se la moto è in piedi). Scambiala con una tessera vicina o <b>toccala due volte</b>.' },
-  bomb: { img: 'p_tanica', t: 'Tanica', how: 'tessere a L o a T', d: 'Esplode e pulisce un <b>quadrato 5×5</b> intorno a sé: perfetta per sassi, casse e fango. Scambiala o toccala due volte.' },
+  bomb: { img: 'p_tanica', t: 'Tanica', how: 'tessere a L o a T', d: 'Esplode e pulisce <b>tutto intorno a sé, fino a 2 caselle</b> di distanza: perfetta per sassi, casse e fango. Scambiala o toccala due volte.' },
   drone: { img: 'p_drone', t: 'Drone', how: '4 tessere a quadrato', d: 'Pulisce una croce dove si trova e poi <b>vola da solo</b> su una tessera che ti serve per l\'obiettivo. Scambialo o toccalo due volte.' },
   grappa: { img: 'p_grappa', t: 'Grappa di San Braulio', how: '5 tessere in fila', d: 'Toglie <b>tutte le tessere di un colore</b>: scambiala con la tessera del colore che vuoi far sparire.' },
   combo: { img: 'p_grappa', t: 'Super combo', how: 'scambia due potenziamenti tra loro', d: 'Due potenziamenti vicini, scambiati, fanno un colpo molto più forte: moto+moto = croce, tanica+moto = tre righe e tre colonne, tanica+tanica = esplosione enorme, drone+drone = tre droni, grappa+qualcosa = trasforma un colore intero in quel potenziamento, grappa+grappa = <b>pulisce tutta la griglia</b>.' },
@@ -1375,6 +1501,7 @@ const HELP = {
   rock: { img: 'o_sasso1', t: 'Sasso', d: 'Non si sposta e blocca la caduta. Si spacca con un tris <b>accanto</b>, o colpendolo con moto e taniche. Quelli grossi vanno colpiti due volte.' },
   crate: { img: 'o_cassa1', t: 'Cassa', d: 'Blocca la casella e non cade. Un tris <b>accanto</b> la rompe, moto e taniche la prendono anche da lontano. Le casse già crepate vanno colpite ancora una volta.' },
   chain: { img: 'o_catena', t: 'Catena', d: 'La tessera incatenata non si può spostare. Mettila in un tris con le tessere vicine (o colpiscila con un potenziamento) e la catena salta.' },
+  tape: { img: 'o_nastro', t: 'Nastro del cantiere', d: 'Alla Cava la Forestale transenna le tessere col nastro: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.' },
   ice: { img: 'o_ghiaccio', t: 'Ghiaccio', d: 'Al Passo le tessere possono essere congelate: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.' },
   multa: { img: 'o_multa', t: 'Multa', d: 'Copre la casella. Si toglie con un tris accanto. Attento: se in un turno <b>non togli nessuna multa</b>, la Forestale ne aggiunge un\'altra.' },
   boss: { img: 'forestale', t: 'La Forestale (boss)', d: 'Ogni tessera che rompi le toglie <b>pazienza</b> (la barra rossa). Ogni poche mosse (il numero col sasso) ti tira dei <b>sassi</b> sulla griglia. Svuota la barra per vincere.' },
@@ -1386,18 +1513,19 @@ const HELP = {
   coins: { img: 'u_moneta', t: 'Monete', d: 'Le guadagni vincendo (50 più 10 per ogni mossa avanzata; meno se rigiochi un livello) e col premio del giorno. Servono per gli aiuti: <b>Martello</b> 100, <b>Scudo</b> 150, aiuti di partenza (Moto 60, Tanica 90, Grappa 140) e <b>+5 mosse</b> quando perdi (200). Per costruire servono le stelle, non le monete.' },
   // campo base
   build: { img: 'b_cantiere', t: 'Costruire', d: 'Ogni edificio ha <b>3 pezzi</b> e ogni pezzo costa <b>2 stelle</b>. Tocca <b>Costruisci</b> o il cantiere con la freccia. Finita una zona, se ne apre una nuova.' },
-  zones: { img: 'map2_bg', t: 'Zone', d: 'Prima <b>La Valle</b>, poi <b>Il Passo</b> sulla neve (dal livello 31), con edifici, ostacoli e boss nuovi. Col cartello in alto guardi le zone già sbloccate.' },
+  zones: { img: 'map2_bg', t: 'Zone', d: 'Prima <b>La Valle</b>, poi <b>Il Passo</b> sulla neve (dal livello 31) e <b>La Cava</b> (dal livello 61), ognuna con edifici, ostacoli e boss nuovi. Col cartello in alto guardi le zone già sbloccate.' },
   daily: { img: 'u_moneta', t: 'Premio del giorno', d: 'Apri il gioco ogni giorno: il premio cresce per 7 giorni (monete, Moto, Tanica e al settimo la Grappa). Se salti un giorno si riparte dal primo.' },
   levels: { img: 'u_stella', t: 'Livelli', d: 'Dal pulsante <b>Livelli</b> rigiochi quelli già fatti per prendere le stelle che mancano.' },
+  weekly: { img: 'u_stella', t: 'Sfida della settimana', d: 'Dal pulsante <b>Sfida</b>: ogni settimana un obiettivo nuovo (togliere tante tessere di un tipo, pulire il fango, creare potenziamenti...). Lo completi giocando qualsiasi livello e vinci monete e potenziamenti. Si rinnova il lunedì.' },
   rank: { img: 'u_lucchetto', t: 'Classifica EDT', d: 'Dal pulsante <b>Classifica</b> scegli il nome e sfidi gli altri dell\'EDT: conta chi ha più stelle.' },
   rider: { img: 'fx_moto', t: 'Il giro di Miti', d: 'Quando costruisci il primo edificio di una zona, Miti inizia a girare sul sentiero del Campo Base. Non serve a niente: fa scena.' },
 };
 const GUIDE = [
   ['Come si gioca', ['swap', 'goals', 'stars', 'hint']],
   ['Potenziamenti', ['mH', 'bomb', 'drone', 'grappa', 'combo']],
-  ['Ostacoli', ['mud', 'rock', 'crate', 'chain', 'ice', 'multa', 'boss']],
+  ['Ostacoli', ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'multa', 'boss']],
   ['Aiuti', ['coins', 'hammer', 'shield', 'pre']],
-  ['Campo Base', ['build', 'zones', 'daily', 'levels', 'rank']],
+  ['Campo Base', ['build', 'zones', 'daily', 'weekly', 'levels', 'rank']],
 ];
 if (!save.seen) { save.seen = {}; if (save.level > 3) { save.seen.swap = 1; save.seen.goals = 1; } }
 const helpRow = (k) => { const h = HELP[k]; return `<div class="hrow"><span class="hi" style="background-image:${I(h.img)}"></span><div><b>${h.t}</b>${h.how ? `<em>Si crea con: ${h.how}</em>` : ''}<p>${h.d}</p></div></div>`; };
@@ -1423,7 +1551,7 @@ function levelThings(lv) {
   if (/[mM]/.test(L)) out.push('mud');
   if (/[rR]/.test(L)) out.push('rock');
   if (/[cC]/.test(L)) out.push('crate');
-  if (/k/.test(L)) out.push(lv.n > 30 ? 'ice' : 'chain');
+  if (/k/.test(L)) out.push(['chain', 'ice', 'tape'][zoneOfLevel(lv.n)]);
   if (/t/.test(L)) out.push('multa');
   if (lv.boss) out.push('boss');
   return out;
@@ -1519,11 +1647,13 @@ async function startLevel(n, extras = [], resume = null) {
   $('#gLevel').textContent = n;
   $('#bossbar').classList.toggle('hidden', !G.boss);
   $('#bShield').style.visibility = G.boss ? 'visible' : 'hidden';
-  const winter = n > 30;
-  FORESTALE_URI = I(winter ? 'forestale2' : 'forestale');
-  CHAIN_URI = I(winter ? 'o_ghiaccio' : 'o_catena');
-  $('#board').classList.toggle('ice', winter);
-  $('#game').classList.toggle('winter', winter);
+  const zl = zoneOfLevel(n);
+  FORESTALE_URI = I(ZONES[zl].boss);
+  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro'][zl]);
+  $('#board').classList.toggle('ice', zl === 1);
+  $('#board').classList.toggle('tape', zl === 2);
+  $('#game').classList.toggle('winter', zl === 1);
+  $('#game').classList.toggle('quarry', zl === 2);
   const bf = $('#bossFace');
   bf.classList.remove('beaten', 'angry', 'hit');
   if (G.boss) bf.style.backgroundImage = FORESTALE_URI;
@@ -1580,7 +1710,7 @@ async function openLevel(num) {
   showCard(`<h2>${lv.boss ? 'Arriva la Forestale!' : `Livello ${lv.n}`}</h2>${bestHTML}${intro}
     ${newsHTML}<div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? '. Svuota la sua pazienza prima che ti riempia di sassi!' : ''}</p>
     <div class="prebox"><div class="prehead">${streak ? `🔥 Serie di vittorie: <b>${streak}</b>` : 'Parti con un aiuto?'}<span>${streak ? 'regali già in griglia' : 'vinci di fila per averli gratis'}</span></div>
-    <div class="prerow">${preHTML}</div><div class="prehelp"><b>Moto</b> pulisce una riga · <b>Tanica</b> esplode 5×5 · <b>Grappa</b> via un colore</div></div>
+    <div class="prerow">${preHTML}</div><div class="prehelp"><b>Moto</b> pulisce una riga · <b>Tanica</b> esplode intorno · <b>Grappa</b> via un colore</div></div>
     <div class="row"><button id="cBack" class="btn btn-gray">Indietro</button><button id="cPlay" class="btn btn-play">Gioca!</button></div>`,
   { cBack: hideCard, cPlay: () => {
     let cost = 0;
@@ -1616,11 +1746,12 @@ $('#btnLevels').onclick = () => { sfx.click(); openLevelList(); };
 $('#btnRank').onclick = () => { sfx.click(); openRanking(); };
 $('#hCoins').parentElement.onclick = () => { sfx.click(); showCard(`<h2>Monete</h2><div class="hlist">${helpRow('coins')}</div><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); };
 $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(`<h2>Stelle</h2><div class="hlist">${helpRow('stars')}${helpRow('build')}</div><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); };
+$('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
 // ---------- impostazioni ----------
 function togglesHTML() {
   const row = (id, label, on) => `<button class="tog${on ? ' on' : ''}" id="${id}"><span>${label}</span><i></i></button>`;
-  return `<div class="toggles">${row('tMusic', 'Musica', save.music)}${row('tSfx', 'Suoni', save.sfx)}${row('tVib', 'Vibrazione', save.vibra)}</div>`;
+  return `<div class="toggles">${row('tMusic', 'Musica', save.music)}${row('tSfx', 'Suoni', save.sfx)}${row('tVib', 'Vibrazione', save.vibra)}${row('tVoice', 'Voci', save.voice)}</div>`;
 }
 function bindToggles() {
   const flip = (id, key, apply) => {
@@ -1631,6 +1762,7 @@ function bindToggles() {
   flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : 'game') : 'home'); });
   flip('tSfx', 'sfx', AU.setSfx);
   flip('tVib', 'vibra', FX.setVibra);
+  flip('tVoice', 'voice', () => {});
 }
 function openSettings() {
   if (G.building || pendingStar) return;
@@ -1645,7 +1777,7 @@ function confirmReset() {
     <p>Perdi <b>stelle, monete, livelli</b> e tutto il <b>Campo Base</b>. Non si torna indietro.</p>
     <div class="row"><button id="cNo" class="btn btn-gray">No, tengo tutto</button><button id="cYes" class="btn btn-red">Sì, azzera</button></div>`,
   { cNo: openSettings, cYes: () => {
-    const keep = { music: save.music, sfx: save.sfx, vibra: save.vibra };
+    const keep = { music: save.music, sfx: save.sfx, vibra: save.vibra, voice: save.voice };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify({ ...keep })); } catch { /* */ }
     location.reload();
   } });
@@ -1686,7 +1818,7 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 const preload = Promise.all(ASSETS.map((n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); })));
 document.addEventListener('visibilitychange', () => AU.pause(document.hidden));

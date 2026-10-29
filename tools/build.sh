@@ -6,8 +6,8 @@ npx -y esbuild@0.24.0 js/game.js --bundle --format=iife --minify --target=es2017
 V=$(date +%s)
 {
   echo "const CACHE = 'edtk-$V';"
-  printf "const FILES = ['./', 'index.html', 'style.css?v=17', 'game.min.js?v=17', 'manifest.json', 'icon-192.png'"
-  for f in img/*.webp fonts/*.woff2; do printf ", '%s'" "$f"; done
+  printf "const FILES = ['./', 'index.html', 'style.css?v=19', 'game.min.js?v=19', 'manifest.json', 'icon-192.png'"
+  for f in img/*.webp fonts/*.woff2 audio/*.mp3; do printf ", '%s'" "$f"; done
   echo "];"
   cat <<'JS'
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
@@ -16,7 +16,7 @@ self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) =
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  const isAsset = /\.(webp|png|woff2)$/.test(url.pathname);
+  const isAsset = /\.(webp|png|woff2|mp3)$/.test(url.pathname);
   if (isAsset) e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request).then((res) => { const cp = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); return res; })));
   else e.respondWith(fetch(e.request, { cache: 'no-cache' }).then((res) => { const cp = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); return res; }).catch(() => caches.match(e.request)));
 });

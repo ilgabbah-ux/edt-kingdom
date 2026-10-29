@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#2a8a37">
+<meta name="theme-color" content="#2f5fa8">
 <title>EDT Kingdom</title>
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=19">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -13,18 +13,18 @@
 </head>
 <body>
 <div id="app">
-  <div id="loading"><div class="ld-title">EDT <span>Kingdom</span></div><div class="ld-bar"><i></i></div><small>Si scaldano i motori…</small></div>
+  <div id="loading"><img src="img/edt_shield.webp" class="ld-shield" alt=""><div class="ld-title"><span>Kingdom</span></div><div class="ld-bar"><i></i></div><small>Si scaldano i motori…</small></div>
 
   <!-- CAMPO BASE -->
   <section id="home" class="screen active">
     <header class="topbar">
       <div class="pill"><span class="ico"><i class="ic ic-star"></i></span><b id="hStars">0</b></div>
-      <div class="title">EDT <span>Kingdom</span></div>
+      <div class="title brand"><img src="img/edt_logo.webp" alt="EDT" class="brandlogo"><span>Kingdom</span></div>
       <button id="btnSettings" class="round gear" aria-label="Impostazioni">⚙</button>
       <div class="pill"><span class="ico"><i class="ic ic-coin"></i></span><b id="hCoins">0</b></div>
     </header>
     <div id="map"></div>
-    <div class="sidebtns"><button id="btnLevels" class="sidebtn"><i class="ic ic-star"></i><small>Livelli</small></button><button id="btnRank" class="sidebtn"><span>🏆</span><small>Classifica</small></button><button id="btnGuide" class="sidebtn"><span class="q">?</span><small>Guida</small></button></div>
+    <div class="sidebtns"><button id="btnLevels" class="sidebtn"><i class="ic ic-star"></i><small>Livelli</small></button><button id="btnRank" class="sidebtn"><span>🏆</span><small>Classifica</small></button><button id="btnWeek" class="sidebtn"><span>🏁</span><small>Sfida</small><b class="wkpct" id="weekPct">0%</b></button><button id="btnGuide" class="sidebtn"><span class="q">?</span><small>Guida</small></button></div>
     <div class="homebar">
       <div class="job" id="job">
         <div class="jobimg" id="jobImg"></div>
@@ -70,7 +70,7 @@
   </div>
   <div id="toast" class="toast"></div>
 </div>
-<script src="game.min.js?v=17"></script>
+<script src="game.min.js?v=19"></script>
 <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});</script>
 </body>
 </html>

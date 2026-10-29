@@ -9,6 +9,8 @@ css = re.sub(r"url\('img/([\w]+)\.webp'\)", lambda m: f"url('data:image/webp;bas
 css = re.sub(r"url\('fonts/([\w]+)\.woff2'\)", lambda m: f"url('data:font/woff2;base64,{b64('fonts/' + m.group(1) + '.woff2')}')", css)
 assets = {f[:-5]: 'data:image/webp;base64,' + b64('img/' + f) for f in sorted(os.listdir('img')) if f.endswith('.webp')}
 amap = 'window.__A={' + ','.join(f'"{k}":"{v}"' for k, v in assets.items()) + '};'
+voices = {f[:-4]: 'data:audio/mpeg;base64,' + b64('audio/' + f) for f in sorted(os.listdir('audio')) if f.endswith('.mp3')}
+amap += 'window.__V={' + ','.join(f'"{k}":"{v}"' for k, v in voices.items()) + '};'
 html = open('index.html').read()
 body = html.split('<body>')[1].split('<script')[0]
 icon = 'data:image/png;base64,' + b64('icon-192.png')

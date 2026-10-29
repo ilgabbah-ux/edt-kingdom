@@ -1,5 +1,4 @@
-// EDT Kingdom — audio generato in tempo reale (Web Audio): niente file da scaricare.
-// Tre musiche originali (campo base, partita, boss) + effetti sonori.
+// EDT Kingdom — musica: brani ElevenLabs in loop (audio/m_*.mp3), con la musica sintetica come riserva; effetti sonori generati in tempo reale.
 
 let ctx = null, master, musicBus, sfxBus, noiseBuf = null;
 const state = { music: true, sfx: true };
@@ -147,7 +146,8 @@ const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 let wantTrack = null, timer = 0, step = 0, nextT = 0, cur = null;
 
 // musica vera (brani ElevenLabs in loop); se un file non si carica resta quella sintetica
-const FILES = { home: 'm_home', game: 'm_game', boss: 'm_boss' };
+const FILES = { home: 'm_home', game: 'm_game_a', boss: 'm_boss' };
+let gameFlip = false;
 const bufs = {}, loading = {};
 let srcNode = null, srcGain = null;
 const fileSrc = (n) => (window.__V && window.__V[n]) || `audio/${n}.mp3`;
@@ -155,11 +155,11 @@ function loadBuf(n) {
   if (bufs[n] || loading[n] || !ensure()) return loading[n];
   loading[n] = fetch(fileSrc(n)).then((r) => { if (!r.ok) throw new Error('x'); return r.arrayBuffer(); })
     .then((a) => new Promise((res, rej) => ctx.decodeAudioData(a, res, rej)))
-    .then((b) => { bufs[n] = b; if (wantTrack && FILES[wantTrack] === n && timer) startTrack(wantTrack); return b; })
+    .then((b) => { bufs[n] = b; if (wantTrack && timer && (FILES[wantTrack] === n || (wantTrack === 'game' && n.startsWith('m_game')))) { gameFlip = !gameFlip; startTrack(wantTrack); } return b; })
     .catch(() => null);
   return loading[n];
 }
-function preloadMusic() { Object.values(FILES).forEach(loadBuf); loadBuf('j_win'); }
+function preloadMusic() { ['m_home', 'm_game_a', 'm_game_b', 'm_boss', 'j_win'].forEach(loadBuf); }
 function stopSrc() {
   if (!srcNode) return;
   const n = srcNode, g = srcGain; srcNode = null; srcGain = null;
@@ -168,7 +168,8 @@ function stopSrc() {
 function startTrack(name) {
   stopTimer(); stopSrc();
   if (!state.music || !unlocked || !ensure()) return;
-  const f = FILES[name];
+  let f = FILES[name];
+  if (name === 'game') { gameFlip = !gameFlip; f = gameFlip ? 'm_game_a' : 'm_game_b'; if (!bufs[f]) f = bufs.m_game_a ? 'm_game_a' : f; }
   if (f && bufs[f]) {
     srcNode = ctx.createBufferSource(); srcNode.buffer = bufs[f]; srcNode.loop = true;
     srcGain = ctx.createGain(); srcGain.gain.setValueAtTime(0, ctx.currentTime); srcGain.gain.linearRampToValueAtTime(0.75, ctx.currentTime + 0.6);

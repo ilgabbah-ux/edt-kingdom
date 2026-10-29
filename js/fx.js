@@ -193,6 +193,7 @@ export function fire(x, y, R) {
   add({ kind: 'ring', x, y, size: R * 1.1, color: 'rgba(255,240,200,.9)', w: 8, life: .4 });
   for (let i = 0; i < 6; i++) add({ kind: 'puff', x: x + rnd(-R / 3, R / 3), y: y + rnd(-R / 3, R / 3), vy: rnd(-1.5, -.5), drag: .97, size: rnd(12, 20), color: 'rgba(70,60,55,.35)', life: rnd(.7, 1) });
 }
+let vibra = true;
 export function setVibra(v) { vibra = v; }
 export function buzz(pattern) { if (!vibra) return; try { navigator.vibrate && navigator.vibrate(pattern); } catch { /* niente */ } }
 export function shake(intensity = 6, dur = 0.35) {

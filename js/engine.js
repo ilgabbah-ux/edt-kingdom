@@ -233,7 +233,7 @@ export class Board {
   }
 
   // celle colpite da un power-up in (r,c)
-  blast(power, r, c, goals = []) {
+  blast(power, r, c, goals = [], forceTarget) {
     const out = new Set();
     const add = (rr, cc) => { if (inside(rr, cc)) out.add(key(rr, cc)); };
     if (power === 'mH') for (let x = 0; x < COLS; x++) add(r, x);
@@ -243,7 +243,7 @@ export class Board {
         if (Math.abs(dr) + Math.abs(dc) <= 2 || (Math.abs(dr) <= 1 && Math.abs(dc) <= 1)) add(r + dr, c + dc);
     } else if (power === 'drone') {
       add(r, c); add(r - 1, c); add(r + 1, c); add(r, c - 1); add(r, c + 1);
-      const tk = this.droneTarget(goals, out);
+      const tk = forceTarget !== undefined && !out.has(forceTarget) ? forceTarget : this.droneTarget(goals, out);
       out.add(tk);
       out.droneTarget = tk;
     } else if (power === 'grappa') {

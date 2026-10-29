@@ -199,7 +199,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 /* fango vivo */
 .mud { will-change: auto; }
 .mud.on { animation: mudwob 3s ease-in-out infinite; }
-@keyframes mudwob { 50% { background-size: 106% 106%; } }
+@keyframes mudwob { 50% { scale: 1.06; } }
 .mudbadge { position: absolute; left: 0; top: 0; width: var(--cell); height: var(--cell); pointer-events: none; z-index: 3; }
 .mudbadge { font-size: 0; }
 .mudbadge::after { content: '2'; position: absolute; right: 1px; bottom: 1px; width: 17px; height: 17px; border-radius: 50%; background: #3a1f0a; color: #ffe2b0; border: 2px solid #ffe2b0; font: 800 11px/13px var(--fb); text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.5); }
@@ -346,7 +346,7 @@ button { font-family: inherit; cursor: pointer; border: 0; }
 .trailrider i { position: absolute; left: 0; top: 0; width: 62px; height: 62px; background-size: contain; background-repeat: no-repeat; background-position: center bottom; filter: drop-shadow(0 4px 2px rgba(0,0,0,.35)); }
 .trailrider::after { content: ''; position: absolute; left: -18px; top: -14px; width: 36px; height: 36px; }
 .tdust { position: absolute; left: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; background: rgba(214,186,140,.85); pointer-events: none; z-index: 2; animation: tdust .9s ease-out forwards; }
-@keyframes tdust { from { opacity: .9; } to { opacity: 0; margin: -10px 0 0 -6px; width: 22px; height: 22px; } }
+@keyframes tdust { from { opacity: .9; } to { opacity: 0; translate: -1px -5px; scale: 1.8; } }
 .zonesign { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; z-index: 5; background: #7a4a22; border: 3px solid var(--ink); border-radius: 12px; padding: 3px 10px; box-shadow: 0 3px 0 var(--ink); color: #fff; font: 400 16px var(--fd); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; white-space: nowrap; }
 #map[data-zone="passo"] .zonesign { background: #3d8bd8; }
 .zarr { background: #ffd34d; border: 2px solid var(--ink); border-radius: 8px; font: 800 13px var(--fb); color: var(--ink); -webkit-text-stroke: 0; padding: 2px 7px; cursor: pointer; }

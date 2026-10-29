@@ -198,7 +198,8 @@ function startTrailRider(map, trail) {
   const segs = []; let tot = 0;
   for (let i = 1; i < trail.length; i++) { const d = Math.hypot(trail[i][0] - trail[i - 1][0], trail[i][1] - trail[i - 1][1]); segs.push(d); tot += d; }
   const leg = 30000, t0 = performance.now();   // 30 s in salita, 30 s in discesa
-  let lastDust = 0;
+  let lastDust = 0, lastUp = null;
+  const home = $('#home');
   const at = (dist) => {
     let i = 0;
     while (i < segs.length - 1 && dist > segs[i]) { dist -= segs[i]; i++; }
@@ -206,7 +207,8 @@ function startTrailRider(map, trail) {
     return [trail[i][0] + (trail[i + 1][0] - trail[i][0]) * f, trail[i][1] + (trail[i + 1][1] - trail[i][1]) * f];
   };
   const step = (now) => {
-    if (!el.isConnected) return;
+    // fuori dal Campo Base il giro si ferma (riparte con renderHome quando si torna)
+    if (!el.isConnected || !home.classList.contains('active')) { riderRAF = 0; return; }
     const ph = ((now - t0) % (leg * 2)) / leg;   // 0..2
     const up = ph < 1;
     // velocità che rallenta un po' nelle curve: si usa una piccola ondulazione
@@ -218,7 +220,7 @@ function startTrailRider(map, trail) {
     const dirX = x2 >= x ? 1 : -1;
     const sc = 0.55 + (y / 1280) * 0.55;   // più piccolo in lontananza
     const bob = Math.abs(Math.sin(now / 90)) * 2.2;
-    spr.style.backgroundImage = up ? RIDER_UP : RIDER_DOWN;
+    if (up !== lastUp) { lastUp = up; spr.style.backgroundImage = up ? RIDER_UP : RIDER_DOWN; }
     el.style.transform = `translate(${px}px, ${py}px) scale(${sc})`;
     spr.style.transform = `translate(-50%, ${-88 - bob}%) scaleX(${dirX})`;
     if (now - lastDust > 140) {
@@ -427,7 +429,7 @@ function openWeekly() {
   showCard(`<h2>Sfida della settimana</h2>
     <div class="wk"><span class="hi" style="background-image:${I(w.img)}"></span><div><p>${w.t} entro domenica.</p>
     <div class="wkbar"><i style="width:${pct}%"></i><span>${w.done} / ${w.n}</span></div></div></div>
-    <p class="small">Premio: <b>300 ${IC_C}</b> + <b>1 Grappa</b> + <b>1 Tanica</b> · ${w.claimed ? 'già ritirato, la prossima sfida arriva lunedì' : `mancano ${daysLeft} giorni`}</p>
+    <p class="small">Premio: <b>300 ${IC_C}</b> + <b>1 Grappa</b> + <b>1 Tanica</b> · ${w.claimed ? 'già ritirato, la prossima sfida arriva lunedì' : (daysLeft === 1 ? 'ultimo giorno' : `mancano ${daysLeft} giorni`)}</p>
     <div class="row">${!w.claimed && w.done >= w.n ? '<button id="cClaim" class="btn btn-play">Ritira il premio!</button>' : '<button id="cClose" class="btn btn-play">Ok</button>'}</div>`, {
     cClose: hideCard,
     cClaim: () => {
@@ -440,6 +442,7 @@ function openWeekly() {
 }
 
 // ---------------- classifica EDT online ----------------
+const esc = (v) => String(v).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const totalStars = () => Object.values(save.best).reduce((a, b) => a + b, 0);
 function submitScore() {
   if (!RANK.getNick()) return;
@@ -475,7 +478,7 @@ async function openRanking(justJoined = false) {
   }
   if (!document.querySelector('.rkload')) return;   // chiusa nel frattempo
   const medal = ['🥇', '🥈', '🥉'];
-  const rows = list.map((e, i) => `<div class="rk${e.name.toLowerCase() === me ? ' me' : ''}"><span class="pos">${medal[i] || i + 1}</span><b>${e.name}</b><span class="st">${e.stars} ${IC_S}</span><small>liv ${e.level}</small></div>`).join('');
+  const rows = list.map((e, i) => `<div class="rk${String(e.name).toLowerCase() === me ? ' me' : ''}"><span class="pos">${medal[i] || i + 1}</span><b>${esc(e.name)}</b><span class="st">${+e.stars || 0} ${IC_S}</span><small>liv ${+e.level || 0}</small></div>`).join('');
   showCard(`<h2>Classifica EDT</h2>
     ${taken ? '<p class="red">Il nome <b>' + RANK.getNick() + '</b> è già di un altro telefono: cambialo.</p>' : ''}
     <div class="rklist">${rows || '<p>Ancora nessuno in classifica: fai tu il primo!</p>'}</div>
@@ -684,12 +687,12 @@ function cellCenter(r, c) { // relativo a #app
   const ar = app.getBoundingClientRect();
   return [br.left - ar.left + (c + 0.5) * G.S, br.top - ar.top + (r + 0.5) * G.S];
 }
-function fxEl(cls, x, y, w, h) {
+function fxEl(cls, x, y, w, h, life = 700) {
   const d = document.createElement('div');
   d.className = cls;
   Object.assign(d.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
   $('#fx').appendChild(d);
-  setTimeout(() => d.remove(), 700);
+  setTimeout(() => d.remove(), life);
   return d;
 }
 function fxPower(power, r, c, cells) {
@@ -737,11 +740,10 @@ function floater(text, r, c) {
   floatQ = performance.now() + delay + 260;
   setTimeout(() => {
     const x = Math.min(Math.max((c + 0.5) * S, S * 1.6), S * (COLS - 1.6));
-    const d = fxEl('floater pop', x, r * S, 0, 0);
+    const d = fxEl('floater pop', x, r * S, 0, 0, 1200);
     d.style.width = 'auto'; d.style.height = 'auto';
     if (FLOAT_COL[text]) d.style.color = FLOAT_COL[text];
     d.textContent = text;
-    setTimeout(() => d.remove(), 1200);
   }, delay);
 }
 async function flyDrone(fromK, toK) {
@@ -845,7 +847,9 @@ async function doClear(clear, matched, created, pre = []) {
       const t = b.grid[r][c];
       if (!t || !t.power) continue;
       triggered.add(k);
-      const cells = b.blast(t.power, r, c, G.goals);
+      const fix = G.droneFix && G.droneFix.k === k ? G.droneFix.tk : undefined;
+      const cells = b.blast(t.power, r, c, G.goals, fix);
+      if (fix !== undefined) G.droneFix = null;
       if (t.power === 'drone' && cells.droneTarget !== undefined) {
         fxPower('drone', r, c, cells);
         await flyDrone(k, cells.droneTarget);
@@ -1038,7 +1042,7 @@ async function trySwap(a, bCell) {
   clearPreview();
   const b = G.board;
   const ta = b.get(...a), tb = b.get(...bCell);
-  if (!b.isSwappable(ta) || !b.isSwappable(tb)) { sfx.bad(); return; }
+  if (!b.isSwappable(ta) || !b.isSwappable(tb)) { sfx.bad(); setSel(null); return; }
   G.busy = true; clearHint(); setSel(null);
   b.swap(a, bCell);
   G.els.get(ta.id).style.transform = pos(...bCell);
@@ -1128,10 +1132,13 @@ async function comboPowers(ta, tb, at, ka, kb) {
 
 async function tapPower(cell) {
   if (G.busy || G.over) return;
+  const ad = G.armedDrone;
+  G.droneFix = ad && ad.k === key(...cell) ? ad : null;
   clearPreview();
   G.busy = true; clearHint(); setSel(null);
   useMove();
   await resolve({ pending: [{ cells: new Set([key(...cell)]) }] });
+  G.droneFix = null;
   await endTurn();
 }
 
@@ -1216,9 +1223,9 @@ async function endTurn() {
     repositionAll(false);
     await sleep(400);
   }
+  saveRun();
   if (G.explainQ.size) { const ks = [...G.explainQ]; G.explainQ.clear(); await explain(ks, ks.length > 1 ? 'Nuovi potenziamenti!' : 'Nuovo potenziamento!'); }
   G.busy = false;
-  saveRun();
   checkStuck();
   scheduleHint();
 }
@@ -1278,7 +1285,7 @@ async function winLevel() {
     <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? `<br>Con ${STEP_COST} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
     <div class="cheer">${speakerHTML(who, line)}</div>
     <div class="row">${stars < 3 ? '<button id="cAgain" class="btn btn-gray">Rigioca</button>' : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cHome: () => { hideCard(); explain(['coins'], 'Hai guadagnato monete!').then(goHome); }, cAgain: () => { hideCard(); goHome(); setTimeout(() => openLevel(n), 500); } });
+    { cHome: () => { hideCard(); explain(['coins'], 'Hai guadagnato monete!').then(goHome); }, cAgain: () => { hideCard(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
   const ar = app.getBoundingClientRect();
   for (let k = 1; k <= stars; k++) {
@@ -1297,6 +1304,7 @@ async function winLevel() {
 
 async function loseLevel() {
   G.over = true;
+  clearRun();
   sfx.lose();
   const canBuy = save.coins >= 200;
   const left = G.goals.filter((g) => g.done < g.n).map((g) => `${goalLeft(g)}`).join(', ');
@@ -1311,6 +1319,7 @@ async function loseLevel() {
       save.coins -= 200; persist();
       hideCard();
       G.moves += 5; G.over = false; G.busy = false;
+      saveRun();
       renderMoves();
       FX.banner('Spinta di Purcello!', '+5 mosse', '#ff8a1c');
       scheduleHint();
@@ -1457,11 +1466,15 @@ function onTap(cell) {
   if (t && !t.rock) setSel(cell); else setSel(null);
 }
 // anteprima del colpo: si illuminano le caselle che il potenziamento prenderà
-function clearPreview() { G.armed = null; document.querySelectorAll('.prevcell,.prevtip').forEach((e) => e.remove()); }
+function clearPreview() { G.armed = null; G.armedDrone = null; document.querySelectorAll('.prevcell,.prevtip').forEach((e) => e.remove()); }
 function showPreview(cell, t) {
-  clearPreview(); clearHint(); setSel(null);
+  clearPreview(); clearHint();
+  // resta selezionata: toccando una vicina si scambia, toccandola di nuovo parte
+  setSel(cell);
   G.armed = cell;
   const cells = G.board.blast(t.power, cell[0], cell[1], G.goals);
+  // il drone poi va davvero sulla casella mostrata nell'anteprima
+  if (cells.droneTarget !== undefined) G.armedDrone = { k: key(...cell), tk: cells.droneTarget };
   const fx = $('#fx');
   let i = 0;
   for (const k of cells) {
@@ -1472,7 +1485,7 @@ function showPreview(cell, t) {
     d.style.animationDelay = (i++ % 12) * 25 + 'ms';
     fx.appendChild(d);
   }
-  if (cells.droneTarget) {
+  if (cells.droneTarget !== undefined) {
     const [r, c] = unkey(cells.droneTarget);
     const d = document.createElement('div'); d.className = 'prevcell target'; d.style.transform = pos(r, c); fx.appendChild(d);
   }
@@ -1611,7 +1624,7 @@ function offerResume() {
   if (!R || !R.grid) return false;
   showCard(`<h2>Partita in corso</h2>${speakerHTML('gabbah', `Eri a metà del <b>livello ${R.n}</b> con <b>${R.moves} mosse</b> rimaste. Riprendiamo da lì?`)}
     <div class="row"><button id="cDrop" class="btn btn-gray">Lascia stare</button><button id="cRes" class="btn btn-play">Riprendi</button></div>`, {
-    cDrop: () => { clearRun(); save.streak = 0; persist(); hideCard(); },
+    cDrop: () => { clearRun(); save.streak = 0; persist(); hideCard(); setTimeout(checkDaily, 300); },
     cRes: () => { hideCard(); resumeRun(); },
   });
   return true;
@@ -1625,7 +1638,8 @@ async function startLevel(n, extras = [], resume = null) {
   G.goals = lv.goals.map((g) => ({ ...g, done: 0 }));
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
   G.ticketCleared = false; G.explainQ = new Set(); G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
-  G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null;
+  G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null; G.droneFix = null;
+  clearPreview(); clearHint();
   if (resume) {
     const b = G.board;
     b.grid = resume.grid.map((row) => row.map((v) => {
@@ -1665,7 +1679,7 @@ async function startLevel(n, extras = [], resume = null) {
   renderMoves();
   scheduleHint();
   if (extras.length) placeStartPowers(extras);
-  setTimeout(saveRun, extras.length ? 1500 : 100);
+  setTimeout(() => { if (G.level === lv && !G.busy) saveRun(); }, 100);
   if (resume) { FX.banner('Si riparte!', `Livello ${n}`, '#ffd34d'); return; }
   setTimeout(async () => {
     if (G.level !== lv || G.over) return;
@@ -1732,7 +1746,7 @@ async function openLevel(num) {
 }
 
 function goHome() {
-  clearHint();
+  clearHint(); clearPreview();
   showScreen('home');
   AU.playMusic('home');
   renderHome();

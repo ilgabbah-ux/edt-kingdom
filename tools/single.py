@@ -13,7 +13,7 @@ voices = {f[:-4]: 'data:audio/mpeg;base64,' + b64('audio/' + f) for f in sorted(
 amap += 'window.__V={' + ','.join(f'"{k}":"{v}"' for k, v in voices.items()) + '};'
 html = open('index.html').read()
 body = html.split('<body>')[1].split('<script')[0]
-icon = 'data:image/png;base64,' + b64('icon-192.png')
+icon = 'data:image/png;base64,' + b64('icon2-192.png')
 out = f'''<!doctype html>
 <html lang="it">
 <head>

@@ -540,3 +540,46 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .moves { box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 0 0 3px #fff, 0 4px 0 3px var(--edtb2) !important; }
 .booster { background: radial-gradient(circle at 50% 25%, #ffffff, #e4ebf7) !important; border-color: var(--edtb2) !important; box-shadow: inset 0 -4px 0 rgba(27,53,102,.15), 0 4px 0 var(--edtb2) !important; }
 .booster b { background: var(--edtb2); }
+/* storia v2: camera più viva, effetti */
+.st-img { inset: 0 !important; overflow: hidden; animation: none !important; }
+.st-img > i { position: absolute; inset: -12%; background: center/cover no-repeat; will-change: transform; animation: 12s cubic-bezier(.35,.1,.25,1) forwards; }
+.st-img.show > i { }
+.cam-in > i { animation-name: camIn; }
+.cam-out > i { animation-name: camOut; }
+.cam-left > i { animation-name: camLeft; }
+.cam-right > i { animation-name: camRight; }
+.cam-up > i { animation-name: camUp; }
+.cam-down > i { animation-name: camDown; }
+.cam-punch > i { animation-name: camPunch; animation-duration: 10s; }
+@keyframes camIn { from { transform: scale(1) rotate(-.6deg); } to { transform: scale(1.22) translate(0, -2%) rotate(.6deg); } }
+@keyframes camOut { from { transform: scale(1.28) translate(0, 3%); } to { transform: scale(1.02) rotate(-.5deg); } }
+@keyframes camLeft { from { transform: scale(1.18) translate(6%, 0) rotate(.8deg); } to { transform: scale(1.12) translate(-6%, -1%) rotate(-.6deg); } }
+@keyframes camRight { from { transform: scale(1.18) translate(-6%, 1%) rotate(-.8deg); } to { transform: scale(1.12) translate(6%, -1%) rotate(.6deg); } }
+@keyframes camUp { from { transform: scale(1.16) translate(0, 7%); } to { transform: scale(1.06) translate(0, -6%); } }
+@keyframes camDown { from { transform: scale(1.12) translate(0, -7%); } to { transform: scale(1.22) translate(0, 5%); } }
+@keyframes camPunch { 0% { transform: scale(1.35) rotate(2deg); } 8% { transform: scale(1.08) rotate(-1deg); } 100% { transform: scale(1.16) translate(0, -2%) rotate(.5deg); } }
+.st-img { transition: opacity .9s ease, transform .9s ease !important; transform: scale(1.06); }
+.st-img.show { transform: none; }
+.st-img.punch { animation: punch .45s cubic-bezier(.2,1.6,.4,1) !important; }
+@keyframes punch { 40% { transform: scale(1.045); } }
+#story .st-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+#story .st-rays { position: absolute; inset: -40%; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1s; background: repeating-conic-gradient(from 0deg at 30% 18%, rgba(255,240,190,.20) 0 6deg, rgba(255,240,190,0) 6deg 18deg); mix-blend-mode: screen; animation: rays 40s linear infinite; }
+#story.fx-sun .st-rays { opacity: 1; }
+@keyframes rays { to { transform: rotate(25deg); } }
+#story.fx-shake .st-stage { animation: shakeCam .55s ease-in-out 3, shakeSoft 2.8s ease-in-out 1.6s infinite; }
+#story.fx-shiver .st-stage { animation: shiver .12s linear infinite; }
+@keyframes shakeCam { 20% { transform: translate(-7px, 4px) rotate(-.6deg); } 40% { transform: translate(6px, -5px) rotate(.5deg); } 60% { transform: translate(-5px, -3px); } 80% { transform: translate(4px, 5px) rotate(.3deg); } }
+@keyframes shakeSoft { 50% { transform: translate(1.5px, -1.5px); } }
+@keyframes shiver { 25% { transform: translate(1.5px, 0); } 75% { transform: translate(-1.5px, .5px); } }
+#story::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; box-shadow: inset 0 0 120px 30px rgba(0,0,0,.55); }
+#story::after { z-index: 2; }
+.st-skip, .st-dots, .st-cap { z-index: 5 !important; }
+.st-title { z-index: 6 !important; }
+.st-cap.narr > div:last-child { background: rgba(10,20,45,.82); border-color: #f2c94c; backdrop-filter: blur(4px); }
+.st-cap.narr p.st-narr { color: #fff6dc; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,.4); }
+.st-cap.narr p.st-end { color: #ffd34d; }
+.st-cap { transition: none; }
+.st-cap.in p { animation: typeIn .6s ease-out; }
+@keyframes typeIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.st-av { animation: avIn .5s cubic-bezier(.2,1.6,.4,1), avBob 1.6s ease-in-out .5s infinite !important; }
+@keyframes avIn { from { transform: scale(0) rotate(-30deg); } }

@@ -394,7 +394,7 @@ const WEEKLY = [
   { t: 'Pulisci <b>120 pozze di fango</b>', kind: 'mud', n: 120, img: 'o_fango1' },
   { t: 'Spacca <b>80 sassi o casse</b>', kind: 'block', n: 80, img: 'o_sasso1' },
   { t: 'Crea <b>30 potenziamenti</b>', kind: 'power', n: 30, img: 'p_tanica' },
-  { t: 'Vinci <b>12 livelli</b>', kind: 'win', n: 12, img: 'u_stella' },
+  { t: 'Supera <b>8 livelli nuovi</b>', kind: 'win', n: 8, img: 'u_stella' },
   { t: 'Togli <b>400 caschi</b>', kind: 'tile', color: 1, n: 400, img: 't1_casco' },
   { t: 'Togli <b>400 gomme</b>', kind: 'tile', color: 4, n: 400, img: 't4_gomma' },
 ];
@@ -1261,8 +1261,8 @@ async function winLevel() {
     }
     await resolve({ pending: [{ cells }] });
   }
-  weekTrack('win');
   const first = n >= save.level;
+  if (first) weekTrack('win');   // contano solo i livelli nuovi, non quelli rigiocati
   const prev = save.best[n] || 0;
   const gain = Math.max(0, stars - prev);
   save.best[n] = Math.max(prev, stars);
@@ -1491,7 +1491,10 @@ function showPreview(cell, t) {
   }
   const tip = document.createElement('div');
   tip.className = 'prevtip';
-  tip.textContent = t.power === 'grappa' ? 'Scambiala col colore da togliere, o toccala di nuovo' : 'Tocca di nuovo per usarla, o scambiala';
+  if (t.power === 'grappa') {
+    const col = G.board.mostCommonColor();
+    tip.innerHTML = `Tocca di nuovo: via tutte le <span class="tipico" style="background-image:${TILE_URI[col]}"></span><br>oppure scambiala col colore da togliere`;
+  } else tip.textContent = 'Tocca di nuovo per usarla, o scambiala';
   app.appendChild(tip);
   sfx.click();
 }

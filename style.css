@@ -475,3 +475,6 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .card { border-top: 8px solid var(--edtb) !important; background: linear-gradient(180deg, #e9effa 0, var(--cream) 70px) !important; }
 .zonesign { background: var(--edtb); }
 .wintitle::before { content: ''; display: block; width: 70px; height: 80px; margin: -50px auto 2px; background: url('img/edt_shield.webp') center/contain no-repeat; filter: drop-shadow(0 4px 4px rgba(0,0,0,.35)); }
+
+.prevtip .tipico { display: inline-block; width: 22px; height: 22px; vertical-align: -6px; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.prevtip { white-space: normal !important; text-align: center; line-height: 1.35; border-radius: 16px !important; }

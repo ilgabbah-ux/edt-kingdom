@@ -1414,7 +1414,7 @@ function explain(keys, title = 'Novità!') {
 const KIND = (p) => (p === 'mV' ? 'mH' : p);
 // tipi di ostacoli presenti in un livello
 function levelThings(lv) {
-  const L = lv.layout.join('');
+  const L = (lv.layout || []).join('');
   const out = [];
   if (/[mM]/.test(L)) out.push('mud');
   if (/[rR]/.test(L)) out.push('rock');

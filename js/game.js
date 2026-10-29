@@ -5,6 +5,7 @@ import { BUILDINGS, CHARS, ZONES, zoneOfLevel } from './kingdom.js';
 import * as FX from './fx.js';
 import * as AU from './audio.js';
 import * as RANK from './rank.js';
+import { initStory, playStory, STORY, STORY_ORDER } from './story.js';
 
 const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -298,12 +299,14 @@ async function tryBuild() {
     if (zoneFinished) {
       const z = zoneOf(nb), nz = ZONES[ZONES.indexOf(z) + 1];
       fireworks(2600);
+      await sleep(1800);
       if (nz) {
-        await say('forestale', `Avete preso tutta ${z.name}? Va bene, ma a <b>${nz.name}</b> comando io. ${nz.id === 'passo' ? 'E fa un freddo cane...' : 'E lì è tutto cantiere: caschetto obbligatorio!'}`, 'Andiamo su!');
+        await showStory(nz.id);
         viewZone = null; renderHome();
         FX.banner(nz.name, 'Nuova zona sbloccata!', '#bdf0ff');
       } else {
-        await say(z.boss, 'Anche questa zona è vostra... Mi ritiro in caserma a scrivere il rapporto. Lunghissimo.', 'EDT campione!', 2);
+        await showStory('finale');
+        fireworks(2600);
       }
     }
   }
@@ -467,7 +470,7 @@ async function openRanking(justJoined = false) {
   if (!RANK.getNick()) { askNick(); return; }
   const me = RANK.getNick().toLowerCase();
   showCard(`<h2>Classifica EDT</h2><p class="rkload">Chiedo i risultati al Campo Base…</p>
-    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+    <div class="row"><button id="cStory" class="btn btn-gray">🎬 La storia</button><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard, cStory: openStoryList });
   let list, taken = false;
   try {
     const r = totalStars() > 0 ? await RANK.submit(totalStars(), save.level) : null;
@@ -483,7 +486,7 @@ async function openRanking(justJoined = false) {
     ${taken ? '<p class="red">Il nome <b>' + RANK.getNick() + '</b> è già di un altro telefono: cambialo.</p>' : ''}
     <div class="rklist">${rows || '<p>Ancora nessuno in classifica: fai tu il primo!</p>'}</div>
     <p class="small">Sei <b>${RANK.getNick()}</b> · ${totalStars()} ${IC_S} · <a href="#" id="cNick">cambia nome</a></p>
-    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+    <div class="row"><button id="cStory" class="btn btn-gray">🎬 La storia</button><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard, cStory: openStoryList });
   const cn = $('#cNick'); if (cn) cn.onclick = (e) => { e.preventDefault(); askNick(); };
   if (justJoined && !taken) FX.banner('Sei in classifica!', '', '#ffd34d');
 }
@@ -501,7 +504,7 @@ function openLevelList() {
   const tot = Object.values(save.best).reduce((a, b) => a + b, 0);
   showCard(`<h2>I tuoi livelli</h2><p>Stelle prese: <b>${tot}</b> su <b>${(last - (save.level > last ? 0 : 1)) * 3}</b>. Rigioca un livello per prendere le stelle che mancano.</p>
     <div class="lvgrid">${cells.join('')}</div>
-    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+    <div class="row"><button id="cStory" class="btn btn-gray">🎬 La storia</button><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard, cStory: openStoryList });
   document.querySelectorAll('.lv').forEach((b) => { b.onclick = () => { sfx.click(); openLevel(+b.dataset.n); }; });
 }
 
@@ -1548,8 +1551,30 @@ const helpRow = (k) => { const h = HELP[k]; return `<div class="hrow"><span clas
 function openGuide(tab = 0) {
   const tabs = GUIDE.map(([n], i) => `<button class="gtab${i === tab ? ' on' : ''}" data-t="${i}">${n}</button>`).join('');
   showCard(`<h2>Guida</h2><div class="gtabs">${tabs}</div><div class="hlist">${GUIDE[tab][1].map(helpRow).join('')}</div>
-    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+    <div class="row"><button id="cStory" class="btn btn-gray">🎬 La storia</button><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard, cStory: openStoryList });
   document.querySelectorAll('.gtab').forEach((b) => { b.onclick = () => { sfx.click(); openGuide(+b.dataset.t); }; });
+}
+// ---------- la storia ----------
+if (!save.story) save.story = {};
+initStory({ I, SRC, voiceSrc: (v) => (window.__V && window.__V[v]) || `audio/${v}.mp3`, duck: (t) => AU.duck(t), canVoice: () => save.voice && save.sfx, click: () => sfx.click() });
+async function showStory(id) {
+  hideCard();
+  save.story[id] = 1; persist();
+  await playStory(id);
+}
+function storyUnlocked(id) {
+  if (id === 'intro') return true;
+  if (save.story[id]) return true;
+  const z = ZONES.find((zz) => zz.id === id);
+  return z ? save.level >= z.from : false;
+}
+function openStoryList() {
+  const rows = STORY_ORDER.map((id) => {
+    const ch = STORY[id], ok = storyUnlocked(id);
+    return `<button class="strow${ok ? '' : ' locked'}" data-s="${id}" ${ok ? '' : 'disabled'}><span style="background-image:${ok ? I(ch.scenes[0].img) : I('u_lucchetto')}"></span><div><small>${ch.title}</small><b>${ok ? ch.name : '???'}</b></div></button>`;
+  }).join('');
+  showCard(`<h2>La storia</h2><div class="stlist">${rows}</div><div class="row"><button id="cBack" class="btn btn-gray">Indietro</button></div>`, { cBack: () => { sfx.click(); openGuide(); } });
+  document.querySelectorAll('.strow:not(.locked)').forEach((b) => { b.onclick = () => { sfx.click(); showStory(b.dataset.s); }; });
 }
 // scheda "Novità!" la prima volta che incontri una cosa (si ferma il gioco finché non tocchi Ok)
 function explain(keys, title = 'Novità!') {
@@ -1843,11 +1868,13 @@ initInput();
 renderHome();
 AU.playMusic('home');
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
-if (save.welcomed) setTimeout(() => { if (!offerResume()) checkDaily(); }, 600);
+const firstStory = !save.story.intro;
+if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); if (!offerResume()) checkDaily(); }, 500));
+else if (save.welcomed) setTimeout(() => { if (!offerResume()) checkDaily(); }, 600);
 if (!save.welcomed) {
   save.welcomed = true; persist();
-  setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Ogni livello vinto vale fino a 3 stelle, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano. Se hai un dubbio, tocca <b>?</b> per la guida.', 'Si parte!'), 300);
+  preload.then(() => setTimeout(async () => { await showStory('intro'); say('gabbah', 'Benvenuto in <b>Enduro Drinking Kingdom</b>! Ogni livello vinto vale fino a 3 stelle, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano. Se hai un dubbio, tocca <b>?</b> per la guida.', 'Si parte!'); }, 500));
 }
 
 // per i test automatici
-window.__EDT = { G, save, startLevel, trySwap, goHome, openLevel, winLevel, checkDaily, openLevelList, renderHome };
+window.__EDT = { showStory, G, save, startLevel, trySwap, goHome, openLevel, winLevel, checkDaily, openLevelList, renderHome };

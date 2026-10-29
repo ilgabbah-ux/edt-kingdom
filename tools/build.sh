@@ -6,8 +6,9 @@ npx -y esbuild@0.24.0 js/game.js --bundle --format=iife --minify --target=es2017
 V=$(date +%s)
 {
   echo "const CACHE = 'edtk-$V';"
-  printf "const FILES = ['./', 'index.html', 'style.css?v=30', 'game.min.js?v=30', 'manifest.json', 'icon2-192.png', 'icon2-512.png', 'icon2-mask.png'"
-  for f in img/*.webp fonts/*.woff2 audio/*.mp3; do printf ", '%s'" "$f"; done
+  printf "const FILES = ['./', 'index.html', 'style.css?v=31', 'game.min.js?v=31', 'manifest.json', 'icon2-192.png', 'icon2-512.png', 'icon2-mask.png'"
+  # all'installazione solo l'essenziale; storia, voci e musica si salvano la prima volta che servono
+  for f in img/*.webp fonts/*.woff2; do case "$f" in img/st*) ;; *) printf ", '%s'" "$f";; esac; done
   echo "];"
   cat <<'JS'
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });

@@ -38,6 +38,9 @@ export class Board {
         if (ch === 'r') this.grid[r][c] = newTile(-1, null, 1);
         else if (ch === 'R') this.grid[r][c] = newTile(-1, null, 2);
         else if (ch === 'c' || ch === 'C') { const t = newTile(-1, null, ch === 'c' ? 1 : 2); t.kind = 'crate'; this.grid[r][c] = t; }
+        else if (ch === 'v') { const t = newTile(-1, null, 2); t.kind = 'velox'; this.grid[r][c] = t; }   // autovelox della Forestale
+        else if (ch === 'g') { const t = newTile(-1, null, 3); t.kind = 'gomme'; this.grid[r][c] = t; }   // pila di gomme che rotola
+        else if (ch === 'd') { const t = newTile(-1); t.drop = true; this.grid[r][c] = t; }               // fusto da portare in fondo
       }
     }
     for (let r = 0; r < ROWS; r++)
@@ -56,7 +59,7 @@ export class Board {
       for (const g of gs) for (const k of g.cells) {
         const [r, c] = unkey(k);
         const t = this.grid[r][c];
-        if (t.power || t.rock) continue;
+        if (t.power || t.rock || t.drop) continue;
         t.color = (t.color + 1 + Math.floor(this.rng() * (this.colors - 1))) % this.colors;
       }
     }
@@ -218,8 +221,10 @@ export class Board {
       let w = 1;
       for (const gl of goals) {
         if (gl.done >= gl.n) continue;
-        if (gl.type === 'rock' && t && t.rock && t.kind !== 'crate') w += 6;
+        if (gl.type === 'rock' && t && t.rock && !t.kind) w += 6;
         if (gl.type === 'crate' && t && t.kind === 'crate') w += 6;
+        if (gl.type === 'velox' && t && t.kind === 'velox') w += 7;
+        if (gl.type === 'gomme' && t && t.kind === 'gomme') w += 6;
         if (gl.type === 'chain' && t && t.chain) w += 5;
         if (gl.type === 'multa' && this.ticket[r][c]) w += 6;
         if (gl.type === 'mud' && this.mud[r][c] > 0) w += 5;
@@ -389,6 +394,36 @@ export class Board {
     this.ticket[r][c] = 1;
     return [r, c];
   }
+  // fusti arrivati in fondo alla loro colonna
+  collectDrops() {
+    const out = [];
+    for (let c = 0; c < COLS; c++) for (let r = ROWS - 1; r >= 0; r--) {
+      if (this.hole[r][c]) continue;
+      const t = this.grid[r][c];
+      if (t && t.drop) out.push([r, c]);
+      break;
+    }
+    return out;
+  }
+  dropCount() { return this.grid.flat().filter((t) => t && t.drop).length; }
+  // dove rotola una pila di gomme colpita (casella vicina con una tessera normale)
+  rollTarget(r, c) {
+    const cand = [];
+    for (const [dr, dc] of [[1, 0], [0, 1], [0, -1], [-1, 0]]) {
+      const t = this.get(r + dr, c + dc);
+      if (t && !t.rock && !t.chain && !t.drop) cand.push([r + dr, c + dc]);
+    }
+    return cand.length ? cand[Math.floor(this.rng() * cand.length)] : null;
+  }
+  // tessere vicine a un autovelox che possono essere bloccate
+  veloxTargets(r, c) {
+    const out = [];
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const t = this.get(r + dr, c + dc);
+      if (t && !t.rock && !t.chain && !t.power && !t.drop && t.color >= 0) out.push([r + dr, c + dc]);
+    }
+    return out;
+  }
   ticketCount() { return this.ticket.flat().reduce((a, b) => a + b, 0); }
 
   wouldMatch(a, b) {
@@ -418,8 +453,9 @@ export class Board {
     let best = null, bestSc = -1;
     const open = goals.filter((g) => g.done < g.n);
     const wantTile = new Set(open.filter((g) => g.type === 'tile').map((g) => g.t));
-    const wantMud = open.some((g) => g.type === 'mud'), wantBlock = open.some((g) => ['rock', 'crate', 'boss'].includes(g.type));
+    const wantMud = open.some((g) => g.type === 'mud'), wantBlock = open.some((g) => ['rock', 'crate', 'boss', 'velox', 'gomme'].includes(g.type));
     const wantChain = open.some((g) => g.type === 'chain'), wantMulta = open.some((g) => g.type === 'multa');
+    const wantDrop = open.some((g) => g.type === 'drop');
     const PW = { grappa: 9, bomb: 6, mH: 5, mV: 5, drone: 4 };
     const near = (k, test) => { const [r, c] = unkey(k); return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dr, dc]) => inside(r + dr, c + dc) && test(r + dr, c + dc)); };
     const score = (a, b) => {
@@ -442,6 +478,7 @@ export class Board {
           if (wantMulta && this.ticket[r][c]) sc += 3;
           if (wantChain && this.grid[r][c]?.chain) sc += 3;
           if (wantBlock && near(k, (rr, cc) => this.grid[rr][cc]?.rock)) sc += 2.5;
+          if (wantDrop) for (let rr = r - 1; rr >= 0; rr--) if (this.grid[rr][c]?.drop) { sc += 3; break; }
         }
       }
       return sc + Math.random() * 0.3;
@@ -473,7 +510,7 @@ export class Board {
       if (this.findMatches().length === 0 && this.hasMoves()) return;
     }
     // ultima spiaggia: ricolora
-    cells.forEach(([r, c]) => { const t = this.grid[r][c]; if (!t.power) t.color = this.safeColor(r, c); });
+    cells.forEach(([r, c]) => { const t = this.grid[r][c]; if (!t.power && !t.drop) t.color = this.safeColor(r, c); });
   }
 }
 

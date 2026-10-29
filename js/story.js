@@ -41,10 +41,27 @@ export const STORY = {
       { img: 'st4_2', cam: 'in', fx: ['sparkle', 'lights'], lines: [{ who: 'gabbah', t: 'Dai, Forestale… una birra e facciamo pace.', v: 's_gabbah2' }, { who: 'forestale3', t: 'Va bene… ma solo una!', v: 's_forestale5' }] },
       { img: 'st4_3', cam: 'out', fx: ['fireworks', 'confetti'], lines: [{ who: 'gabbah', t: 'EDT per sempre! Giro easy!', v: 's_gabbah3' }] },
     ],
+    end: { t: 'La festa va avanti fino all\'alba… ma qualcuno ha un piano.', v: 's_narr9' },
+  },
+  marocco: {
+    title: 'Capitolo 4', name: 'Il Marocco',
+    scenes: [
+      { img: 'st5_1', cam: 'right', fx: ['sun', 'sparkle'], narr: { t: 'Intanto, la Forestale ha un cugino… in Marocco. E l\'EDT carica le moto: si parte!', v: 's_narr10' } },
+      { img: 'st5_2', cam: 'punch', fx: ['dust', 'shiver'], lines: [{ who: 'mirco', t: 'Campa giù… qui c\'è più sabbia che birra!', v: 's_mirco1' }, { who: 'costa', t: 'Tieni duro, Mirco! Ti tiro fuori con la canna da pesca!', v: 's_costa1' }] },
+      { img: 'st5_3', cam: 'in', fx: ['sun', 'shake'], lines: [{ who: 'forestale4', t: 'Benvenuti in Marocco! L\'autovelox ce l\'ho anche nel deserto!', v: 's_forestale6' }] },
+      { img: 'st5_4', cam: 'out', fx: ['lights', 'sparkle'], lines: [{ who: 'svetlana', t: 'Un tè alla menta… e poi si balla!', v: 's_svetlana1' }, { who: 'gabbah', t: 'Tranquilli… anche qui è un giro easy!', v: 's_gabbah4' }] },
+    ],
+    end: { t: 'Conquista il Marocco: sabbia, dune… e autovelox nel deserto!', v: 's_narr11' },
+  },
+  fine: {
+    title: 'Finale', name: 'Il Marocco è dell\'EDT',
+    scenes: [
+      { img: 'st5_5', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: 'Dopo mille dune e mille tè alla menta… il Marocco è dell\'EDT.', v: 's_narr12' }, lines: [{ who: 'gabbah', t: 'EDT per sempre! Giro easy!', v: 's_gabbah3' }] },
+    ],
     end: { t: 'Fine… per ora. Grazie per aver giocato con l\'Enduro Drinking Team!', v: 's_narr8' },
   },
 };
-export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale'];
+export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine'];
 
 let opts = {};
 export function initStory(o) { opts = o; }   // { I, SRC, voiceSrc, duck, canVoice, click }

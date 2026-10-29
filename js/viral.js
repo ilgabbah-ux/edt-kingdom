@@ -261,3 +261,229 @@ export function weekendPoints(gain) {
   X.persist();
   return X.save.we.pts;
 }
+
+// ---------------- trasferire i progressi su un altro telefono / iPad ----------------
+const b64u = (u8) => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+async function pack(obj) {
+  const txt = new TextEncoder().encode(JSON.stringify(obj));
+  if (window.CompressionStream) {
+    const cs = new Blob([txt]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    return 'z' + b64u(new Uint8Array(await new Response(cs).arrayBuffer()));
+  }
+  return 'j' + b64u(txt);
+}
+async function unpack(s) {
+  const raw = unb64u(s.slice(1));
+  if (s[0] === 'z') { const ds = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw')); return JSON.parse(await new Response(ds).text()); }
+  return JSON.parse(new TextDecoder().decode(raw));
+}
+export async function shareProgress() {
+  const keep = { ...X.save }; delete keep.run; delete keep.challenge;
+  const code = await pack({ v: 1, save: keep, nick: X.getNick(), code: X.getCode() });
+  const url = gameURL({ salva: code });
+  const text = 'Apri questo link sull\'altro telefono o iPad per portarti dietro i progressi di Enduro Drinking Kingdom:';
+  try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); X.toast('Link copiato! Incollalo sull\'altro dispositivo', 1800); } catch { prompt('Copia questo link:', url); }
+}
+export async function readProgressLink() {
+  let code = null;
+  try { code = new URLSearchParams(location.search).get('salva'); } catch { /* */ }
+  if (!code) return false;
+  try { history.replaceState(null, '', location.pathname); } catch { /* */ }
+  let data;
+  try { data = await unpack(code); } catch { X.toast('Link dei progressi non valido', 1500); return false; }
+  if (!data || !data.save) return false;
+  const s = data.save;
+  X.showCard(`<h2>Progressi trovati</h2><p>Livello <b>${Math.min(s.level || 1, X.MAX_LEVEL)}</b> · <b>${s.coins || 0}</b> monete${data.nick ? ` · nome <b>${esc(data.nick)}</b>` : ''}.</p>
+    <p>Li carico su questo dispositivo? Quelli che ci sono adesso (livello <b>${X.save.level || 1}</b>) vengono sostituiti.</p>
+    <div class="row"><button id="cNo" class="btn btn-gray">No</button><button id="cYes" class="btn btn-play">Sì, caricali</button></div>`, {
+    cNo: X.hideCard,
+    cYes: () => { X.replaceSave(s, data.nick, data.code); },
+  });
+  return true;
+}
+
+// ---------------- eventi a data (Halloween, Natale, Oktoberfest) ----------------
+// durante l'evento alcune tessere portano un simbolo: toglile per riempire la barra e ritirare i premi
+export const EVENTS = [
+  { id: 'halloween', name: 'Halloween EDT', item: 'zucche', one: 'zucca', img: 'e_zucca', from: [10, 20], to: [11, 5], color: '#ff7a1a', who: 'gabbah',
+    intro: 'Dolcetto o multetto? Nei livelli spuntano le <b>zucche col casco</b>: toglile e vinci i premi di Halloween!' },
+  { id: 'natale', name: 'Natale EDT', item: 'regali', one: 'regalo', img: 'e_regalo', from: [12, 8], to: [1, 6], color: '#2f8fd3', who: 'svetlana',
+    intro: 'Babbo Natale ha perso i regali sul sentiero! Raccoglili nei livelli e vinci i premi di Natale.' },
+  { id: 'oktoberfest', name: 'Oktoberfest EDT', item: 'brezel', one: 'brezel', img: 'e_brezel', from: [9, 18], to: [10, 6], color: '#3d8bff', who: 'purcello',
+    intro: 'O\'zapft is! Nei livelli trovi i <b>brezel</b>: raccoglili e vinci i premi dell\'Oktoberfest.' },
+];
+export const EV_STEPS = [
+  { n: 10, coins: 100 }, { n: 25, p: 'mH' }, { n: 45, coins: 200, stk: 1 }, { n: 70, p: 'bomb' }, { n: 100, coins: 400, p: 'grappa', stk: 1 },
+];
+const inRange = (d, [m1, d1], [m2, d2]) => {
+  const v = (d.getMonth() + 1) * 100 + d.getDate(), a = m1 * 100 + d1, b = m2 * 100 + d2;
+  return a <= b ? v >= a && v <= b : v >= a || v <= b;
+};
+export function currentEvent(d = new Date()) {
+  try { const f = new URLSearchParams(location.search).get('evento'); if (f) return EVENTS.find((e) => e.id === f) || null; } catch { /* */ }
+  return EVENTS.find((e) => inRange(d, e.from, e.to)) || null;
+}
+function evState(ev) {
+  const yr = new Date().getFullYear() - (ev.id === 'natale' && new Date().getMonth() === 0 ? 1 : 0);
+  const id = ev.id + yr;
+  if (!X.save.ev || X.save.ev.id !== id) { X.save.ev = { id, n: 0, got: 0 }; X.persist(); }
+  return X.save.ev;
+}
+export function eventProgress() { const ev = currentEvent(); return ev ? { ev, st: evState(ev) } : null; }
+// +n oggetti dell'evento; restituisce i premi appena sbloccati
+export function eventGain(n = 1) {
+  const ev = currentEvent(); if (!ev) return [];
+  const st = evState(ev); st.n += n;
+  const out = [];
+  while (st.got < EV_STEPS.length && st.n >= EV_STEPS[st.got].n) {
+    const r = EV_STEPS[st.got]; st.got++;
+    if (r.coins) X.save.coins += r.coins;
+    if (r.p) X.save.inv[r.p] = (X.save.inv[r.p] || 0) + 1;
+    out.push(r);
+  }
+  X.persist();
+  return out;
+}
+const rewardTxt = (r) => [r.coins ? `+${r.coins} monete` : '', r.p ? `+1 ${P_NAME[r.p]}` : '', r.stk ? '+1 figurina' : ''].filter(Boolean).join(' · ');
+export function eventRewardsPopup(list) {
+  if (!list.length) return Promise.resolve();
+  const ev = currentEvent();
+  const stk = list.some((r) => r.stk);
+  return new Promise((done) => {
+    X.fireworks(1400);
+    X.showCard(`<h2>${ev.name}</h2><div class="evbig" style="background-image:${X.I(ev.img)}"></div><p>Premio sbloccato!</p><p><b>${list.map(rewardTxt).join('<br>')}</b></p>
+      <div class="row"><button id="cOk" class="btn btn-play">Grande!</button></div>`, { cOk: () => { X.hideCard(); X.coinsUI(); if (stk) revealSticker(drawSticker()).then(done); else done(); } });
+  });
+}
+export function openEvent() {
+  const p = eventProgress(); if (!p) return;
+  const { ev, st } = p;
+  const max = EV_STEPS[EV_STEPS.length - 1].n;
+  const marks = EV_STEPS.map((r, i) => `<div class="evm${i < st.got ? ' got' : ''}" style="left:${r.n / max * 100}%"><i></i><small>${r.n}</small></div>`).join('');
+  const list = EV_STEPS.map((r, i) => `<div class="evr${i < st.got ? ' got' : ''}"><b>${r.n}</b><span>${rewardTxt(r)}</span><i>${i < st.got ? '✓' : ''}</i></div>`).join('');
+  const end = new Date(new Date().getFullYear() + (ev.to[0] < ev.from[0] && new Date().getMonth() + 1 >= ev.from[0] ? 1 : 0), ev.to[0] - 1, ev.to[1], 23, 59);
+  const days = Math.max(0, Math.ceil((end - new Date()) / 864e5));
+  X.showCard(`<h2>${ev.name}</h2>${X.speakerHTML(ev.who, ev.intro)}
+    <div class="evbar"><div class="evfill" style="width:${Math.min(100, st.n / max * 100)}%;background:${ev.color}"></div>${marks}</div>
+    <p class="evcount"><span class="evico" style="background-image:${X.I(ev.img)}"></span> <b>${st.n}</b> ${ev.item} · finisce tra <b>${days} ${days === 1 ? 'giorno' : 'giorni'}</b></p>
+    <div class="evlist">${list}</div>
+    <div class="row"><button id="cClose" class="btn btn-play">Gioca!</button></div>`, { cClose: X.hideCard });
+}
+
+// ---------------- il tuo pilota: personaggio e colore del casco (si vede in classifica) ----------------
+export const PILOTS = ['gabbah', 'miti', 'mirco', 'purcello', 'costa', 'renard', 'svetlana'];
+export const HELMETS = ['#e8322a', '#2f5fa8', '#ffd34d', '#4fd25f', '#ff4fa3', '#8a4fff', '#ff7a1a', '#ffffff'];
+export function me() { if (!X.save.me) X.save.me = { who: 'gabbah', col: 1 }; return X.save.me; }
+export const riderTag = () => `EDTK|${me().who}|${me().col}`;
+export function parseRider(r) { const m = /^EDTK\|(\w+)\|(\d+)/.exec(r || ''); return m && CHARS[m[1]] ? { who: m[1], col: +m[2] } : null; }
+export function avatarHTML(p, size = 34) {
+  if (!p) return `<span class="rkav" style="width:${size}px;height:${size}px"></span>`;
+  return `<span class="rkav" style="width:${size}px;height:${size}px;background-image:${X.I(CHARS[p.who].img)};box-shadow:0 0 0 3px ${HELMETS[p.col] || HELMETS[1]}"></span>`;
+}
+export function openPilot(onDone) {
+  const m = me();
+  const faces = PILOTS.map((w) => `<button class="pilot${w === m.who ? ' on' : ''}" data-w="${w}" style="background-image:${X.I(CHARS[w].img)}"></button>`).join('');
+  const cols = HELMETS.map((c, i) => `<button class="hcol${i === m.col ? ' on' : ''}" data-c="${i}" style="background:${c}"></button>`).join('');
+  X.showCard(`<h2>Il tuo pilota</h2><p>Scegli chi sei e il colore del casco: ti vedono così in classifica.</p>
+    <div class="pilotprev">${avatarHTML(m, 86)}<b>${X.getNick() || 'Tu'}</b></div>
+    <div class="pilots">${faces}</div><div class="hcols">${cols}</div>
+    <div class="row"><button id="cOk" class="btn btn-play">Fatto</button></div>`, { cOk: () => { X.hideCard(); onDone && onDone(); } });
+  document.querySelectorAll('.pilot').forEach((b) => { b.onclick = () => { m.who = b.dataset.w; X.persist(); X.sfx.click(); openPilot(onDone); }; });
+  document.querySelectorAll('.hcol').forEach((b) => { b.onclick = () => { m.col = +b.dataset.c; X.persist(); X.sfx.click(); openPilot(onDone); }; });
+}
+
+// ---------------- video della vittoria (6 secondi, verticale) per TikTok / Reels ----------------
+export async function makeVideo(o) {
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) throw new Error('nosupport');
+  const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  const mime = types.find((t) => MediaRecorder.isTypeSupported(t));
+  if (!mime) throw new Error('nosupport');
+  try { await Promise.all([document.fonts.load('90px "EDT Display"'), document.fonts.load('800 40px "EDT Body"')]); } catch { /* */ }
+  const W = 720, H = 1280, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  const [bg, logo, star, face] = await Promise.all([loadImg(o.bg || 'map_bg'), loadImg('edt_title'), loadImg('u_stella'), loadImg(CHARS[o.who || 'gabbah'].img)]);
+  const stream = c.captureStream(30);
+  // audio: fanfara di vittoria
+  let actx = null;
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    const dest = actx.createMediaStreamDestination();
+    const buf = await fetch((window.__V && window.__V.j_win) || 'audio/j_win.mp3').then((r) => r.arrayBuffer()).then((a) => actx.decodeAudioData(a));
+    const src = actx.createBufferSource(); src.buffer = buf; src.connect(dest); src.start(actx.currentTime + 0.3);
+    dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+  } catch { /* video senza audio */ }
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4e6 });
+  const chunks = []; rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  const parts = [];
+  const DUR = 6000, t0 = performance.now();
+  const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+  const pop = (x) => { x = Math.min(1, Math.max(0, x)); return x < .6 ? ease(x / .6) * 1.15 : 1.15 - (x - .6) / .4 * .15; };
+  rec.start(100);
+  await new Promise((res) => {
+    const frame = (now) => {
+      const t = now - t0, k = t / 1000;
+      const z = 1.08 + k * 0.03;
+      const bw = W * z, bh = bw * (bg ? bg.height / bg.width : 1);
+      ctx.drawImage(bg, (W - bw) / 2, (H - Math.max(bh, H * z)) / 2, bw, Math.max(bh, H * z));
+      const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(14,29,61,.7)'); g.addColorStop(.45, 'rgba(14,29,61,.15)'); g.addColorStop(1, 'rgba(8,16,36,.9)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      // raggi
+      ctx.save(); ctx.translate(W / 2, 600); ctx.rotate(k * .25); ctx.globalAlpha = .16; ctx.fillStyle = '#ffe27a';
+      for (let i = 0; i < 16; i++) { ctx.rotate(Math.PI / 8); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-45, -900); ctx.lineTo(45, -900); ctx.fill(); }
+      ctx.restore();
+      // logo che cade
+      const ly = -260 + ease(k / .6) * 300;
+      contain(ctx, logo, 110, ly, 500, 230);
+      // titolo
+      const ts = pop((k - .6) / .5);
+      if (ts > 0) { ctx.save(); ctx.translate(W / 2, 360); ctx.scale(ts, ts); outlined(ctx, o.title, 0, 0, 64, '#ffd34d'); ctx.restore(); }
+      if (k > 1.1 && o.line1) { ctx.globalAlpha = Math.min(1, (k - 1.1) * 3); outlined(ctx, o.line1, W / 2, 425, 38, '#fff', '#0e1d3d', 'EDT Body'); ctx.globalAlpha = 1; }
+      // stelle una alla volta con scintille
+      for (let s2 = 0; s2 < 3; s2++) {
+        const st = k - 1.4 - s2 * .35; const sc = pop(st / .4);
+        const sx = W / 2 - 200 + s2 * 200, sy = 540;
+        if (s2 < o.stars && sc > 0) {
+          ctx.save(); ctx.translate(sx, sy); ctx.scale(sc, sc); ctx.rotate((1 - Math.min(1, st / .4)) * -1.2); contain(ctx, star, -80, -80, 160, 160); ctx.restore();
+          if (st > 0 && st < .25 && parts.length < 300) for (let i = 0; i < 14; i++) parts.push({ x: sx, y: sy, vx: (Math.random() - .5) * 18, vy: (Math.random() - .7) * 18, l: 1, c: ['#ffd34d', '#fff', '#e8322a', '#2f5fa8'][i % 4] });
+        } else { ctx.globalAlpha = .25; contain(ctx, star, sx - 70, sy - 70, 140, 140); ctx.globalAlpha = 1; }
+      }
+      // personaggio che entra
+      const fx = W - ease((k - 2.2) / .6) * 560 - 40;
+      if (k > 2.2) contain(ctx, face, fx - 180, 660, 560, 500);
+      // coriandoli
+      if (k > 2.4 && parts.length < 300) parts.push({ x: Math.random() * W, y: -10, vx: (Math.random() - .5) * 3, vy: 4 + Math.random() * 4, l: 2.5, c: ['#ffd34d', '#fff', '#e8322a', '#2f5fa8'][Math.floor(Math.random() * 4)], r: 1 });
+      for (const p of parts) { p.x += p.vx; p.y += p.vy; if (!p.r) p.vy += .6; p.l -= 1 / 30; ctx.globalAlpha = Math.max(0, Math.min(1, p.l)); ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.r ? 10 : 7, p.r ? 6 : 7); }
+      ctx.globalAlpha = 1;
+      for (let i = parts.length - 1; i >= 0; i--) if (parts[i].l <= 0 || parts[i].y > H) parts.splice(i, 1);
+      // fascia finale
+      if (k > 3.4) {
+        const fy = H - ease((k - 3.4) / .4) * 210;
+        ctx.fillStyle = '#f2c94c'; ctx.fillRect(0, fy - 6, W, 6);
+        ctx.fillStyle = '#e8322a'; ctx.fillRect(0, fy, W, 130);
+        outlined(ctx, o.footer || 'MI BATTI? 🍺', W / 2, fy + 88, 62, '#fff', '#7d120d');
+        ctx.fillStyle = '#0e1d3d'; ctx.fillRect(0, fy + 130, W, 80);
+        ctx.font = '800 28px "EDT Body", sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText('ilgabbah-ux.github.io/edt-kingdom', W / 2, fy + 180);
+      }
+      if (t < DUR) requestAnimationFrame(frame); else res();
+    };
+    requestAnimationFrame(frame);
+  });
+  await new Promise((res) => { rec.onstop = res; rec.stop(); });
+  try { actx && actx.close(); } catch { /* */ }
+  return new Blob(chunks, { type: mime.split(';')[0] });
+}
+export async function shareVideo(n, stars, bg) {
+  X.toast('Preparo il video… (6 secondi)', 2500);
+  let blob;
+  try { blob = await makeVideo({ bg, title: `LIVELLO ${n} SUPERATO!`, line1: `${X.getNick() || 'Io'} ti sfida`, stars, who: me().who }); } catch { X.toast('Questo telefono non sa registrare il video: uso l\'immagine', 1800); shareWin(n, stars, bg); return; }
+  const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+  const file = new File([blob], `enduro-drinking-kingdom-livello-${n}.${ext}`, { type: blob.type });
+  const url = gameURL({ sfida: n, s: stars, da: X.getNick() || 'Un amico' });
+  const text = `🏍️🍺 Livello ${n} di Enduro Drinking Kingdom con ${stars} ⭐! Mi batti?`;
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: `${text} ${url}` }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  try { await navigator.clipboard.writeText(`${text} ${url}`); } catch { /* */ }
+  X.toast('Video salvato! Caricalo su TikTok o Reels', 1800);
+}

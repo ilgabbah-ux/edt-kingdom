@@ -12,6 +12,7 @@ export const CHARS = {
   forestale: { name: 'La Forestale', img: 'forestale' },
   forestale2: { name: 'La Forestale (in versione invernale)', img: 'forestale2' },
   forestale3: { name: 'La Forestale del cantiere', img: 'forestale3' },
+  forestale4: { name: 'La Forestale in vacanza', img: 'forestale4' },
 };
 
 // x,y in percentuale sulla mappa
@@ -79,6 +80,31 @@ const CAVA = [
     text: 'Una ruota e un boccale scolpiti nel marmo, per sempre. La Cava è nostra: EDT nella storia!' },
 ];
 
+// il Marocco: ix, iy = posizione della radura nell'immagine (percentuale), così gli edifici cadono giusti su ogni schermo
+const MAROCCO = [
+  { id: 'tenda4', name: 'Tenda berbera', ix: 66, iy: 74, who: 'gabbah',
+    text: 'Tappeti, cuscini e lanterne. Si dorme sotto le stelle del deserto, e la sveglia la suona il cammello.' },
+  { id: 'camion', name: 'Camion d\'assistenza', ix: 30, iy: 68, who: 'miti',
+    text: 'Gomme di scorta, attrezzi e borsa frigo. Il Protettore non lascia nessuno a piedi, neanche nel Sahara.' },
+  { id: 'pozzo', name: 'Pozzo dell\'oasi', ix: 52, iy: 54, who: 'costa',
+    text: 'Acqua fresca dal pozzo. Ci sono pure dei pesciolini: stasera provo a pescarli.' },
+  { id: 'container', name: 'Officina nel deserto', ix: 64, iy: 43, who: 'renard',
+    text: 'Un container, due palme e tutti gli attrezzi. La mia moto? Qui la sabbia entra ovunque, la sistemo al ritorno.' },
+  { id: 'cammelli', name: 'Stalla dei cammelli', ix: 32, iy: 44, who: 'purcello',
+    text: 'Spingo moto, amici e adesso pure cammelli. Questo qui mi guarda male, però.' },
+  { id: 'te', name: 'Tè alla menta', ix: 46, iy: 33, who: 'svetlana',
+    text: 'Un tè alla menta, poi musica e si balla fino all\'alba. Il deserto è il palco più bello.' },
+  { id: 'souk', name: 'Souk delle spezie', ix: 65, iy: 25, who: 'gabbah',
+    text: 'Spezie, tappeti e un venditore che mi ha venduto una lampada. Dice che dentro c\'è un genio. Vedremo.' },
+  { id: 'oasi', name: 'Oasi di Mirco', ix: 32, iy: 26, who: 'mirco',
+    text: 'Palme, acqua turchese e un\'amaca. Ho trovato il paradiso. Campa giù, io resto qui.' },
+  { id: 'duna', name: 'Salto della duna', ix: 45, iy: 19, who: 'miti',
+    text: 'Il salto più lungo mai ripreso con la GoPro. L\'atterraggio... quello non lo pubblichiamo.' },
+  { id: 'kasbah', name: 'Kasbah dell\'EDT', ix: 37, iy: 11, who: 'gabbah',
+    text: 'Una kasbah tutta nostra, con la terrazza sul deserto. La bandiera EDT sventola anche qui.' },
+  { id: 'bab', name: 'Porta del Marocco', ix: 60, iy: 11, who: 'gabbah',
+    text: 'La grande porta del Marocco con lo stendardo EDT. Da qui in poi, ogni giro è un giro easy.' },
+];
 export const ZONES = [
   { id: 'valle', name: 'La Valle', bg: 'map_bg', boss: 'forestale', from: 1,
     // sentiero sulla mappa (pixel dell'immagine 1280x1280) per la moto che gira
@@ -88,10 +114,13 @@ export const ZONES = [
     trail: [[560,1260],[640,1180],[720,1100],[730,1020],[700,940],[680,860],[720,790],[700,740],[620,700],[580,640],[620,580],[560,530],[560,470],[620,420],[740,380],[760,340],[680,310],[580,280],[560,250],[620,220],[650,200]], buildings: PASSO },
   { id: 'cava', name: 'La Cava', bg: 'map3_bg', boss: 'forestale3', from: 61,
     trail: [[610,1275],[600,1180],[590,1090],[610,1020],[630,960],[580,900],[540,860],[600,820],[670,790],[680,740],[620,700],[590,650],[640,620],[690,590],[640,550],[590,520],[610,470],[680,440],[700,400],[640,380],[610,340],[680,300],[720,260],[670,220],[680,170],[700,140]], buildings: CAVA },
+  { id: 'marocco', name: 'Il Marocco', bg: 'map4_bg', boss: 'forestale4', from: 91,
+    trail: [[470,1275],[460,1180],[440,1090],[420,1010],[390,930],[400,860],[430,800],[440,740],[400,690],[380,640],[420,590],[500,560],[570,530],[620,480],[640,420],[600,360],[540,320],[520,270],[560,220],[620,180],[640,140]], buildings: MAROCCO },
 ];
 VALLE.forEach((b) => { b.zone = 'valle'; });
 PASSO.forEach((b) => { b.zone = 'passo'; });
 CAVA.forEach((b) => { b.zone = 'cava'; });
-export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA];
+MAROCCO.forEach((b) => { b.zone = 'marocco'; });
+export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA, ...MAROCCO];
 // zona di un livello: 0 = Valle, 1 = Passo, 2 = Cava
-export const zoneOfLevel = (n) => (n > 60 ? 2 : n > 30 ? 1 : 0);
+export const zoneOfLevel = (n) => (n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);

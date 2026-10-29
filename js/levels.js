@@ -234,6 +234,10 @@ function goalsFrom(layout = [], tiles = []) {
   if (chain) goals.push({ type: 'chain', n: chain });
   const multa = cnt(/t/g);
   if (multa) goals.push({ type: 'multa', n: multa });
+  const velox = cnt(/v/g);
+  if (velox) goals.push({ type: 'velox', n: velox });
+  const gomme = cnt(/g/g);
+  if (gomme) goals.push({ type: 'gomme', n: gomme });
   return goals;
 }
 
@@ -258,6 +262,44 @@ const BOSS_LINES2 = [
   'Il ghiaccio è dalla mia parte. Vediamo quanto scivolate.',
   'Al Passo i limiti li decido io. E sono bassissimi.',
 ];
+const BOSS_LINES4 = [
+  'Sono in vacanza, ma il blocchetto me lo porto sempre dietro.',
+  'Nel deserto il limite è 30 all\'ora. Anche per i cammelli.',
+  'Ho messo autovelox dietro ogni duna. Sorridete!',
+  'Mio cugino al Passo vi saluta. E vi fa la multa.',
+];
+// zona 4, il Marocco: sabbia (k), acqua che si allarga (t), autovelox (v), gomme (g), fusti da portare giù (d), livelli a tempo
+function moroccoLevel(n, rng, tier) {
+  const colors = 6;
+  const pick = ['sand', 'velox', 'drop', 'time', 'gomme', 'water', 'velox+sand', 'drop+sand', 'gomme+mud', 'time', 'drop', 'velox+gomme'];
+  const FIRST = { 91: 'sand', 92: 'velox', 93: 'drop', 94: 'time', 96: 'gomme', 97: 'water' };   // ogni novità da sola, la prima volta
+  const kind = FIRST[n] || pick[(n * 5 + Math.floor(rng() * 3)) % pick.length];
+  if (kind === 'time') {
+    const a = Math.floor(rng() * colors), b2 = (a + 1 + Math.floor(rng() * (colors - 1))) % colors;
+    const layout = thin(makeLayout(rng, tier, rng() < .5 ? 'mud' : 'chain', rng() < .4), rng, 10);
+    const goals = [{ type: 'tile', t: a, n: 22 + Math.min(tier, 6) }, { type: 'tile', t: b2, n: 22 + Math.min(tier, 6) }, ...goalsFrom(layout)];
+    return { n, moves: 999, time: 95 + goals.length * 10, colors, goals, layout };
+  }
+  const base = kind.includes('sand') ? 'chain' : kind.includes('water') ? 'multa' : kind.includes('mud') ? 'mud' : '';
+  const G = makeLayout(rng, tier, base || 'none', rng() < 0.45).map((r) => r.split(''));
+  const free = (r, c) => G[r][c] === '.';
+  const sym = (r, c, ch) => { if (free(r, c)) G[r][c] = ch; if (free(r, 7 - c)) G[r][7 - c] = ch; };
+  if (kind.includes('velox')) for (let i = 0, g = 0; i < 2 + (tier > 20 ? 1 : 0) && g < 80; g++) { const r = 2 + Math.floor(rng() * 5), c = Math.floor(rng() * 4); if (free(r, c)) { sym(r, c, 'v'); i++; } }
+  if (kind.includes('gomme')) for (let i = 0, g = 0; i < 2 && g < 80; g++) { const r = 2 + Math.floor(rng() * 5), c = 1 + Math.floor(rng() * 3); if (free(r, c)) { sym(r, c, 'g'); i++; } }
+  let drops = 0;
+  if (kind.includes('drop')) {
+    for (const c of [2, 5]) { for (let r = 0; r < 2; r++) if (G[r][c] === '#') G[r][c] = '.'; G[0][c] = 'd'; }
+    for (let c = 0; c < 8; c++) if (G[8][c] === '#') G[8][c] = '.';   // il fondo deve essere aperto
+    drops = 4 + Math.min(2, Math.floor((n - 90) / 10));
+  }
+  let layout = G.map((r) => r.join(''));
+  layout = thin(layout, rng, 18);
+  const goals = goalsFrom(layout);
+  if (drops) goals.unshift({ type: 'drop', n: drops });
+  const weight = goals.reduce((s2, g) => s2 + (g.type === 'drop' ? g.n * 2.2 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 3 : g.type === 'velox' ? g.n * 1.6 : g.type === 'gomme' ? g.n * 1.4 : g.n / 3), 0);
+  const moves = Math.round(20 + weight * 0.9 + 3);
+  return { n, moves: Math.min(moves, 38), colors, goals, layout, drops };
+}
 function baseLevel(n) {
   if (HAND[n]) {
     const h = HAND[n];
@@ -271,13 +313,14 @@ function baseLevel(n) {
   const tier = Math.floor((n - 1) / 5);
   const isBoss = n % 5 === 0;
   const colors = 6;
+  if (n > 90 && !isBoss) return moroccoLevel(n, rng, tier);
   if (isBoss) {
     const hp = 220 + (tier - 3) * 15;
-    const layout = makeLayout(rng, tier, rng() < 0.5 ? 'rock' : 'crate', false);
+    const layout = makeLayout(rng, tier, n > 90 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
     return {
-      n, moves: 28, colors, boss: { hp, every: 4 },
+      n, moves: n > 90 ? 40 : 28, colors, boss: { hp, every: 4 },
       goals: [{ type: 'boss', n: hp }], layout,
-      intro: n > 60 ? { who: 'forestale3', text: BOSS_LINES3[tier % BOSS_LINES3.length] } : n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
+      intro: n > 90 ? { who: 'forestale4', text: BOSS_LINES4[tier % BOSS_LINES4.length] } : n > 60 ? { who: 'forestale3', text: BOSS_LINES3[tier % BOSS_LINES3.length] } : n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
     };
   }
   // al Passo (31+) il ghiaccio (k) è l'ostacolo di casa
@@ -298,7 +341,7 @@ function baseLevel(n) {
 // toglie ostacoli finché il livello non è troppo lungo da completare
 function thin(layout, rng, maxWeight) {
   const G = layout.map((r) => r.split(''));
-  const w = { m: 1 / 5, M: 2 / 5, r: 1 / 3, R: 1 / 3, c: 1 / 3, C: 1 / 3, k: 1 / 3, t: 0.5 };
+  const w = { m: 1 / 5, M: 2 / 5, r: 1 / 3, R: 1 / 3, c: 1 / 3, C: 1 / 3, k: 1 / 3, t: 0.5, v: 0.6, g: 0.5 };
   const weight = () => G.flat().reduce((s, ch) => s + (w[ch] || 0), 0) * 3.3;
   let guard = 0;
   while (weight() > maxWeight && guard++ < 200) {
@@ -308,6 +351,7 @@ function thin(layout, rng, maxWeight) {
     const ch = G[r][c];
     const c2 = 7 - c;
     const down = ch === 'M' ? 'm' : ch === 'R' ? 'r' : ch === 'C' ? 'c' : '.';
+    if (ch === 'v' && cells.filter(([a, b]) => G[a][b] === 'v').length <= 2) break;   // almeno un paio di autovelox restano
     G[r][c] = down; if (G[r][c2] === ch) G[r][c2] = down;
   }
   return G.map((r) => r.join(''));
@@ -351,4 +395,4 @@ function makeLayout(rng, tier, kind, holes) {
   return G.map((row) => row.join(''));
 }
 
-export const MAX_LEVEL = 90;
+export const MAX_LEVEL = 120;

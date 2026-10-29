@@ -1,5 +1,5 @@
 // EDT Kingdom — interfaccia, animazioni, campo base
-import { Board, ROWS, COLS, key, unkey, inside } from './engine.js';
+import { Board, ROWS, COLS, key, unkey, inside, newTile } from './engine.js';
 import { getLevel, MAX_LEVEL } from './levels.js';
 import { BUILDINGS, CHARS, ZONES } from './kingdom.js';
 import * as FX from './fx.js';
@@ -1122,6 +1122,7 @@ async function endTurn() {
   }
   if (G.explainQ.size) { const ks = [...G.explainQ]; G.explainQ.clear(); await explain(ks, ks.length > 1 ? 'Nuovi potenziamenti!' : 'Nuovo potenziamento!'); }
   G.busy = false;
+  saveRun();
   checkStuck();
   scheduleHint();
 }
@@ -1129,6 +1130,7 @@ async function endTurn() {
 // ---------- vittoria / sconfitta ----------
 async function winLevel() {
   G.over = true;
+  clearRun();
   clearHint();
   const lv = G.level, n = lv.n;
   const left = G.moves;
@@ -1205,7 +1207,7 @@ async function loseLevel() {
       <button id="cQuit" class="btn btn-gray">Mollo</button>
       <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>+5 mosse</button>
     </div>`, {
-    cQuit: () => { hideCard(); save.streak = 0; persist(); retryOrHome(); },
+    cQuit: () => { hideCard(); save.streak = 0; clearRun(); retryOrHome(); },
     cMore: () => {
       if (!canBuy) return;
       save.coins -= 200; persist();
@@ -1457,7 +1459,35 @@ function placeStartPowers(list) {
   });
 }
 
-async function startLevel(n, extras = []) {
+// ---------- partita in corso: si salva a ogni mossa e si riprende se chiudi il gioco ----------
+function saveRun() {
+  if (!G.board || G.over) return;
+  const b = G.board;
+  save.run = {
+    n: G.level.n, moves: G.moves, goals: G.goals.map((g) => g.done), extraN: G.goals.map((g) => g.n),
+    boss: G.boss ? G.boss.count : null, shield: G.shield,
+    grid: b.grid.map((row) => row.map((t) => (t ? [t.color, t.power || 0, t.rock || 0, t.chain ? 1 : 0, t.kind || 0] : null))),
+    mud: b.mud, ticket: b.ticket,
+  };
+  persist();
+}
+function clearRun() { if (save.run) { delete save.run; persist(); } }
+function resumeRun() {
+  const R = save.run;
+  startLevel(R.n, [], R);
+}
+function offerResume() {
+  const R = save.run;
+  if (!R || !R.grid) return false;
+  showCard(`<h2>Partita in corso</h2>${speakerHTML('gabbah', `Eri a metà del <b>livello ${R.n}</b> con <b>${R.moves} mosse</b> rimaste. Riprendiamo da lì?`)}
+    <div class="row"><button id="cDrop" class="btn btn-gray">Lascia stare</button><button id="cRes" class="btn btn-play">Riprendi</button></div>`, {
+    cDrop: () => { clearRun(); save.streak = 0; persist(); hideCard(); },
+    cRes: () => { hideCard(); resumeRun(); },
+  });
+  return true;
+}
+
+async function startLevel(n, extras = [], resume = null) {
   const lv = getLevel(n);
   G.level = lv;
   G.board = new Board(lv);
@@ -1466,6 +1496,23 @@ async function startLevel(n, extras = []) {
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
   G.ticketCleared = false; G.explainQ = new Set(); G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
   G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null;
+  if (resume) {
+    const b = G.board;
+    b.grid = resume.grid.map((row) => row.map((v) => {
+      if (!v) return null;
+      const t = newTile(v[0], v[1] || null, v[2]);
+      if (v[3]) t.chain = true;
+      if (v[4]) t.kind = v[4];
+      return t;
+    }));
+    b.mud = resume.mud; b.ticket = resume.ticket;
+    G.moves = resume.moves;
+    G.goals.forEach((g, i) => { g.done = resume.goals[i] || 0; if (resume.extraN && resume.extraN[i]) g.n = resume.extraN[i]; });
+    if (G.boss && resume.boss != null) G.boss.count = resume.boss;
+    G.shield = !!resume.shield;
+    G.lastProg = G.goals.reduce((s2, g) => s2 + Math.min(g.done, g.n), 0);
+    extras = [];
+  }
   $('#goals').innerHTML = '';
   $('#gLevel').textContent = n;
   $('#bossbar').classList.toggle('hidden', !G.boss);
@@ -1486,6 +1533,8 @@ async function startLevel(n, extras = []) {
   renderMoves();
   scheduleHint();
   if (extras.length) placeStartPowers(extras);
+  setTimeout(saveRun, extras.length ? 1500 : 100);
+  if (resume) { FX.banner('Si riparte!', `Livello ${n}`, '#ffd34d'); return; }
   setTimeout(async () => {
     if (G.level !== lv || G.over) return;
     const ks = ['swap', 'goals', ...extras.map(KIND)];
@@ -1606,7 +1655,7 @@ $('#btnBack').onclick = () => {
     <div class="row"><button id="cG" class="btn btn-gray">? Guida</button></div>
     <div class="row"><button id="cL" class="btn btn-red">Esci dal livello</button><button id="cS" class="btn btn-play">Riprendi</button></div>
     <p class="small">Se esci adesso perdi questo giro e la serie di vittorie.</p>`,
-  { cS: hideCard, cG: () => openGuide(), cL: () => { hideCard(); G.over = true; save.streak = 0; persist(); goHome(); } });
+  { cS: hideCard, cG: () => openGuide(), cL: () => { hideCard(); G.over = true; save.streak = 0; clearRun(); goHome(); } });
   bindToggles();
 };
 $('#bossbar').onclick = () => { if (G.boss) goalInfo({ type: 'boss' }); };
@@ -1643,7 +1692,7 @@ initInput();
 renderHome();
 AU.playMusic('home');
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
-if (save.welcomed) setTimeout(checkDaily, 600);
+if (save.welcomed) setTimeout(() => { if (!offerResume()) checkDaily(); }, 600);
 if (!save.welcomed) {
   save.welcomed = true; persist();
   setTimeout(() => say('gabbah', 'Benvenuto in <b>EDT Kingdom</b>! Ogni livello vinto vale fino a 3 stelle, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano. Se hai un dubbio, tocca <b>?</b> per la guida.', 'Si parte!'), 300);

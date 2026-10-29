@@ -1178,7 +1178,7 @@ async function winLevel() {
     <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? `<br>Con ${STEP_COST} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
     <div class="cheer">${speakerHTML(who, line)}</div>
     <div class="row">${stars < 3 ? '<button id="cAgain" class="btn btn-gray">Rigioca</button>' : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cHome: () => { hideCard(); goHome(); }, cAgain: () => { hideCard(); goHome(); setTimeout(() => openLevel(n), 500); } });
+    { cHome: () => { hideCard(); explain(['coins'], 'Hai guadagnato monete!').then(goHome); }, cAgain: () => { hideCard(); goHome(); setTimeout(() => openLevel(n), 500); } });
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
   const ar = app.getBoundingClientRect();
   for (let k = 1; k <= stars; k++) {
@@ -1379,6 +1379,7 @@ const HELP = {
   shield: { img: 'u_scudo', t: 'Scudo di Miti', d: 'Solo coi boss. Costa <b>150 monete</b> e para il prossimo lancio di sassi della Forestale.' },
   hint: { img: 'u_stella', t: 'Aiuto', d: 'Ti mostra una mossa buona (cerchio arancio e manina) e ti ricorda come togliere gli ostacoli. È gratis.' },
   pre: { img: 'p_tanica', t: 'Aiuti di partenza', d: 'Prima del livello puoi mettere in griglia una Moto, una Tanica o una Grappa (con le monete o gratis se li hai vinti). Se vinci più livelli di fila li ricevi in <b>regalo</b>.' },
+  coins: { img: 'u_moneta', t: 'Monete', d: 'Le guadagni vincendo (50 più 10 per ogni mossa avanzata; meno se rigiochi un livello) e col premio del giorno. Servono per gli aiuti: <b>Martello</b> 100, <b>Scudo</b> 150, aiuti di partenza (Moto 60, Tanica 90, Grappa 140) e <b>+5 mosse</b> quando perdi (200). Per costruire servono le stelle, non le monete.' },
   // campo base
   build: { img: 'b_cantiere', t: 'Costruire', d: 'Ogni edificio ha <b>3 pezzi</b> e ogni pezzo costa <b>2 stelle</b>. Tocca <b>Costruisci</b> o il cantiere con la freccia. Finita una zona, se ne apre una nuova.' },
   zones: { img: 'map2_bg', t: 'Zone', d: 'Prima <b>La Valle</b>, poi <b>Il Passo</b> sulla neve (dal livello 31), con edifici, ostacoli e boss nuovi. Col cartello in alto guardi le zone già sbloccate.' },
@@ -1391,7 +1392,7 @@ const GUIDE = [
   ['Come si gioca', ['swap', 'goals', 'stars', 'hint']],
   ['Potenziamenti', ['mH', 'bomb', 'drone', 'grappa', 'combo']],
   ['Ostacoli', ['mud', 'rock', 'crate', 'chain', 'ice', 'multa', 'boss']],
-  ['Aiuti', ['hammer', 'shield', 'pre']],
+  ['Aiuti', ['coins', 'hammer', 'shield', 'pre']],
   ['Campo Base', ['build', 'zones', 'daily', 'levels', 'rank']],
 ];
 if (!save.seen) { save.seen = {}; if (save.level > 3) { save.seen.swap = 1; save.seen.goals = 1; } }
@@ -1562,6 +1563,8 @@ $('#btnPlay').onclick = () => openLevel();
 $('#btnBuild').onclick = () => tryBuild();
 $('#btnLevels').onclick = () => { sfx.click(); openLevelList(); };
 $('#btnRank').onclick = () => { sfx.click(); openRanking(); };
+$('#hCoins').parentElement.onclick = () => { sfx.click(); showCard(`<h2>Monete</h2><div class="hlist">${helpRow('coins')}</div><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); };
+$('#hStars').parentElement.onclick = () => { sfx.click(); showCard(`<h2>Stelle</h2><div class="hlist">${helpRow('stars')}${helpRow('build')}</div><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
 // ---------- impostazioni ----------
 function togglesHTML() {

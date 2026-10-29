@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#2f5fa8">
 <title>EDT Kingdom</title>
-<link rel="stylesheet" href="style.css?v=24">
+<link rel="stylesheet" href="style.css?v=25">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon2-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -43,7 +43,7 @@
   <section id="game" class="screen">
     <header class="gamebar">
       <button id="btnBack" class="round" aria-label="Pausa">II</button>
-      <div class="goals" id="goals"></div>
+      <div class="goalwrap"><div class="goals" id="goals"></div><div class="lvlLabel ribbon">Livello <b id="gLevel">1</b></div></div>
       <div class="moves"><small>MOSSE</small><b id="moves">0</b></div>
     </header>
     <div id="bossbar" class="bossbar hidden">
@@ -56,9 +56,14 @@
       <div id="fx"></div>
     </div>
     <footer class="boosters">
-      <button id="bHammer" class="booster"><span class="bi ic-hammer"></span><small>Martello<br>di Renard</small><b>100 <i class="ic ic-coin"></i></b></button>
-      <div class="midfoot"><div class="lvlLabel">Livello <b id="gLevel">1</b></div><button id="bHelp" class="helpbtn">💡 Aiuto</button></div>
-      <button id="bShield" class="booster"><span class="bi ic-shield"></span><small>Scudo<br>di Miti</small><b>150 <i class="ic ic-coin"></i></b></button>
+      <div class="peek" id="peek"><i></i><span id="peekTxt"></span></div>
+      <div class="shelf">
+        <button id="bHammer" class="booster"><span class="bi ic-hammer"></span><small>Martello</small><b>100 <i class="ic ic-coin"></i></b></button>
+        <button id="bMoto" class="booster"><span class="bi bi-moto"></span><small>Moto</small><b>120 <i class="ic ic-coin"></i></b></button>
+        <button id="bTanica" class="booster"><span class="bi bi-tanica"></span><small>Tanica</small><b>180 <i class="ic ic-coin"></i></b></button>
+        <button id="bShield" class="booster"><span class="bi ic-shield"></span><small>Scudo</small><b>150 <i class="ic ic-coin"></i></b></button>
+        <button id="bHelp" class="booster helpb"><span class="bi">💡</span><small>Aiuto</small></button>
+      </div>
     </footer>
   </section>
 
@@ -70,7 +75,7 @@
   </div>
   <div id="toast" class="toast"></div>
 </div>
-<script src="game.min.js?v=24"></script>
+<script src="game.min.js?v=25"></script>
 <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});</script>
 </body>
 </html>

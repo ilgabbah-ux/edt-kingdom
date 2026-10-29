@@ -6,7 +6,7 @@ npx -y esbuild@0.24.0 js/game.js --bundle --format=iife --minify --target=es2017
 V=$(date +%s)
 {
   echo "const CACHE = 'edtk-$V';"
-  printf "const FILES = ['./', 'index.html', 'style.css?v=24', 'game.min.js?v=24', 'manifest.json', 'icon2-192.png', 'icon2-512.png', 'icon2-mask.png'"
+  printf "const FILES = ['./', 'index.html', 'style.css?v=25', 'game.min.js?v=25', 'manifest.json', 'icon2-192.png', 'icon2-512.png', 'icon2-mask.png'"
   for f in img/*.webp fonts/*.woff2 audio/*.mp3; do printf ", '%s'" "$f"; done
   echo "];"
   cat <<'JS'

@@ -578,7 +578,7 @@ function layout() {
   const appR = app.getBoundingClientRect();
   const top = $('.gamebar').getBoundingClientRect().height + (G.boss ? 64 : 0);
   const bottom = $('.boosters').getBoundingClientRect().height || 80;
-  const availW = appR.width - 16;
+  const availW = appR.width - 34;
   const availH = appR.height - top - bottom - 20;
   G.S = Math.floor(Math.min(availW / COLS, availH / ROWS, 64));
   document.documentElement.style.setProperty('--cell', G.S + 'px');
@@ -617,14 +617,17 @@ function buildBoardDOM() {
   const b = $('#board');
   b.innerHTML = '';
   G.els.clear();
+  const frames = { 'fr-sh': [], 'fr-gold': [], 'fr-in': [] };
   G.ticketEls = Array.from({ length: ROWS }, () => []); G.mudEls = []; G.badges = Array.from({ length: ROWS }, () => []); G.badgeEls = [];
   for (let r = 0; r < ROWS; r++) {
     G.mudEls.push([]);
     for (let c = 0; c < COLS; c++) {
       if (!G.board.hole[r][c]) {
-        const fr = document.createElement('div');
-        fr.className = 'cellframe'; fr.dataset.r = r; fr.dataset.c = c; fr.style.transform = pos(r, c);
-        b.insertBefore(fr, b.firstChild);
+        ['fr-sh', 'fr-gold', 'fr-in'].forEach((k) => {
+          const fr = document.createElement('div');
+          fr.className = 'cellframe ' + k; fr.dataset.r = r; fr.dataset.c = c; fr.style.transform = pos(r, c);
+          frames[k].push(fr);
+        });
       }
       const bg = document.createElement('div');
       bg.className = 'cellbg' + ((r + c) % 2 ? ' dark' : '') + (G.board.hole[r][c] ? ' hole' : '');
@@ -650,6 +653,7 @@ function buildBoardDOM() {
     const el = makeTileEl(G.board.grid[r][c], r, c);
     el.animate([{ transform: pos(r - ROWS, c), opacity: 0 }, { transform: pos(r, c), opacity: 1 }], { duration: 420, delay: (ROWS - r) * 35 + c * 12, easing: 'cubic-bezier(.3,1.3,.5,1)', fill: 'backwards' });
   }
+  b.prepend(...frames['fr-sh'], ...frames['fr-gold'], ...frames['fr-in']);
   G.badgeEls.forEach((bd) => b.appendChild(bd));
   renderMud();
 }
@@ -821,9 +825,25 @@ const allDone = () => G.goals.every((gl) => gl.done >= gl.n);
 
 // ---------- risoluzione ----------
 const CASCADE = [
-  ['Bella!', '#ffd34d'], ['Che manetta!', '#ffb02e'], ['Gas aperto!', '#ff8a1c'],
-  ['Fuori giri!', '#ff5a3c'], ['Campa giù!', '#ff4fa3'], ['LEGGENDARIO!', '#b07bff'],
+  ['Grande!', '#ffd34d'], ['Easy!', '#7ee06a'], ['Che manetta!', '#ffb02e'], ['Gas aperto!', '#ff8a1c'],
+  ['Giro Easy!', '#ff5a3c'], ['Campa giù!', '#ff4fa3'], ['LEGGENDARIO!', '#b07bff'],
 ];
+const PEEK_LINES = ['Easy!', 'Che manetta!', 'Tranquilli, è un giro easy!', 'Gas! Gas! Gas!', 'Questa la pago io!'];
+let peekT = 0;
+function peekSay(txt) {
+  const p = $('#peek'); if (!p) return;
+  $('#peekTxt').textContent = txt;
+  p.classList.remove('talk'); void p.offsetWidth; p.classList.add('talk');
+  clearTimeout(peekT); peekT = setTimeout(() => p.classList.remove('talk'), 2200);
+}
+// luccichio: ogni tanto un riflesso passa su una tessera a caso
+setInterval(() => {
+  if (!G.board || G.over || document.hidden || !$('#game').classList.contains('active')) return;
+  const els = [...G.els.values()]; if (!els.length) return;
+  const el = els[Math.floor(Math.random() * els.length)];
+  el.classList.remove('shine'); void el.offsetWidth; el.classList.add('shine');
+  setTimeout(() => el.classList.remove('shine'), 900);
+}, 700);
 const POWER_SHOUT = { mH: 'Moto!', mV: 'Moto!', bomb: 'Tanica!', drone: 'Drone!', grappa: 'San Braulio!' };
 const COMBO_NAMES = {
   'mH+mH': 'Doppia sgasata!', 'mH+mV': 'Doppia sgasata!', 'mV+mV': 'Doppia sgasata!',
@@ -1024,6 +1044,7 @@ async function resolve({ pending = [], swapCells = [] } = {}) {
       const lv = CASCADE[Math.min(step - 1, CASCADE.length - 1)];
       FX.banner(lv[0], `Combo x${step + 1}`, lv[1]);
       sfx.combo(step);
+      if (step >= 2) peekSay(PEEK_LINES[Math.min(step - 2, PEEK_LINES.length - 1)]);
       if (step >= 2) FX.shake(2 + step * 1.5, .3);
     }
     await applyGravity();
@@ -1688,7 +1709,7 @@ async function startLevel(n, extras = [], resume = null) {
   $('#goals').innerHTML = '';
   $('#gLevel').textContent = n;
   $('#bossbar').classList.toggle('hidden', !G.boss);
-  $('#bShield').style.visibility = G.boss ? 'visible' : 'hidden';
+  $('#bShield').style.display = G.boss ? '' : 'none';
   const zl = zoneOfLevel(n);
   FORESTALE_URI = I(ZONES[zl].boss);
   CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro'][zl]);
@@ -1844,6 +1865,18 @@ $('#bHammer').onclick = async () => {
   if (G.hammer) toast('Tocca cosa spaccare', 1000);
   renderMoves();
 };
+async function buyPower(pw, cost, name) {
+  if (G.busy || G.over) return;
+  if (save.coins < cost) { toast(`Servono ${cost} monete`, 1000); return; }
+  save.coins -= cost; persist();
+  sfx.click();
+  placeStartPowers([pw]);
+  peekSay(pw === 'bomb' ? 'Tanica piena, si parte!' : 'Ecco una moto: toccala!');
+  toast(`${name} sulla griglia: toccala o scambiala`, 1400);
+  setTimeout(() => saveRun(), 900);
+}
+$('#bMoto').onclick = () => buyPower('mH', 120, 'Moto');
+$('#bTanica').onclick = () => buyPower('bomb', 180, 'Tanica');
 $('#bShield').onclick = async () => {
   if (G.busy || G.over || G.shield) return;
   if (!save.seen.shield) { await explain(['shield']); return; }

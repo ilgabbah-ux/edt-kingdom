@@ -21,10 +21,11 @@ const TILE_URI = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma'
 const RIDER_UP = I('r_up'), RIDER_DOWN = I('r_down');
 const RIDE_URI = { mH: I('fx_moto'), mV: I('fx_moto_v'), drone: I('fx_drone') };   // senza medaglione, per le animazioni
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
-const ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
+let ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
 const MUD_URI = [null, I('o_fango1'), I('o_fango2')];
 let FORESTALE_URI = I('forestale');
-const CRATE_URI = [null, I('o_cassa1'), I('o_cassa2')];
+let CRATE_URI = [null, I('o_cassa1'), I('o_cassa2')];
+const MUG_URI = [I('o_boccale3'), I('o_boccale2'), I('o_boccale1'), I('o_boccale0')];   // per colpi rimasti: 0 pieno … 3 vuoto
 let CHAIN_URI = I('o_catena');
 let MULTA_URI = I('o_multa');
 const VELOX_URI = I('o_autovelox'), GOMME_URI = I('o_gomme'), DROP_URI = I('o_fusto');
@@ -399,11 +400,12 @@ async function tryBuild() {
       await sleep(1800);
       if (nz) {
         if (nz.id === 'marocco') await showStory('finale');
+        if (nz.id === 'oktober') await showStory('fine');
         await showStory(nz.id);
         viewZone = null; renderHome();
         FX.banner(nz.name, L`Nuova zona sbloccata!`, '#bdf0ff');
       } else {
-        await showStory('fine');
+        await showStory('oktofine');
         fireworks(2600);
       }
     }
@@ -643,6 +645,7 @@ function goalURI(gl) {
   if (gl.type === 'velox') return VELOX_URI;
   if (gl.type === 'gomme') return GOMME_URI;
   if (gl.type === 'drop') return DROP_URI;
+  if (gl.type === 'mug') return MUG_URI[0];
   return FORESTALE_URI;
 }
 const goalLeft = (gl) => Math.max(0, gl.n - gl.done);
@@ -671,7 +674,7 @@ function goalInfo(gl) {
   sfx.click();
   if (gl.type === 'tile') { tipBubble('t0_birra', L`Togli <b>${goalLeft(gl)}</b> di queste tessere facendo tris con loro.`, goalURI(gl)); return; }
   const zl = zoneOfLevel(G.level.n);
-  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type;
+  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type;
   const h = HELP[k]; if (h) tipBubble(h.img, `<b>${h.t}</b>: ${h.d}`);
 }
 function tipBubble(img, html, uri) {
@@ -721,7 +724,7 @@ let EV_URI = null;
 function artFor(t) {
   if (t.ev && EV_URI && !t.power && !t.rock && !t.drop) return `${EV_URI}, ${TILE_URI[t.color]}`;
   if (t.drop) return DROP_URI;
-  if (t.rock) return t.kind === 'velox' ? VELOX_URI : t.kind === 'gomme' ? GOMME_URI : t.kind === 'crate' ? CRATE_URI[t.rock] : ROCK_URI[t.rock];
+  if (t.rock) return t.kind === 'mug' ? MUG_URI[t.rock] : t.kind === 'velox' ? VELOX_URI : t.kind === 'gomme' ? GOMME_URI : t.kind === 'crate' ? CRATE_URI[t.rock] : ROCK_URI[t.rock];
   if (t.power) return POWER_URI[t.power];
   return TILE_URI[t.color];
 }
@@ -1080,8 +1083,17 @@ async function doClear(clear, matched, created, pre = []) {
     if (t.rock <= 0) {
       killTile(t, r, c);
       b.grid[r][c] = null;
-      credit(t.kind === 'crate' ? 'crate' : t.kind === 'velox' ? 'velox' : t.kind === 'gomme' ? 'gomme' : 'rock', r, c);
+      credit(t.kind === 'crate' ? 'crate' : t.kind === 'velox' ? 'velox' : t.kind === 'gomme' ? 'gomme' : t.kind === 'mug' ? 'mug' : 'rock', r, c);
+      if (t.kind === 'mug') {   // boccale pieno: PROSIT! schiuma che pulisce tutto intorno
+        const [mx, my] = cellCenter(r, c); FX.burst(mx, my, '#fff6d8', 22, 1.8); FX.burst(mx, my, '#ffb52e', 14, 1.4); FX.ring(mx, my, G.S * 2.4, '#fff3c4', 9); FX.shake(6, .25);
+        floater(L`PROSIT!`, r, c); sfx.boom();
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if ((dr || dc) && inside(rr, cc) && b.grid[rr][cc] && !b.grid[rr][cc].rock) clear.add(key(rr, cc)); }
+      }
       if (t.kind === 'velox') { const [vx, vy] = cellCenter(r, c); FX.burst(vx, vy, '#ffffff', 12, 1.4); FX.ring(vx, vy, G.S, '#bdf0ff', 6); }
+    } else if (t.kind === 'mug') {
+      refreshArt(t); credit('boss', r, c); beep(380 + (3 - t.rock) * 160, .12, 'triangle', .08, 200);
+      const [hx, hy] = cellCenter(r, c); FX.burst(hx, hy, '#ffc94a', 8, 1.1);
+      G.els.get(t.id)?.animate([{ transform: pos(r, c) + ' scale(1.18)' }, { transform: pos(r, c) }], { duration: 280, easing: 'ease-out' });
     } else if (t.kind === 'gomme') {
       sfx.crack(); credit('boss', r, c);
       const to = b.rollTarget(r, c);
@@ -1783,6 +1795,9 @@ function scheduleHint() {
 
 // consigli dei personaggi quando sei in difficoltà (piccolo fumetto, non blocca il gioco)
 const COACH = {
+  mug: ['claudio', L`I boccali si riempiono con <b>3 tris accanto</b>. Quando sono pieni fanno PROSIT e puliscono tutto intorno!`],
+  garland: ['gabbah', L`I festoni bloccano le tessere: mettile in un tris per liberarle.`],
+  bill: ['forestale5', L`Ogni turno che non paghi un conto, se ne aggiunge un altro. Pagate, pagate!`],
   tile: ['gabbah', L`Cerca le tessere dell'obiettivo in alto: fai tris con quelle, il resto viene da sé.`],
   mud: ['mirco', L`Il fango si pulisce solo facendo tris <b>sopra</b> le pozze. Quelle col 2 vanno fatte due volte.`],
   rock: ['purcello', L`I sassi si spaccano facendo un tris <b>accanto</b>. Moto e taniche li prendono anche da lontano.`],
@@ -1922,6 +1937,9 @@ function showPreview(cell, t) {
 // =================== GUIDA E SPIEGAZIONI ===================
 // ogni cosa del gioco ha una scheda: si vede la prima volta che la incontri e sempre nella Guida (?)
 const HELP = {
+  mug: { img: 'o_boccale2', t: L`Boccale da riempire`, d: L`Fai <b>3 tris accanto</b> al boccale per riempirlo. Quando è pieno: <b>PROSIT!</b> La schiuma pulisce tutte le caselle intorno.` },
+  garland: { img: 'o_ghirlanda', t: L`Festone bavarese`, d: L`All'Oktoberfest i festoni bianchi e blu legano le tessere: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.` },
+  bill: { img: 'o_conto', t: L`Conto da pagare`, d: L`Copre la casella e si paga con un tris sopra. Se in un turno <b>non ne paghi nessuno</b>, ne arriva un altro.` },
   // come si gioca
   swap: { img: 't0_birra', t: L`Fai tris`, d: L`Trascina una tessera sulla vicina (o toccale una dopo l'altra) per scambiarle. Se ne metti <b>3 o più uguali in fila</b> spariscono e quelle sopra cadono.` },
   goals: { img: 't1_casco', t: L`Obiettivi e mosse`, d: L`In alto vedi cosa devi togliere e quante <b>mosse</b> hai. Ogni scambio è una mossa. Finisci gli obiettivi prima che finiscano le mosse.` },
@@ -1971,7 +1989,7 @@ const HELP = {
 const GUIDE = [
   [L`Come si gioca`, ['swap', 'goals', 'stars', 'hint']],
   [L`Potenziamenti`, ['mH', 'bomb', 'drone', 'grappa', 'combo']],
-  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'multa', 'water', 'velox', 'gomme', 'drop', 'time', 'boss']],
+  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'multa', 'water', 'bill', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
   [L`Aiuti`, ['coins', 'hammer', 'shield', 'pre']],
   [L`Campo Base`, ['build', 'zones', 'daily', 'weekly', 'levels', 'rank']],
   [L`Extra`, ['album', 'chest', 'weekend', 'share', 'gold', 'helper']],
@@ -2000,6 +2018,7 @@ function storyUnlocked(id) {
   if (id === 'intro') return true;
   if (save.story[id]) return true;
   if (id === 'finale') return save.level > 90 || !!save.story.marocco;
+  if (id === 'fine') return save.level > 120 || !!save.story.oktober;
   const z = ZONES.find((zz) => zz.id === id);
   return z ? save.level >= z.from : false;
 }
@@ -2027,12 +2046,13 @@ function levelThings(lv) {
   if (/[mM]/.test(LYS)) out.push('mud');
   if (/[rR]/.test(LYS)) out.push('rock');
   if (/[cC]/.test(LYS)) out.push('crate');
-  if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand'][zoneOfLevel(lv.n)]);
+  if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand', 'garland'][zoneOfLevel(lv.n)]);
+  if (/b/.test(LYS)) out.push('mug');
   if (/v/.test(LYS)) out.push('velox');
   if (/g/.test(LYS)) out.push('gomme');
   if (lv.drops) out.push('drop');
   if (lv.time) out.push('time');
-  if (/t/.test(LYS)) out.push(zoneOfLevel(lv.n) === 3 ? 'water' : 'multa');
+  if (/t/.test(LYS)) out.push(zoneOfLevel(lv.n) === 3 ? 'water' : zoneOfLevel(lv.n) === 4 ? 'bill' : 'multa');
   if (lv.boss) out.push('boss');
   return out;
 }
@@ -2217,8 +2237,12 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   $('#bShield').style.display = G.boss ? '' : 'none';
   const zl = zoneOfLevel(n);
   FORESTALE_URI = I(ZONES[zl].boss);
-  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia'][zl]);
-  MULTA_URI = I(zl === 3 ? 'o_acqua' : 'o_multa');
+  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda'][zl]);
+  MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : 'o_multa');
+  ROCK_URI = zl === 4 ? [null, I('o_barile'), I('o_barile')] : [null, I('o_sasso1'), I('o_sasso2')];
+  CRATE_URI = zl === 4 ? [null, I('o_bottiglie'), I('o_bottiglie')] : [null, I('o_cassa1'), I('o_cassa2')];
+  $('#board').classList.toggle('fest', zl === 4);
+  $('#game').classList.toggle('fest', zl === 4);
   $('#board').classList.toggle('desert', zl === 3);
   $('#game').classList.toggle('desert', zl === 3);
   $('#board').classList.toggle('ice', zl === 1);
@@ -2419,9 +2443,13 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
-const preload = Promise.all(ASSETS.map((n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); })));
+// caricamento leggero: prima solo quello che serve subito (tessere, ostacoli e la zona attuale), il resto dopo con calma
+const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); });
+const CORE = ASSETS.filter((n) => !/^(b_|map|c_|forestale)/.test(n)).concat((() => { const z = ZONES[Math.min(ZONES.length - 1, zoneOfLevel(Math.min(save.level, MAX_LEVEL)))]; return [z.bg, z.boss, 'c_gabbah', ...z.buildings.map((b) => 'b_' + b.id)]; })());
+const preload = Promise.all(CORE.map(loadImg));
+preload.then(() => setTimeout(() => { const rest = ASSETS.filter((n) => !CORE.includes(n)); (function next() { const n = rest.shift(); if (n) loadImg(n).then(() => setTimeout(next, 30)); })(); }, 1500));
 document.addEventListener('visibilitychange', () => AU.pause(document.hidden));
 initInput();
 renderHome();
@@ -2429,7 +2457,7 @@ AU.playMusic('home');
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
 const firstStory = !save.story.intro;
 const offerEvent = () => { const ep = V.eventProgress(); if (!ep || save.evSeen === ep.st.id) return false; save.evSeen = ep.st.id; persist(); V.openEvent(); return true; };
-const startup = async () => { if (await V.readProgressLink()) return; if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
+const startup = async () => { if (await V.readProgressLink()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
 if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
 else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {

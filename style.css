@@ -887,3 +887,8 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 
 .card { max-height: calc(100dvh - 28px); overflow-y: auto; overscroll-behavior: contain; }
 .card .buddy p { font-size: 12.5px; margin: 2px 0 0; }
+/* Oktoberfest */
+#game.fest { background: linear-gradient(180deg, rgba(20,40,90,.35), rgba(255,255,255,.05) 30%, rgba(20,40,90,.15) 70%, rgba(10,20,50,.6)), url('img/map5_bg.webp') center 30%/cover !important; }
+#board.fest .tile.chained::after { background-image: url('img/o_ghirlanda.webp') !important; inset: -4% !important; opacity: .95; }
+#board.fest .ticket { background-image: url('img/o_conto.webp'); background-size: 92%; background-position: center; background-repeat: no-repeat; }
+#game.fest #goals .goal[data-t="chain"] { background-color: #cfe3ff !important; }

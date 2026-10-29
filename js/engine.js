@@ -41,6 +41,7 @@ export class Board {
         else if (ch === 'v') { const t = newTile(-1, null, 2); t.kind = 'velox'; this.grid[r][c] = t; }   // autovelox della Forestale
         else if (ch === 'g') { const t = newTile(-1, null, 3); t.kind = 'gomme'; this.grid[r][c] = t; }   // pila di gomme che rotola
         else if (ch === 'd') { const t = newTile(-1); t.drop = true; this.grid[r][c] = t; }               // fusto da portare in fondo
+        else if (ch === 'b') { const t = newTile(-1, null, 3); t.kind = 'mug'; this.grid[r][c] = t; }   // boccale da riempire (Oktoberfest)
       }
     }
     for (let r = 0; r < ROWS; r++)
@@ -225,6 +226,7 @@ export class Board {
         if (gl.type === 'crate' && t && t.kind === 'crate') w += 6;
         if (gl.type === 'velox' && t && t.kind === 'velox') w += 7;
         if (gl.type === 'gomme' && t && t.kind === 'gomme') w += 6;
+        if (gl.type === 'mug' && t && t.kind === 'mug') w += 6;
         if (gl.type === 'chain' && t && t.chain) w += 5;
         if (gl.type === 'multa' && this.ticket[r][c]) w += 6;
         if (gl.type === 'mud' && this.mud[r][c] > 0) w += 5;

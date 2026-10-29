@@ -59,10 +59,26 @@ export const STORY = {
     scenes: [
       { img: 'st5_5', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Dopo mille dune e mille tè alla menta… il Marocco è dell'EDT.`, v: 's_narr12' }, lines: [{ who: 'gabbah', t: L`EDT per sempre! Giro easy!`, v: 's_gabbah3' }] },
     ],
+    end: { t: L`Ma a settembre, a Monaco di Baviera, apre il tendone più grande del mondo…`, v: 's_narr13' },
+  },
+  oktober: {
+    title: L`Capitolo 5`, name: L`L'Oktoberfest`,
+    scenes: [
+      { img: 'st6_1', cam: 'right', fx: ['confetti', 'sun'], narr: { t: L`Monaco di Baviera. L'EDT parcheggia le moto davanti al tendone più grande del mondo.`, v: 's_narr14' }, lines: [{ who: 'gabbah', t: L`Lederhosen addosso… si entra!`, v: 's_gabbah5' }] },
+      { img: 'st6_2', cam: 'punch', fx: ['sparkle', 'shake'], lines: [{ who: 'forestale5', t: L`Ozapft is! Prima di entrare… il conto!`, v: 's_forestale7' }] },
+      { img: 'st6_3', cam: 'in', fx: ['lights', 'confetti'], lines: [{ who: 'svetlana', t: L`Prosit, ragazzi! Tutti sui tavoli!`, v: 's_svetlana2' }, { who: 'mirco', t: L`Campa giù… un altro boccale!`, v: 's_mirco2' }] },
+    ],
+    end: { t: L`Conquista l'Oktoberfest: boccali da riempire, festoni… e conti da pagare!`, v: 's_narr15' },
+  },
+  oktofine: {
+    title: L`Finale`, name: L`Prosit EDT!`,
+    scenes: [
+      { img: 'st6_4', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Dieci boccali, cento brezel e mille cori dopo… l'Oktoberfest è dell'EDT.`, v: 's_narr16' }, lines: [{ who: 'forestale5', t: L`Va bene, va bene… offro io! Prosit!`, v: 's_forestale8' }, { who: 'gabbah', t: L`EDT per sempre! Giro easy!`, v: 's_gabbah3' }] },
+    ],
     end: { t: L`Fine… per ora. Grazie per aver giocato con l'Enduro Drinking Team!`, v: 's_narr8' },
   },
 };
-export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine'];
+export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine', 'oktober', 'oktofine'];
 
 let opts = {};
 export function initStory(o) { opts = o; }   // { I, SRC, voiceSrc, duck, canVoice, click }

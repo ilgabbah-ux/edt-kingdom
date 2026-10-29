@@ -129,6 +129,9 @@ export const PAGES = [
   { id: 'marocco', name: L`Marocco`, prize: 450, items: [
     ['g_brizio', 'Brizio', 'c_brizio', 2], ['g_alex', 'Alex', 'c_alex', 2], ['g_guccio', 'Guccio', 'c_guccio', 3], ['fo4', L`La Forestale in vacanza`, 'forestale4', 2],
     ['mm1', L`Partenza per il Marocco`, 'st5_1', 1], ['mm2', L`Il deserto`, 'st5_2', 1], ['mm3', L`La Kasbah`, 'b_kasbah', 2], ['mm4', L`Festa nell'oasi`, 'st5_5', 3]] },
+  { id: 'okt', name: L`Oktoberfest`, prize: 500, items: [
+    ['ok1', L`Lederhosen addosso`, 'st6_1', 1], ['ok2', L`Il conto della Forestale`, 'st6_2', 1], ['ok3', L`Svetlana sui tavoli`, 'st6_3', 2], ['ok4', L`Prosit finale`, 'st6_4', 3],
+    ['fo5', L`La Forestale all'Oktoberfest`, 'forestale5', 2], ['ok5', L`Il tendone EDT`, 'b_tendone', 1], ['ok6', L`Birreria reale`, 'b_birreria', 2], ['ok7', L`Boccale pieno`, 'o_boccale3', 1]] },
 ];
 const RAR = { 1: [L`Comune`, 10], 2: [L`Rara`, 4], 3: ['D\'oro', 1] };
 const ALL = PAGES.flatMap((p) => p.items.map(([id, name, img, r]) => ({ id, name, img, r, page: p })));

@@ -239,11 +239,13 @@ function goalsFrom(layout = [], tiles = []) {
   if (velox) goals.push({ type: 'velox', n: velox });
   const gomme = cnt(/g/g);
   if (gomme) goals.push({ type: 'gomme', n: gomme });
+  const mug = cnt(/b/g);
+  if (mug) goals.push({ type: 'mug', n: mug });
   return goals;
 }
 
 // livelli difficili (come in Royal Match): uno ogni 10, segnati in rosso e pagati il doppio
-const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 96, 107, 117]);
+const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 96, 107, 117, 127, 137, 147]);
 export const isHard = (n) => HARD.has(n);
 export function getLevel(n) {
   const lv0 = baseLevel(n);
@@ -305,6 +307,42 @@ function moroccoLevel(n, rng, tier) {
   const moves = Math.round(20 + weight * 0.9 + 3);
   return { n, moves: Math.min(moves, 38), colors, goals, layout, drops };
 }
+// Oktoberfest (121+): festoni (k), conti da pagare (t), boccali da riempire (b), fusti (d), livelli a tempo
+function oktoberLevel(n, rng, tier) {
+  const colors = 6;
+  const pick = ['mug', 'garland', 'mug+mud', 'bill', 'drop', 'time', 'mug+garland', 'crate+bill', 'drop+garland', 'mug', 'time', 'mug+crate'];
+  const FIRST = { 121: 'garland', 122: 'mug', 123: 'bill' };
+  const kind = FIRST[n] || pick[(n * 7 + Math.floor(rng() * 3)) % pick.length];
+  if (kind === 'time') {
+    const a = Math.floor(rng() * colors), b2 = (a + 2) % colors;
+    const layout = thin(makeLayout(rng, tier, rng() < .5 ? 'mud' : 'chain', rng() < .4), rng, 10);
+    const goals = [{ type: 'tile', t: a, n: 24 + Math.min(tier, 6) }, { type: 'tile', t: b2, n: 24 + Math.min(tier, 6) }, ...goalsFrom(layout)];
+    return { n, moves: 999, time: 95 + goals.length * 10, colors, goals, layout };
+  }
+  const base = kind.includes('garland') ? 'chain' : kind.includes('bill') ? 'multa' : kind.includes('mud') ? 'mud' : kind.includes('crate') ? 'crate' : '';
+  const G = makeLayout(rng, tier, base || 'none', rng() < 0.45).map((r) => r.split(''));
+  const free = (r, c) => G[r][c] === '.';
+  const sym = (r, c, ch) => { if (free(r, c)) G[r][c] = ch; if (free(r, 7 - c)) G[r][7 - c] = ch; };
+  if (kind.includes('mug')) for (let i = 0, g = 0; i < 2 + (tier > 26 ? 1 : 0) && g < 80; g++) { const r = 2 + Math.floor(rng() * 5), c = Math.floor(rng() * 4); if (free(r, c)) { sym(r, c, 'b'); i++; } }
+  let drops = 0;
+  if (kind.includes('drop')) {
+    for (const c of [2, 5]) { for (let r = 0; r < 2; r++) if (G[r][c] === '#') G[r][c] = '.'; G[0][c] = 'd'; }
+    for (let c = 0; c < 8; c++) if (G[8][c] === '#') G[8][c] = '.';
+    drops = 4 + Math.min(2, Math.floor((n - 120) / 10));
+  }
+  let layout = thin(G.map((r) => r.join('')), rng, 18);
+  const goals = goalsFrom(layout);
+  if (drops) goals.unshift({ type: 'drop', n: drops });
+  const weight = goals.reduce((s2, g) => s2 + (g.type === 'drop' ? g.n * 2.2 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 3 : g.type === 'mug' ? g.n * 1.5 : g.n / 3), 0);
+  const moves = Math.round(21 + weight * 0.9 + 3);
+  return { n, moves: Math.min(moves, 38), colors, goals, layout, drops };
+}
+const BOSS_LINES5 = [
+  L`Ozapft is! E anche la multa è servita.`,
+  L`Lederhosen, piuma sul cappello e blocchetto nuovo. Prost!`,
+  L`Qui si canta, si beve e si paga. Soprattutto si paga.`,
+  L`Il tendone è mio. Voi state fuori, in fila, a pagare.`,
+];
 function baseLevel(n) {
   if (HAND[n]) {
     const h = HAND[n];
@@ -318,14 +356,15 @@ function baseLevel(n) {
   const tier = Math.floor((n - 1) / 5);
   const isBoss = n % 5 === 0;
   const colors = 6;
+  if (n > 120 && !isBoss) return oktoberLevel(n, rng, tier);
   if (n > 90 && !isBoss) return moroccoLevel(n, rng, tier);
   if (isBoss) {
     const hp = 220 + (tier - 3) * 15;
-    const layout = makeLayout(rng, tier, n > 90 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
+    const layout = makeLayout(rng, tier, n > 120 ? (rng() < 0.5 ? 'crate' : 'chain') : n > 90 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
     return {
       n, moves: n > 90 ? 40 : 28, colors, boss: { hp, every: 4 },
       goals: [{ type: 'boss', n: hp }], layout,
-      intro: n > 90 ? { who: 'forestale4', text: BOSS_LINES4[tier % BOSS_LINES4.length] } : n > 60 ? { who: 'forestale3', text: BOSS_LINES3[tier % BOSS_LINES3.length] } : n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
+      intro: n > 120 ? { who: 'forestale5', text: BOSS_LINES5[tier % BOSS_LINES5.length] } : n > 90 ? { who: 'forestale4', text: BOSS_LINES4[tier % BOSS_LINES4.length] } : n > 60 ? { who: 'forestale3', text: BOSS_LINES3[tier % BOSS_LINES3.length] } : n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
     };
   }
   // al Passo (31+) il ghiaccio (k) è l'ostacolo di casa
@@ -400,4 +439,4 @@ function makeLayout(rng, tier, kind, holes) {
   return G.map((row) => row.join(''));
 }
 
-export const MAX_LEVEL = 120;
+export const MAX_LEVEL = 150;

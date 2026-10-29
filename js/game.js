@@ -6,6 +6,7 @@ import * as FX from './fx.js';
 import * as AU from './audio.js';
 import * as RANK from './rank.js';
 import { initStory, playStory, STORY, STORY_ORDER } from './story.js';
+import * as V from './viral.js';
 
 const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -109,6 +110,9 @@ let pendingStar = 0;      // stelle in volo verso il contatore
 let viewZone = null;      // zona che si sta guardando
 
 function bldTop(b) { return 14 + b.y * 0.72; }
+// quanto dell'edificio è già su (dal basso): tappa 0 niente, 1 fondamenta, 2 metà, 3 finito
+const RISE = [0, 0.3, 0.68, 1];
+const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, STEPS))]) * 100)}% 0 0 0)`;
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 
 // converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
@@ -119,6 +123,7 @@ function mapPoint(map, x, y) {
 
 function renderHome(popId = null) {
   renderWeekBadge();
+  $('#albPct').textContent = `${V.albumCount()}/${V.albumTotal()}`;
   $('#hStars').textContent = save.stars - pendingStar;
   $('#hCoins').textContent = save.coins;
   const zone = viewZone || currentZone();
@@ -142,8 +147,10 @@ function renderHome(popId = null) {
     d.dataset.id = b.id;
     d.style.left = b.x + '%';
     d.style.top = bldTop(b) + '%';
-    d.innerHTML = `<div class="img" style="background-image:${I(built || !isNext ? 'b_' + b.id : 'b_cantiere')}"></div>
-      ${isNext ? `<div class="chip">${st}/${STEPS}</div>` : ''}
+    d.innerHTML = (isNext ? `<div class="img ghostL" style="background-image:${I('b_' + b.id)}"></div><div class="img rise" style="background-image:${I('b_' + b.id)};clip-path:${riseClip(st)}"></div><div class="img scaf s${st}" style="background-image:${I('b_cantiere')}"></div>`
+      : `<div class="img" style="background-image:${I('b_' + b.id)}"></div>`) + `
+      ${isNext ? `<div class="pbar"><i style="width:${st / STEPS * 100}%"></i><span>${st}/${STEPS}</span></div>` : ''}
+      ${built ? '<div class="flags"><i></i><i></i></div>' : ''}
       ${built && CHARS[b.who] ? `<div class="resident" style="background-image:${I(CHARS[b.who].img)};animation-delay:${(b.x + b.y) % 7 * -0.4}s"></div>` : ''}
       ${built && (b.id === 'bar' || b.id === 'rifugio' || b.id === 'sauna') ? '<div class="smoke"><i></i><i></i><i></i></div>' : ''}
       <div class="tag">${built ? b.name : isNext ? `<i class="ic ic-hammer"></i> ${b.name}` : `<i class="ic ic-lock"></i> ${b.name}`}</div>`;
@@ -259,38 +266,103 @@ async function tryBuild() {
   const done = isBuilt(nb);
   const zoneFinished = done && zoneDone(zoneOf(nb));
   const map = $('#map');
-  const el = map.querySelector(`.bld[data-id="${nb.id}"]`);
+  const el0 = map.querySelector(`.bld[data-id="${nb.id}"]`);
   map.style.transformOrigin = `${nb.x}% ${bldTop(nb)}%`;
   map.style.transform = 'scale(1.45)';
   $('#hStars').textContent = save.stars;
-  await sleep(650);
-  const r = el.getBoundingClientRect(), ar = app.getBoundingClientRect();
+  const ar = app.getBoundingClientRect();
+  // le stelle volano dal contatore al cantiere
+  await sleep(450);
+  {
+    const pill = $('#hStars').parentElement.getBoundingClientRect();
+    const tr = el0.getBoundingClientRect();
+    for (let k = 0; k < STEP_COST; k++) {
+      const st = document.createElement('div'); st.className = 'flystar ic-star';
+      const x0 = pill.left - ar.left + 18, y0 = pill.top - ar.top + 18;
+      const x1 = tr.left - ar.left + tr.width * .5, y1 = tr.top - ar.top + tr.height * .5;
+      st.style.left = x0 + 'px'; st.style.top = y0 + 'px'; app.appendChild(st);
+      st.animate([{ transform: 'translate(-50%,-50%) scale(.6)' }, { transform: `translate(calc(-50% + ${(x1 - x0) * .5}px), calc(-50% + ${(y1 - y0) * .5 - 90}px)) scale(1.4) rotate(180deg)` }, { transform: `translate(calc(-50% + ${x1 - x0}px), calc(-50% + ${y1 - y0}px)) scale(.4) rotate(360deg)` }], { duration: 700, delay: k * 140, easing: 'ease-in-out', fill: 'forwards' });
+      setTimeout(() => { st.remove(); beep(880 + k * 220, .08, 'triangle', .08); FX.burst(x1, y1, '#ffd34d', 8, 1); }, 700 + k * 140);
+    }
+  }
+  await sleep(850);
+  const el = map.querySelector(`.bld[data-id="${nb.id}"]`);
+  const r = el.getBoundingClientRect();
   const cx = r.left - ar.left + r.width / 2, cy = r.top - ar.top + r.height * .55;
+  // il personaggio dell'edificio arriva di corsa e martella
+  const who = CHARS[nb.who] ? nb.who : 'gabbah';
+  const wk = document.createElement('div');
+  wk.className = 'worker'; wk.style.backgroundImage = I(CHARS[who].img);
+  wk.style.left = (cx - r.width * .6) + 'px'; wk.style.top = (cy - r.height * .05) + 'px';
+  app.appendChild(wk);
   const h = document.createElement('div');
   h.className = 'hammer ic-hammer';
-  h.style.left = (cx + r.width * .2) + 'px'; h.style.top = (cy - r.height * .5) + 'px';
+  h.style.left = (cx + r.width * .12) + 'px'; h.style.top = (cy - r.height * .55) + 'px';
   app.appendChild(h);
-  for (let k = 0; k < 4; k++) {
-    setTimeout(() => { FX.dust(cx + (Math.random() - .5) * r.width * .7, cy + (Math.random() - .2) * r.height * .3, 4, 'rgba(210,180,140,.9)'); sfx.hammer(); FX.shake(2, .15); }, k * 300 + 150);
+  // pezzi che cadono e si incastrano
+  const PIECES = ['#a8683a', '#c94a2a', '#8a8f99', '#e9b23a'];
+  for (let k = 0; k < 7; k++) {
+    setTimeout(() => {
+      const pc = document.createElement('div'); pc.className = 'piece';
+      pc.style.background = PIECES[k % 4];
+      const px = cx + (Math.random() - .5) * r.width * .6, py = cy + (Math.random() - .3) * r.height * .25;
+      pc.style.left = px + 'px'; pc.style.top = py + 'px'; app.appendChild(pc);
+      pc.animate([{ transform: `translate(-50%, -${260 + Math.random() * 80}px) rotate(${Math.random() * 360}deg)` }, { transform: 'translate(-50%, 0) rotate(0deg)', offset: .75 }, { transform: 'translate(-50%, -14px) rotate(0)', offset: .87 }, { transform: 'translate(-50%, 0)', opacity: 0 }], { duration: 620, easing: 'cubic-bezier(.5,0,.8,.6)', fill: 'forwards' });
+      setTimeout(() => { FX.dust(px, py, 3, 'rgba(225,200,160,.95)'); pc.remove(); }, 620);
+    }, k * 160);
   }
-  await sleep(1250);
+  for (let k = 0; k < 5; k++) {
+    setTimeout(() => { FX.burst(cx + r.width * .12, cy - r.height * .15, '#ffe27a', 6, .9); sfx.hammer(); FX.shake(2, .12); }, k * 260 + 150);
+  }
+  // la parte costruita sale e la barra si riempie
+  const rise = el.querySelector('.rise');
+  if (rise) rise.animate([{ clipPath: riseClip(stepsOf(nb) - 1) }, { clipPath: riseClip(stepsOf(nb)) }], { duration: 1300, delay: 200, easing: 'cubic-bezier(.3,1.3,.5,1)', fill: 'forwards' });
+  const bar = el.querySelector('.pbar i');
+  if (bar) { bar.style.transition = 'width 1.2s cubic-bezier(.3,1.3,.5,1) .3s'; requestAnimationFrame(() => { bar.style.width = (stepsOf(nb) / STEPS * 100) + '%'; }); }
+  const sc = el.querySelector('.scaf'); if (sc && done) { sc.style.transition = 'opacity .8s .6s'; sc.style.opacity = '0'; }
+  await sleep(1450);
   h.remove();
+  wk.classList.add('cheer');
   for (let k = 0; k < 8; k++) FX.dust(cx + (Math.random() - .5) * r.width, cy + (Math.random() - .5) * r.height * .5, 3, 'rgba(230,210,180,.95)');
   if (done) {
     sfx.build();
     renderHome(nb.id);
     map.style.transform = 'scale(1.45)';
-    const cols = ['#ffd34d', '#ff5a3c', '#3d8bff', '#4fd25f', '#ff4fa3', '#ffffff'];
-    for (let k = 0; k < 6; k++) FX.burst(cx + (Math.random() - .5) * 60, cy - 30, cols[k], 14, 1.6);
-    FX.glow(cx, cy, r.width * .8); FX.flash(.4);
-    FX.banner(nb.name, 'Costruito!', '#ffd34d');
+    map.querySelector(`.bld[data-id="${nb.id}"]`)?.classList.add('rising');
+    const rays = document.createElement('div'); rays.className = 'bldrays';
+    rays.style.left = cx + 'px'; rays.style.top = (cy - r.height * .1) + 'px'; app.appendChild(rays);
+    setTimeout(() => rays.remove(), 2600);
+    setTimeout(() => {
+      FX.ring(cx, cy + r.height * .3, r.width * .9, 'rgba(240,225,195,.95)', 14);
+      for (let k = 0; k < 14; k++) FX.dust(cx + (Math.random() - .5) * r.width * 1.3, cy + r.height * .3, 3, 'rgba(230,210,180,.95)');
+      FX.shake(6, .3);
+      const cols = ['#ffffff', '#e8322a', '#2f5fa8', '#ffd34d', '#ffffff', '#e8322a'];
+      for (let k = 0; k < 6; k++) FX.burst(cx + (Math.random() - .5) * 80, cy - 40, cols[k], 16, 1.8);
+      FX.glow(cx, cy, r.width * .9); FX.flash(.35);
+      const ban = document.createElement('div'); ban.className = 'builtban';
+      ban.innerHTML = `<small>COSTRUITO!</small><b>${nb.name}</b>`; app.appendChild(ban);
+      setTimeout(() => ban.remove(), 2400);
+    }, 380);
+    voice(who, 1, 4000);
+    // premio in monete che volano al contatore
+    const PRIZE = 40;
+    save.coins += PRIZE; persist();
+    setTimeout(() => {
+      const cp = $('#hCoins').parentElement.getBoundingClientRect();
+      for (let k = 0; k < 6; k++) {
+        const c = document.createElement('div'); c.className = 'flystar ic-coin'; c.style.left = cx + 'px'; c.style.top = cy + 'px'; app.appendChild(c);
+        c.animate([{ transform: 'translate(-50%,-50%) scale(.4)' }, { transform: `translate(calc(-50% + ${(Math.random() - .5) * 120}px), calc(-50% - ${60 + Math.random() * 60}px)) scale(1.1)`, offset: .35 }, { transform: `translate(calc(-50% + ${cp.left - ar.left + 18 - cx}px), calc(-50% + ${cp.top - ar.top + 18 - cy}px)) scale(.6)` }], { duration: 900, delay: k * 70, easing: 'ease-in-out', fill: 'forwards' });
+        setTimeout(() => { c.remove(); beep(1200, .05, 'square', .04); if (k === 5) { $('#hCoins').textContent = save.coins; const pl = $('#hCoins').parentElement; pl.classList.remove('bump'); void pl.offsetWidth; pl.classList.add('bump'); toast(`+${PRIZE} monete`, 900); } }, 900 + k * 70);
+      }
+    }, 1500);
   } else {
     beep(660, 0.12, 'triangle', 0.1);
     renderHome();
     map.style.transform = 'scale(1.45)';
     FX.banner(`Tappa ${stepsOf(nb)} di ${STEPS}`, nb.name, '#ffd34d');
   }
-  await sleep(1100);
+  await sleep(done ? 2600 : 1100);
+  wk.classList.add('leave'); setTimeout(() => wk.remove(), 500);
   map.style.transform = '';
   await sleep(500);
   G.building = false;
@@ -370,24 +442,8 @@ function checkDaily() {
   if (!save.welcomed || (save.daily && save.daily.last === today)) return false;
   const y = new Date(); y.setDate(y.getDate() - 1);
   const streak = save.daily && save.daily.last === dayKey(y) ? (save.daily.streak % 7) + 1 : 1;
-  const prize = DAILY[streak - 1];
-  const tiles = DAILY.map((d, i) => {
-    const cls = i + 1 < streak ? 'got' : i + 1 === streak ? 'today' : '';
-    const ico = d.p ? `<span class="di" style="background-image:${I(P_IMG[d.p])}"></span>` : `<span class="di" style="background-image:${I('u_moneta')}"></span>`;
-    return `<div class="day ${cls}"><small>${i === 6 ? 'Giorno 7' : 'G' + (i + 1)}</small>${ico}<b>${d.p ? P_NAME[d.p] : d.coins}</b></div>`;
-  }).join('');
-  showCard(`<h2>Premio del giorno</h2><p>${streak > 1 ? `Sei tornato <b>${streak} giorni di fila</b>!` : 'Torna ogni giorno: il premio cresce.'}</p>
-    <div class="days">${tiles}</div>
-    <div class="row"><button id="cTake" class="btn btn-play">Ritira!</button></div>`, {
-    cTake: () => {
-      if (prize.coins) save.coins += prize.coins;
-      if (prize.p) save.inv[prize.p] = (save.inv[prize.p] || 0) + 1;
-      save.daily = { last: today, streak };
-      persist(); hideCard(); sfx.coin(); fireworks(700);
-      $('#hCoins').textContent = save.coins;
-      FX.banner(prize.p ? `+1 ${P_NAME[prize.p]}` : `+${prize.coins} monete`, prize.p ? 'la trovi a inizio livello' : '', '#ffd34d');
-    },
-  });
+  save.daily = { last: today, streak }; persist();
+  V.spinWheel(streak, () => {});
   return true;
 }
 
@@ -470,7 +526,7 @@ async function openRanking(justJoined = false) {
   if (!RANK.getNick()) { askNick(); return; }
   const me = RANK.getNick().toLowerCase();
   showCard(`<h2>Classifica EDT</h2><p class="rkload">Chiedo i risultati al Campo Base…</p>
-    <div class="row"><button id="cStory" class="btn btn-gray">🎬 La storia</button><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard, cStory: openStoryList });
+    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
   let list, taken = false;
   try {
     const r = totalStars() > 0 ? await RANK.submit(totalStars(), save.level) : null;
@@ -481,14 +537,44 @@ async function openRanking(justJoined = false) {
   }
   if (!document.querySelector('.rkload')) return;   // chiusa nel frattempo
   const medal = ['🥇', '🥈', '🥉'];
-  const rows = list.map((e, i) => `<div class="rk${String(e.name).toLowerCase() === me ? ' me' : ''}"><span class="pos">${medal[i] || i + 1}</span><b>${esc(e.name)}</b><span class="st">${+e.stars || 0} ${IC_S}</span><small>liv ${+e.level || 0}</small></div>`).join('');
-  showCard(`<h2>Classifica EDT</h2>
+  const crown = save.crown && save.crown.name ? String(save.crown.name).toLowerCase() : '';
+  const rows = list.map((e, i) => `<div class="rk${String(e.name).toLowerCase() === me ? ' me' : ''}"><span class="pos">${medal[i] || i + 1}</span><b>${String(e.name).toLowerCase() === crown ? '👑 ' : ''}${esc(e.name)}</b><span class="st">${+e.stars || 0} ${IC_S}</span><small>liv ${+e.level || 0}</small></div>`).join('');
+  showCard(`<h2>Classifica EDT</h2>${RK_TABS(0)}
     ${taken ? '<p class="red">Il nome <b>' + RANK.getNick() + '</b> è già di un altro telefono: cambialo.</p>' : ''}
     <div class="rklist">${rows || '<p>Ancora nessuno in classifica: fai tu il primo!</p>'}</div>
     <p class="small">Sei <b>${RANK.getNick()}</b> · ${totalStars()} ${IC_S} · <a href="#" id="cNick">cambia nome</a></p>
-    <div class="row"><button id="cStory" class="btn btn-gray">🎬 La storia</button><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard, cStory: openStoryList });
+    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
   const cn = $('#cNick'); if (cn) cn.onclick = (e) => { e.preventDefault(); askNick(); };
+  bindRkTabs();
   if (justJoined && !taken) FX.banner('Sei in classifica!', '', '#ffd34d');
+}
+const RK_TABS = (on) => `<div class="gtabs"><button class="gtab${on === 0 ? ' on' : ''}" data-rk="0">Generale</button><button class="gtab${on === 1 ? ' on' : ''}" data-rk="1">🏁 Gara del weekend</button></div>`;
+function bindRkTabs() { document.querySelectorAll('.gtab[data-rk]').forEach((b) => { b.onclick = () => { sfx.click(); if (b.dataset.rk === '1') openWeekend(); else openRanking(); }; }); }
+async function openWeekend() {
+  if (!RANK.getNick()) { askNick(); return; }
+  const w = V.weekendInfo(), me = RANK.getNick().toLowerCase();
+  const head = w.active ? '<p>Da <b>venerdì a domenica</b>: ogni stella vale 1 punto, ogni livello nuovo 2 in più. Chi vince è <b>👑 Re del Giro Easy</b> per tutta la settimana dopo!</p>'
+    : `<p>La gara è chiusa: riapre <b>venerdì</b>. Il vincitore dell'ultimo weekend è <b>👑 Re del Giro Easy</b> fino alla prossima gara.</p>`;
+  showCard(`<h2>Gara del weekend</h2>${RK_TABS(1)}${head}<p class="rkload">Chiedo i risultati…</p><div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+  bindRkTabs();
+  let list;
+  try {
+    const mine = save.we && save.we.id === w.id ? save.we.pts : 0;
+    const r = w.active && mine ? await RANK.weSubmit(w.id, mine) : null;
+    list = r ? r.list : await RANK.weTop();
+  } catch { const p = document.querySelector('.rkload'); if (p) p.textContent = 'Niente rete: riprova quando torni online.'; return; }
+  if (!document.querySelector('.rkload')) return;
+  const last = list.filter((e) => e.id === w.last).sort((a, b) => b.pts - a.pts);
+  if (last[0]) { save.crown = { id: w.last, name: last[0].name }; persist(); }
+  const cur = w.active ? list.filter((e) => e.id === w.id).sort((a, b) => b.pts - a.pts) : last;
+  const medal = ['🥇', '🥈', '🥉'];
+  const rows = cur.slice(0, 20).map((e, i) => `<div class="rk${String(e.name).toLowerCase() === me ? ' me' : ''}"><span class="pos">${i === 0 && !w.active ? '👑' : medal[i] || i + 1}</span><b>${esc(e.name)}</b><span class="st">${e.pts} pt</span></div>`).join('');
+  showCard(`<h2>Gara del weekend</h2>${RK_TABS(1)}${head}
+    ${save.crown && save.crown.name ? `<p class="crownline">👑 Re del Giro Easy: <b>${esc(save.crown.name)}</b></p>` : ''}
+    <div class="rklist">${rows || `<p>${w.active ? 'Ancora nessuno questo weekend: vinci un livello e sei primo!' : 'Lo scorso weekend nessuno ha giocato.'}</p>`}</div>
+    ${w.active ? `<p class="small">I tuoi punti: <b>${save.we && save.we.id === w.id ? save.we.pts : 0}</b></p>` : ''}
+    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
+  bindRkTabs();
 }
 
 // ---------------- elenco livelli (per rigiocarli e prendere 3 stelle) ----------------
@@ -504,7 +590,7 @@ function openLevelList() {
   const tot = Object.values(save.best).reduce((a, b) => a + b, 0);
   showCard(`<h2>I tuoi livelli</h2><p>Stelle prese: <b>${tot}</b> su <b>${(last - (save.level > last ? 0 : 1)) * 3}</b>. Rigioca un livello per prendere le stelle che mancano.</p>
     <div class="lvgrid">${cells.join('')}</div>
-    <div class="row"><button id="cStory" class="btn btn-gray">🎬 La storia</button><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard, cStory: openStoryList });
+    <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
   document.querySelectorAll('.lv').forEach((b) => { b.onclick = () => { sfx.click(); openLevel(+b.dataset.n); }; });
 }
 
@@ -596,7 +682,7 @@ function artFor(t) {
 }
 function makeTileEl(t, r, c) {
   const el = document.createElement('div');
-  el.className = 'tile' + (t.power ? ' power' : '') + (t.chain ? ' chained' : '') + (t.power === 'mH' ? ' dirH' : t.power === 'mV' ? ' dirV' : '');
+  el.className = 'tile' + (t.power ? ' power' : '') + (t.chain ? ' chained' : '') + (t.power === 'mH' ? ' dirH' : t.power === 'mV' ? ' dirV' : '') + (t.gold ? ' gold' : '');
   el.style.backgroundImage = artFor(t);
   el.style.transform = pos(r, c);
   $('#board').appendChild(el);
@@ -611,6 +697,36 @@ function refreshArt(t) {
   el.classList.toggle('chained', !!t.chain);
   el.classList.toggle('dirH', t.power === 'mH');
   el.classList.toggle('dirV', t.power === 'mV');
+  el.classList.toggle('gold', !!t.gold && !t.power);
+}
+// birra d'oro: una tessera birra luccicante che vale doppio e dà monete
+function makeGold() {
+  const b = G.board; if (!b) return;
+  if (b.grid.flat().some((t) => t && t.gold)) return;
+  const list = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { const t = b.grid[r][c]; if (t && !t.rock && !t.chain && !t.power && t.color === 0) list.push(t); }
+  const t = list[Math.floor(Math.random() * list.length)];
+  if (!t) return;
+  t.gold = true; refreshArt(t);
+}
+// a sorpresa, una volta per livello, un amico dell'EDT dà una mano
+const HELPERS = [
+  { who: 'miti', txt: 'Arriva Miti col drone!', pw: 'drone' },
+  { who: 'renard', txt: 'Renard ti lancia una tanica!', pw: 'bomb' },
+  { who: 'costa', txt: 'Costa ti presta la moto!', pw: 'mH' },
+  { who: 'svetlana', txt: 'Svetlana porta la grappa!', pw: 'grappa' },
+];
+async function surpriseHelper() {
+  const h = HELPERS[Math.floor(Math.random() * (G.level.n > 15 ? 4 : 3))];
+  G.helped = true;
+  const c = CHARS[h.who];
+  const d = document.createElement('div'); d.className = 'helper';
+  d.innerHTML = `<i style="background-image:${I(c.img)}"></i><span>${h.txt}</span>`;
+  app.appendChild(d); setTimeout(() => d.remove(), 2600);
+  voice(h.who, 0, 4000); sfx.power && sfx.power();
+  await sleep(700);
+  placeStartPowers([h.pw]);
+  await sleep(900);
 }
 
 function buildBoardDOM() {
@@ -934,6 +1050,11 @@ async function doClear(clear, matched, created, pre = []) {
     } else {
       if (t.color >= 0) credit('tile', r, c, t.color);
       else credit('boss', r, c);
+      if (t.gold) {
+        credit('tile', r, c, t.color); save.coins += 10;
+        const [gx, gy] = cellCenter(r, c); FX.burst(gx, gy, '#ffd34d', 18, 1.6); FX.ring(gx, gy, G.S * 1.2, '#fff3a8', 7);
+        floater('Birra d\'oro! +10', r, c); beep(1320, .12, 'triangle', .1, 400);
+      }
       killTile(t, r, c, n++);
       b.grid[r][c] = null;
     }
@@ -1332,6 +1453,8 @@ async function endTurn() {
     repositionAll(false);
     await sleep(400);
   }
+  if ((G.moveCount || 0) % 4 === 0 && Math.random() < 0.6) makeGold();
+  if (!G.boss && !G.helped && !G.exhibit && (G.moveCount || 0) >= 5 && G.moves > 3 && Math.random() < 0.22) await surpriseHelper();
   saveRun();
   if (G.explainQ.size) { const ks = [...G.explainQ]; G.explainQ.clear(); await explain(ks, ks.length > 1 ? 'Nuovi potenziamenti!' : 'Nuovo potenziamento!'); }
   G.busy = false;
@@ -1370,6 +1493,17 @@ async function winLevel() {
     }
     await resolve({ pending: [{ cells }] });
   }
+  if (G.exhibit) {   // sfida su un livello non ancora sbloccato
+    save.coins += 20; persist(); sfx.win();
+    showCard(`<h2 class="wintitle">Sfida superata!</h2>
+      <div class="stars3 fill">${[1, 2, 3].map((k) => `<i class="ic ic-star slot${k <= stars ? ' on' : ''}" data-k="${k}"></i>`).join('')}</div>
+      ${V.challengeResult(n, stars, true)}<p>Questo livello lo sblocchi davvero più avanti: intanto <b>+20 ${IC_C}</b>.</p>
+      <button id="cShare" class="btn btn-share">📣 Rilancia la sfida</button>
+      <div class="row"><button id="cHome" class="btn btn-play">Campo base</button></div>`,
+    { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg), cHome: () => { hideCard(); goHome(); } });
+    fireworks(1500);
+    return;
+  }
   const first = n >= save.level;
   if (first) weekTrack('win');   // contano solo i livelli nuovi, non quelli rigiocati
   const prev = save.best[n] || 0;
@@ -1383,6 +1517,12 @@ async function winLevel() {
   save.level = Math.max(save.level, n + 1);
   persist();
   submitScore();
+  // gara del weekend: stelle prese + 2 per ogni livello nuovo
+  { const pts = V.weekendPoints(stars + (first ? 2 : 0)); const w = V.weekendInfo(); if (pts && RANK.getNick()) RANK.weSubmit(w.id, pts).catch(() => {}); }
+  // figurina: sempre al primo passaggio, a volte rigiocando
+  const sticker = first || Math.random() < 0.4 ? V.drawSticker() : null;
+  const chest = V.chestTick(true);
+  const chRes = V.challengeResult(n, stars, true);
   sfx.win();
   const nb = nextBuilding();
   const [who, line] = pick(WIN_LINES);
@@ -1392,9 +1532,15 @@ async function winLevel() {
     <div class="stars3 fill">${[1, 2, 3].map((k) => `<i class="ic ic-star slot" data-k="${k}"></i>`).join('')}</div>
     <p class="winsub">${stars === 3 ? 'Perfetto! Tre stelle piene.' : `Con meno mosse usate prendi ${stars === 1 ? 'fino a 3' : 'la terza'} ${IC_S}`}</p>
     <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? `<br>Con ${STEP_COST} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
+    ${chRes}
     <div class="cheer">${speakerHTML(who, line)}</div>
+    ${sticker ? `<p class="stkhint">📒 Hai trovato una figurina!</p>` : ''}
+    <button id="cShare" class="btn btn-share">📣 Condividi e sfida un amico</button>
     <div class="row">${stars < 3 ? '<button id="cAgain" class="btn btn-gray">Rigioca</button>' : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cHome: () => { hideCard(); explain(['coins'], 'Hai guadagnato monete!').then(goHome); }, cAgain: () => { hideCard(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
+    { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg),
+      cHome: async () => { hideCard(); await afterWin(); explain(['coins'], 'Hai guadagnato monete!').then(goHome); },
+      cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
+  async function afterWin() { if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); }
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
   const ar = app.getBoundingClientRect();
   for (let k = 1; k <= stars; k++) {
@@ -1414,6 +1560,15 @@ async function winLevel() {
 async function loseLevel() {
   G.over = true;
   clearRun();
+  V.chestTick(false);
+  const leftN = G.goals.reduce((a, g) => a + goalLeft(g), 0), totN = G.goals.reduce((a, g) => a + g.n, 0);
+  if (leftN <= Math.max(3, totN * 0.08)) {   // perso per un soffio
+    FX.shake(10, .4); FX.flash(.3);
+    const q = document.createElement('div'); q.className = 'quasi'; q.innerHTML = `<b>QUASI!</b><small>ti mancava${leftN === 1 ? '' : 'no'} solo ${leftN}</small>`;
+    app.appendChild(q); setTimeout(() => q.remove(), 1900);
+    voice('purcello', 1, 3000);
+    await sleep(1700);
+  }
   sfx.lose();
   const canBuy = save.coins >= 200;
   const left = G.goals.filter((g) => g.done < g.n).map((g) => `${goalLeft(g)}`).join(', ');
@@ -1639,8 +1794,14 @@ const HELP = {
   // campo base
   build: { img: 'b_cantiere', t: 'Costruire', d: 'Ogni edificio ha <b>3 pezzi</b> e ogni pezzo costa <b>2 stelle</b>. Tocca <b>Costruisci</b> o il cantiere con la freccia. Finita una zona, se ne apre una nuova.' },
   zones: { img: 'map2_bg', t: 'Zone', d: 'Prima <b>La Valle</b>, poi <b>Il Passo</b> sulla neve (dal livello 31) e <b>La Cava</b> (dal livello 61), ognuna con edifici, ostacoli e boss nuovi. Col cartello in alto guardi le zone già sbloccate.' },
-  daily: { img: 'u_moneta', t: 'Premio del giorno', d: 'Apri il gioco ogni giorno: il premio cresce per 7 giorni (monete, Moto, Tanica e al settimo la Grappa). Se salti un giorno si riparte dal primo.' },
+  daily: { img: 'u_moneta', t: 'Ruota del giorno', d: 'Apri il gioco ogni giorno e gira la <b>Ruota del Giro Easy</b>: monete, Moto, Tanica, Grappa o una figurina. Al settimo giorno di fila la giri <b>due volte</b>.' },
   levels: { img: 'u_stella', t: 'Livelli', d: 'Dal pulsante <b>Livelli</b> rigiochi quelli già fatti per prendere le stelle che mancano.' },
+  album: { img: 'c_miti', t: 'Album figurine EDT', d: 'Vincendo i livelli trovi figurine dei piloti, della Forestale e dei momenti EDT: comuni, rare e d\'oro. Completa una pagina e vinci tante monete e una Grappa. I doppioni diventano monete.' },
+  chest: { img: 'u_moneta', t: 'Forziere', d: 'Vinci <b>3 livelli di fila</b> senza perdere e si apre il forziere EDT: monete, un potenziamento e una figurina.' },
+  weekend: { img: 'u_stella', t: 'Gara del weekend', d: 'Da venerdì a domenica, in Classifica → Gara del weekend: ogni stella vale 1 punto e ogni livello nuovo 2 in più. Chi vince è <b>👑 Re del Giro Easy</b> per tutta la settimana dopo.' },
+  share: { img: 'c_gabbah', t: 'Condividi e sfida', d: 'Dopo una vittoria tocca <b>Condividi e sfida un amico</b>: parte un\'immagine per WhatsApp o le Storie con il link. Chi lo apre deve battere le tue stelle su quel livello.' },
+  gold: { img: 't0_birra', t: 'Birra d\'oro', d: 'Ogni tanto una birra luccica d\'oro: falla sparire in un tris e vale doppio per l\'obiettivo, più 10 monete.' },
+  helper: { img: 'c_svetlana', t: 'Aiuto a sorpresa', d: 'Nei livelli senza la Forestale, a volte arriva un amico EDT e ti lascia un potenziamento sulla griglia.' },
   weekly: { img: 'u_stella', t: 'Sfida della settimana', d: 'Dal pulsante <b>Sfida</b>: ogni settimana un obiettivo nuovo (togliere tante tessere di un tipo, pulire il fango, creare potenziamenti...). Lo completi giocando qualsiasi livello e vinci monete e potenziamenti. Si rinnova il lunedì.' },
   rank: { img: 'u_lucchetto', t: 'Classifica EDT', d: 'Dal pulsante <b>Classifica</b> scegli il nome e sfidi gli altri dell\'EDT: conta chi ha più stelle.' },
   rider: { img: 'fx_moto', t: 'Il giro di Miti', d: 'Quando costruisci il primo edificio di una zona, Miti inizia a girare sul sentiero del Campo Base. Non serve a niente: fa scena.' },
@@ -1651,6 +1812,7 @@ const GUIDE = [
   ['Ostacoli', ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'multa', 'boss']],
   ['Aiuti', ['coins', 'hammer', 'shield', 'pre']],
   ['Campo Base', ['build', 'zones', 'daily', 'weekly', 'levels', 'rank']],
+  ['Extra', ['album', 'chest', 'weekend', 'share', 'gold', 'helper']],
 ];
 if (!save.seen) { save.seen = {}; if (save.level > 3) { save.seen.swap = 1; save.seen.goals = 1; } }
 const helpRow = (k) => { const h = HELP[k]; return `<div class="hrow"><span class="hi" style="background-image:${I(h.img)}"></span><div><b>${h.t}</b>${h.how ? `<em>Si crea con: ${h.how}</em>` : ''}<p>${h.d}</p></div></div>`; };
@@ -1660,6 +1822,9 @@ function openGuide(tab = 0) {
     <div class="row"><button id="cStory" class="btn btn-gray">🎬 La storia</button><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard, cStory: openStoryList });
   document.querySelectorAll('.gtab').forEach((b) => { b.onclick = () => { sfx.click(); openGuide(+b.dataset.t); }; });
 }
+// ---------- condivisione, sfide, album, ruota, forziere, gara del weekend ----------
+V.initViral({ save, persist, showCard, hideCard, I, SRC, sfx, toast, FX, beep, getNick: RANK.getNick, coinsUI: () => { $('#hCoins').textContent = save.coins; }, startLevel: (...a) => startLevel(...a), fireworks, speakerHTML: (...a) => speakerHTML(...a), IC_S, MAX_LEVEL });
+V.readChallenge();
 // ---------- la storia ----------
 if (!save.story) save.story = {};
 initStory({ I, SRC, voiceSrc: (v) => (window.__V && window.__V[v]) || `audio/${v}.mp3`, duck: (t) => AU.duck(t), canVoice: () => save.voice && save.sfx, click: () => sfx.click() });
@@ -1764,15 +1929,16 @@ function offerResume() {
   return true;
 }
 
-async function startLevel(n, extras = [], resume = null) {
+async function startLevel(n, extras = [], resume = null, challenge = false) {
   const lv = getLevel(n);
+  G.exhibit = challenge && n > save.level;   // sfida di un amico su un livello non ancora sbloccato: si gioca ma non fa avanzare
   G.level = lv;
   G.board = new Board(lv);
   G.moves = lv.moves;
   G.goals = lv.goals.map((g) => ({ ...g, done: 0 }));
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
   G.ticketCleared = false; G.explainQ = new Set(); G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
-  G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null; G.droneFix = null;
+  G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null; G.droneFix = null; G.helped = false; G.moveCount = 0;
   clearPreview(); clearHint();
   if (resume) {
     const b = G.board;
@@ -1809,6 +1975,7 @@ async function startLevel(n, extras = [], resume = null) {
   AU.playMusic(lv.boss ? 'boss' : 'game');
   layout();
   buildBoardDOM();
+  if (!G.boss) setTimeout(makeGold, 900);
   renderGoals();
   renderMoves();
   scheduleHint();
@@ -1896,6 +2063,7 @@ $('#hCoins').parentElement.onclick = () => { sfx.click(); showCard(`<h2>Monete</
 $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(`<h2>Stelle</h2><div class="hlist">${helpRow('stars')}${helpRow('build')}</div><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); };
 $('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
+$('#btnAlbum').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openAlbum(); };
 // ---------- impostazioni ----------
 function togglesHTML() {
   const row = (id, label, on) => `<button class="tog${on ? ' on' : ''}" id="${id}"><span>${label}</span><i></i></button>`;
@@ -1987,12 +2155,14 @@ renderHome();
 AU.playMusic('home');
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
 const firstStory = !save.story.intro;
-if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); if (!offerResume()) checkDaily(); }, 500));
-else if (save.welcomed) setTimeout(() => { if (!offerResume()) checkDaily(); }, 600);
+const startup = () => { if (!offerResume() && !V.offerChallenge()) checkDaily(); };
+if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
+else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {
   save.welcomed = true; persist();
-  preload.then(() => setTimeout(async () => { await showStory('intro'); say('gabbah', 'Benvenuto in <b>Enduro Drinking Kingdom</b>! Ogni livello vinto vale fino a 3 stelle, e con le stelle tiriamo su il Campo Base dell\'Enduro Drinking Team. Occhio alla Forestale, che ha già il blocchetto in mano. Se hai un dubbio, tocca <b>?</b> per la guida.', 'Si parte!'); }, 500));
+  // primo minuto: storia (saltabile) e poi dritti nel livello 1, oppure nella sfida dell'amico
+  preload.then(() => setTimeout(async () => { await showStory('intro'); if (!V.offerChallenge()) { startLevel(1); toast('Scambia due tessere vicine!', 1600); } }, 500));
 }
 
 // per i test automatici
-window.__EDT = { showStory, G, save, startLevel, trySwap, goHome, openLevel, winLevel, checkDaily, openLevelList, renderHome };
+window.__EDT = { V, loseLevel, surpriseHelper, makeGold, showStory, G, save, startLevel, trySwap, goHome, openLevel, winLevel, checkDaily, openLevelList, renderHome };

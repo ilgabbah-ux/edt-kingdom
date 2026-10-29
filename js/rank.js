@@ -52,3 +52,15 @@ export async function submit(stars, level) {
   const d = await call({ action: 'add', name, score: stars * 100 + Math.min(99, level), mode: MODE, rider: 'EDT Kingdom', time: 0, win: 0, v: '1', k: getCode() });
   return { taken: !!d.taken, list: listOf(d) };
 }
+
+// ---- gara del weekend: percorso 18 (libero in Giro Easy). Punteggio = id del weekend * 1000 + punti del weekend,
+// così il weekend nuovo supera sempre il vecchio; i punti si leggono con s % 1000, il weekend con s / 1000.
+export const WE_MODE = 18;
+const weOf = (d) => ((d.boards && d.boards[WE_MODE]) || []).map((e) => ({ name: e.n, id: Math.floor(e.s / 1000), pts: e.s % 1000 }));
+export async function weTop() { return weOf(await call({ action: 'top', act: String(WE_MODE) })); }
+export async function weSubmit(id, pts) {
+  const name = getNick();
+  if (!name || pts <= 0) return null;
+  const d = await call({ action: 'add', act: String(WE_MODE), name, score: id * 1000 + Math.min(999, pts), mode: WE_MODE, rider: 'EDT Kingdom weekend', time: 0, win: 0, v: '1', k: getCode() });
+  return { taken: !!d.taken, list: weOf(d) };
+}

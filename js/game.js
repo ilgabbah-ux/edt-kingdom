@@ -514,7 +514,7 @@ function artFor(t) {
 }
 function makeTileEl(t, r, c) {
   const el = document.createElement('div');
-  el.className = 'tile' + (t.power ? ' power' : '') + (t.chain ? ' chained' : '');
+  el.className = 'tile' + (t.power ? ' power' : '') + (t.chain ? ' chained' : '') + (t.power === 'mH' ? ' dirH' : t.power === 'mV' ? ' dirV' : '');
   el.style.backgroundImage = artFor(t);
   el.style.transform = pos(r, c);
   $('#board').appendChild(el);
@@ -527,6 +527,8 @@ function refreshArt(t) {
   el.style.backgroundImage = artFor(t);
   el.classList.toggle('power', !!t.power);
   el.classList.toggle('chained', !!t.chain);
+  el.classList.toggle('dirH', t.power === 'mH');
+  el.classList.toggle('dirV', t.power === 'mV');
 }
 
 function buildBoardDOM() {

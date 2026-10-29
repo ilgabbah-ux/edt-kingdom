@@ -1,4 +1,5 @@
 // Enduro Drinking Kingdom — tutto quello che fa tornare a giocare e far giocare gli amici:
+import { L } from './i18n.js';
 // condivisione con immagine, sfida via link, album figurine, ruota della fortuna, forziere, gara del weekend.
 import { CHARS } from './kingdom.js';
 
@@ -49,14 +50,14 @@ export async function makeCard(o) {
   // fascia in basso
   ctx.fillStyle = '#e8322a'; ctx.fillRect(0, 1640, W, 170);
   ctx.fillStyle = '#f2c94c'; ctx.fillRect(0, 1632, W, 10); ctx.fillRect(0, 1810, W, 10);
-  outlined(ctx, o.footer || 'MI BATTI? 🍺', W / 2, 1745, 86, '#ffffff', '#7d120d');
+  outlined(ctx, o.footer || L`MI BATTI? 🍺`, W / 2, 1745, 86, '#ffffff', '#7d120d');
   ctx.font = '800 38px "EDT Body", sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
   ctx.fillText('ilgabbah-ux.github.io/edt-kingdom', W / 2, 1885);
   return new Promise((res) => c.toBlob(res, 'image/jpeg', .88));
 }
 
 export async function shareImage(opts, text, url) {
-  X.toast('Preparo l\'immagine…', 900);
+  X.toast(L`Preparo l'immagine…`, 900);
   const blob = await makeCard(opts);
   const file = blob && new File([blob], 'enduro-drinking-kingdom.jpg', { type: 'image/jpeg' });
   const full = `${text} ${url}`;
@@ -66,16 +67,16 @@ export async function shareImage(opts, text, url) {
   } catch (e) { if (e && e.name === 'AbortError') return; }
   // computer: scarica l'immagine e copia il testo
   if (blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'enduro-drinking-kingdom.jpg'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
-  try { await navigator.clipboard.writeText(full); X.toast('Immagine scaricata e link copiato!', 1500); } catch { X.toast('Immagine scaricata!', 1200); }
+  try { await navigator.clipboard.writeText(full); X.toast(L`Immagine scaricata e link copiato!`, 1500); } catch { X.toast(L`Immagine scaricata!`, 1200); }
 }
 
 // vittoria di un livello: immagine + link-sfida
 export function shareWin(n, stars, bg) {
-  const nick = X.getNick() || 'Un amico';
+  const nick = X.getNick() || L`Un amico`;
   const url = gameURL({ sfida: n, s: stars, da: nick });
   X.sfx.click();
-  shareImage({ bg, title: `LIVELLO ${n} SUPERATO!`, line1: `${nick} ti sfida`, stars, who: R(['gabbah', 'miti', 'purcello', 'svetlana']), footer: 'MI BATTI? 🍺' },
-    `🏍️🍺 Ho fatto ${stars} ⭐ al livello ${n} di Enduro Drinking Kingdom! Mi batti?`, url);
+  shareImage({ bg, title: L`LIVELLO ${n} SUPERATO!`, line1: L`${nick} ti sfida`, stars, who: R(['gabbah', 'miti', 'purcello', 'svetlana']), footer: L`MI BATTI? 🍺` },
+    L`🏍️🍺 Ho fatto ${stars} ⭐ al livello ${n} di Enduro Drinking Kingdom! Mi batti?`, url);
 }
 
 // ---------------- sfida via link ----------------
@@ -84,7 +85,7 @@ export function readChallenge() {
     const q = new URLSearchParams(location.search);
     const n = parseInt(q.get('sfida'), 10);
     if (n > 0 && n <= X.MAX_LEVEL) {
-      X.save.challenge = { n, s: Math.min(3, Math.max(1, parseInt(q.get('s'), 10) || 1)), da: String(q.get('da') || 'Un amico').replace(/[<>"'`\\]/g, '').slice(0, 16) };
+      X.save.challenge = { n, s: Math.min(3, Math.max(1, parseInt(q.get('s'), 10) || 1)), da: String(q.get('da') || L`Un amico`).replace(/[<>"'`\\]/g, '').slice(0, 16) };
       X.persist();
       history.replaceState(null, '', location.pathname);
     }
@@ -92,7 +93,7 @@ export function readChallenge() {
 }
 export function offerChallenge() {
   const ch = X.save.challenge; if (!ch) return false;
-  X.showCard(`<h2>🏁 Sfida!</h2>${X.speakerHTML('gabbah', `<b>${esc(ch.da)}</b> ti sfida: fai almeno <b>${ch.s} ${X.IC_S}</b> al <b>livello ${ch.n}</b>. Ce la fai?`)}
+  X.showCard(L`<h2>🏁 Sfida!</h2>${X.speakerHTML('gabbah', L`<b>${esc(ch.da)}</b> ti sfida: fai almeno <b>${ch.s} ${X.IC_S}</b> al <b>livello ${ch.n}</b>. Ce la fai?`)}
     <div class="chstars">${[1, 2, 3].map((k) => `<i class="ic ic-star${k <= ch.s ? ' on' : ''}"></i>`).join('')}</div>
     <div class="row"><button id="cLater" class="btn btn-gray">Dopo</button><button id="cGo" class="btn btn-play">Accetto!</button></div>`, {
     cLater: X.hideCard,
@@ -104,23 +105,23 @@ export function offerChallenge() {
 export function challengeResult(n, stars, won) {
   const ch = X.save.challenge;
   if (!ch || ch.n !== n) return '';
-  if (won && stars >= ch.s) { X.save.challenge = null; X.persist(); return `<p class="chres ok">🏆 Sfida vinta contro <b>${esc(ch.da)}</b>!</p>`; }
-  return `<p class="chres">${esc(ch.da)} ne ha fatte <b>${ch.s} ${X.IC_S}</b>: riprova!</p>`;
+  if (won && stars >= ch.s) { X.save.challenge = null; X.persist(); return L`<p class="chres ok">🏆 Sfida vinta contro <b>${esc(ch.da)}</b>!</p>`; }
+  return L`<p class="chres">${esc(ch.da)} ne ha fatte <b>${ch.s} ${X.IC_S}</b>: riprova!</p>`;
 }
 
 // ---------------- album figurine ----------------
 export const PAGES = [
-  { id: 'piloti', name: 'I piloti EDT', prize: 300, items: [
-    ['gabbah', 'Il Gabbah', 'c_gabbah', 3], ['miti', 'Miti', 'c_miti', 2], ['mirco', 'Mirco', 'c_mirco', 1], ['purcello', 'Purcello', 'c_purcello', 1],
-    ['costa', 'Costa', 'c_costa', 1], ['renard', 'Renard', 'c_renard', 1], ['svetlana', 'Svetlana', 'c_svetlana', 2], ['statua', 'La statua d\'oro', 'b_statua', 3]] },
-  { id: 'forestale', name: 'La Forestale', prize: 250, items: [
-    ['fo1', 'La Forestale', 'forestale', 1], ['fo2', 'Forestale col colbacco', 'forestale2', 2], ['fo3', 'Forestale del cantiere', 'forestale3', 2],
-    ['multa', 'La multa', 'o_multa', 1], ['nastro', 'Cantiere chiuso', 'o_nastro', 1], ['catena', 'Catene da neve', 'o_catena', 1]] },
-  { id: 'momenti', name: 'Momenti EDT', prize: 400, items: [
-    ['m1', 'All\'alba nella valle', 'st1_1', 1], ['m2', 'La bandiera', 'st1_3', 1], ['m3', 'Tranquilli, è un giro easy', 'st1_5', 2], ['m4', 'Mirco gela', 'st2_3', 1],
-    ['m5', 'La valanga', 'st3_1', 2], ['m6', 'La ruspa di Purcello', 'st3_4', 1], ['m7', 'Svetlana in concerto', 'st4_1', 2], ['m8', 'Foto di gruppo', 'st4_3', 3]] },
+  { id: 'piloti', name: L`I piloti EDT`, prize: 300, items: [
+    ['gabbah', L`Il Gabbah`, 'c_gabbah', 3], ['miti', 'Miti', 'c_miti', 2], ['mirco', 'Mirco', 'c_mirco', 1], ['purcello', 'Purcello', 'c_purcello', 1],
+    ['costa', 'Costa', 'c_costa', 1], ['renard', 'Renard', 'c_renard', 1], ['svetlana', 'Svetlana', 'c_svetlana', 2], ['statua', L`La statua d'oro`, 'b_statua', 3]] },
+  { id: 'forestale', name: L`La Forestale`, prize: 250, items: [
+    ['fo1', L`La Forestale`, 'forestale', 1], ['fo2', L`Forestale col colbacco`, 'forestale2', 2], ['fo3', L`Forestale del cantiere`, 'forestale3', 2],
+    ['multa', L`La multa`, 'o_multa', 1], ['nastro', L`Cantiere chiuso`, 'o_nastro', 1], ['catena', L`Catene da neve`, 'o_catena', 1]] },
+  { id: 'momenti', name: L`Momenti EDT`, prize: 400, items: [
+    ['m1', L`All'alba nella valle`, 'st1_1', 1], ['m2', L`La bandiera`, 'st1_3', 1], ['m3', L`Tranquilli, è un giro easy`, 'st1_5', 2], ['m4', L`Mirco gela`, 'st2_3', 1],
+    ['m5', L`La valanga`, 'st3_1', 2], ['m6', L`La ruspa di Purcello`, 'st3_4', 1], ['m7', L`Svetlana in concerto`, 'st4_1', 2], ['m8', L`Foto di gruppo`, 'st4_3', 3]] },
 ];
-const RAR = { 1: ['Comune', 10], 2: ['Rara', 4], 3: ['D\'oro', 1] };
+const RAR = { 1: [L`Comune`, 10], 2: [L`Rara`, 4], 3: ['D\'oro', 1] };
 const ALL = PAGES.flatMap((p) => p.items.map(([id, name, img, r]) => ({ id, name, img, r, page: p })));
 export const albumCount = () => ALL.filter((s) => X.save.album[s.id]).length;
 export const albumTotal = () => ALL.length;
@@ -140,9 +141,9 @@ export function revealSticker(res) {
     const { s, dup } = res;
     const page = s.page, have = page.items.filter(([id]) => X.save.album[id]).length;
     const complete = have === page.items.length && !X.save.albumDone[page.id];
-    X.showCard(`<h2>${dup ? 'Doppione!' : 'Nuova figurina!'}</h2>
+    X.showCard(L`<h2>${dup ? L`Doppione!` : L`Nuova figurina!`}</h2>
       <div class="stk-flip r${s.r}"><div class="stk-back"></div><div class="stk-front"><i style="background-image:${X.I(s.img)}"></i><b>${s.name}</b><small>${RAR[s.r][0]}</small></div></div>
-      <p>${dup ? 'Ce l\'avevi già: diventa <b>+15 monete</b>.' : `Pagina <b>${page.name}</b>: ${have}/${page.items.length}`}</p>
+      <p>${dup ? L`Ce l'avevi già: diventa <b>+15 monete</b>.` : `Pagina <b>${page.name}</b>: ${have}/${page.items.length}`}</p>
       <div class="row"><button id="cAlb" class="btn btn-gray">Album</button><button id="cOk" class="btn btn-play">Ok!</button></div>`, {
       cAlb: () => { X.hideCard(); openAlbum(PAGES.indexOf(page)); done(); },
       cOk: () => { X.hideCard(); if (complete) pageComplete(page).then(done); else done(); },
@@ -154,9 +155,9 @@ function pageComplete(page) {
   X.save.albumDone[page.id] = 1; X.save.coins += page.prize; X.save.inv.grappa = (X.save.inv.grappa || 0) + 1; X.persist();
   return new Promise((done) => {
     X.fireworks(2400);
-    X.showCard(`<h2>Pagina completa!</h2><p>Hai tutta la pagina <b>${page.name}</b>!</p><p><b>+${page.prize} monete</b> e una <b>Grappa</b> per il prossimo livello.</p>
+    X.showCard(L`<h2>Pagina completa!</h2><p>Hai tutta la pagina <b>${page.name}</b>!</p><p><b>+${page.prize} monete</b> e una <b>Grappa</b> per il prossimo livello.</p>
       <div class="row"><button id="cSh" class="btn btn-gray">📣 Condividi</button><button id="cOk" class="btn btn-play">Grande!</button></div>`, {
-      cSh: () => shareImage({ title: 'PAGINA COMPLETA!', line1: page.name, img: page.items[page.items.length - 1][2], who: 'gabbah', footer: 'TU A CHE PUNTO SEI?' }, `📒 Ho completato la pagina "${page.name}" dell'album di Enduro Drinking Kingdom!`, gameURL()),
+      cSh: () => shareImage({ title: L`PAGINA COMPLETA!`, line1: page.name, img: page.items[page.items.length - 1][2], who: 'gabbah', footer: L`TU A CHE PUNTO SEI?` }, L`📒 Ho completato la pagina "${page.name}" dell'album di Enduro Drinking Kingdom!`, gameURL()),
       cOk: () => { X.hideCard(); X.coinsUI(); done(); },
     });
   });
@@ -168,7 +169,7 @@ export function openAlbum(pi = 0) {
     ? `<div class="stk r${r}"><i style="background-image:${X.I(img)}"></i><b>${name}</b>${X.save.album[id] > 1 ? `<em>x${X.save.album[id]}</em>` : ''}</div>`
     : `<div class="stk empty r${r}"><i></i><b>?</b></div>`).join('');
   const have = p.items.filter(([id]) => X.save.album[id]).length;
-  X.showCard(`<h2>Album EDT</h2><div class="gtabs">${tabs}</div>
+  X.showCard(L`<h2>Album EDT</h2><div class="gtabs">${tabs}</div>
     <p class="small">${have}/${p.items.length} figurine · completa la pagina: <b>+${p.prize} monete</b> · le trovi vincendo i livelli</p>
     <div class="stkgrid">${grid}</div>
     <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: X.hideCard });
@@ -177,17 +178,17 @@ export function openAlbum(pi = 0) {
 
 // ---------------- ruota della fortuna (premio del giorno) ----------------
 const WHEEL = [
-  { t: '50', coins: 50, w: 6, c: '#2f5fa8' }, { t: 'Moto', p: 'mH', w: 4, c: '#e8322a' }, { t: '100', coins: 100, w: 4, c: '#ffffff' },
-  { t: 'Figurina', stk: 1, w: 4, c: '#ffd34d' }, { t: '25', coins: 25, w: 6, c: '#2f5fa8' }, { t: 'Tanica', p: 'bomb', w: 3, c: '#e8322a' },
-  { t: '200', coins: 200, w: 2, c: '#ffffff' }, { t: 'Grappa', p: 'grappa', w: 1, c: '#ffd34d' },
+  { t: '50', coins: 50, w: 6, c: '#2f5fa8' }, { t: L`Moto`, p: 'mH', w: 4, c: '#e8322a' }, { t: '100', coins: 100, w: 4, c: '#ffffff' },
+  { t: L`Figurina`, stk: 1, w: 4, c: '#ffd34d' }, { t: '25', coins: 25, w: 6, c: '#2f5fa8' }, { t: L`Tanica`, p: 'bomb', w: 3, c: '#e8322a' },
+  { t: '200', coins: 200, w: 2, c: '#ffffff' }, { t: L`Grappa`, p: 'grappa', w: 1, c: '#ffd34d' },
 ];
-const P_NAME = { mH: 'Moto', bomb: 'Tanica', grappa: 'Grappa' };
+const P_NAME = { mH: L`Moto`, bomb: L`Tanica`, grappa: L`Grappa` };
 export function spinWheel(streak, onDone) {
   const n = WHEEL.length, seg = 360 / n;
   const grad = WHEEL.map((s, i) => `${s.c} ${i * seg}deg ${(i + 1) * seg}deg`).join(',');
   const labels = WHEEL.map((s, i) => `<span style="transform:rotate(${i * seg + seg / 2}deg)"><b style="color:${s.c === '#ffffff' || s.c === '#ffd34d' ? '#1b3566' : '#fff'}">${s.p ? `<i style="background-image:${X.I({ mH: 'p_moto', bomb: 'p_tanica', grappa: 'p_grappa' }[s.p])}"></i>` : s.stk ? '📒' : `${s.t}<i class="ic ic-coin"></i>`}</b></span>`).join('');
   const spins = streak >= 7 ? 2 : 1;
-  X.showCard(`<h2>Ruota del Giro Easy</h2><p>${streak > 1 ? `Sei tornato <b>${streak} giorni di fila</b>!` : 'Torna ogni giorno a girarla!'}${spins > 1 ? ' Oggi giri <b>due volte</b>!' : ''}</p>
+  X.showCard(L`<h2>Ruota del Giro Easy</h2><p>${streak > 1 ? L`Sei tornato <b>${streak} giorni di fila</b>!` : L`Torna ogni giorno a girarla!`}${spins > 1 ? L` Oggi giri <b>due volte</b>!` : ''}</p>
     <div class="wheelbox"><div class="wptr"></div><div class="wheel" id="wheel" style="background:conic-gradient(${grad})">${labels}<div class="whub"></div></div></div>
     <div class="row"><button id="cSpin" class="btn btn-play">GIRA!</button></div>`, { cSpin: () => go(spins) });
   let rot = 0, busy = false;
@@ -204,14 +205,14 @@ export function spinWheel(streak, onDone) {
     setTimeout(() => {
       const s = WHEEL[idx];
       let msg;
-      if (s.coins) { X.save.coins += s.coins; msg = `+${s.coins} monete`; }
+      if (s.coins) { X.save.coins += s.coins; msg = L`+${s.coins} monete`; }
       if (s.p) { X.save.inv[s.p] = (X.save.inv[s.p] || 0) + 1; msg = `+1 ${P_NAME[s.p]}`; }
       X.persist(); X.coinsUI(); X.sfx.coin(); X.fireworks(800);
       if (s.stk) { X.hideCard(); revealSticker(drawSticker()).then(() => (left > 1 ? spinWheel(1, onDone) : onDone && onDone())); return; }
-      X.FX.banner(msg, s.p ? 'la trovi a inizio livello' : '', '#ffd34d');
+      X.FX.banner(msg, s.p ? L`la trovi a inizio livello` : '', '#ffd34d');
       busy = false;
-      if (left > 1) { const b = document.getElementById('cSpin'); if (b) { b.disabled = false; b.textContent = 'GIRA ANCORA!'; b.onclick = () => go(left - 1); } }
-      else { const b = document.getElementById('cSpin'); if (b) { b.disabled = false; b.textContent = 'Ritira!'; b.onclick = () => { X.hideCard(); onDone && onDone(); }; } }
+      if (left > 1) { const b = document.getElementById('cSpin'); if (b) { b.disabled = false; b.textContent = L`GIRA ANCORA!`; b.onclick = () => go(left - 1); } }
+      else { const b = document.getElementById('cSpin'); if (b) { b.disabled = false; b.textContent = L`Ritira!`; b.onclick = () => { X.hideCard(); onDone && onDone(); }; } }
     }, 4400);
   }
 }
@@ -227,7 +228,7 @@ export function openChest() {
   const p = R(['mH', 'bomb', 'grappa', 'mH', 'bomb']);
   X.save.coins += 150; X.save.inv[p] = (X.save.inv[p] || 0) + 1; X.persist();
   return new Promise((done) => {
-    X.showCard(`<h2>Forziere EDT!</h2><p>3 vittorie di fila!</p><div class="chest" id="chest"><i class="lid"></i><i class="box"></i></div>
+    X.showCard(L`<h2>Forziere EDT!</h2><p>3 vittorie di fila!</p><div class="chest" id="chest"><i class="lid"></i><i class="box"></i></div>
       <p id="chestTxt" style="opacity:0"><b>+150 monete</b> · <b>+1 ${P_NAME[p]}</b> · <b>+1 figurina</b></p>
       <div class="row"><button id="cOk" class="btn btn-play">Apri!</button></div>`, {
       cOk: () => {
@@ -235,7 +236,7 @@ export function openChest() {
         if (!ch.classList.contains('open')) {
           ch.classList.add('open'); X.sfx.build(); X.fireworks(1400);
           document.getElementById('chestTxt').style.opacity = 1;
-          document.getElementById('cOk').textContent = 'Prendi!';
+          document.getElementById('cOk').textContent = L`Prendi!`;
           return;
         }
         X.hideCard(); X.coinsUI(); revealSticker(drawSticker()).then(done);
@@ -282,9 +283,9 @@ export async function shareProgress() {
   const keep = { ...X.save }; delete keep.run; delete keep.challenge;
   const code = await pack({ v: 1, save: keep, nick: X.getNick(), code: X.getCode() });
   const url = gameURL({ salva: code });
-  const text = 'Apri questo link sull\'altro telefono o iPad per portarti dietro i progressi di Enduro Drinking Kingdom:';
+  const text = L`Apri questo link sull'altro telefono o iPad per portarti dietro i progressi di Enduro Drinking Kingdom:`;
   try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
-  try { await navigator.clipboard.writeText(url); X.toast('Link copiato! Incollalo sull\'altro dispositivo', 1800); } catch { prompt('Copia questo link:', url); }
+  try { await navigator.clipboard.writeText(url); X.toast(L`Link copiato! Incollalo sull'altro dispositivo`, 1800); } catch { prompt(L`Copia questo link:`, url); }
 }
 export async function readProgressLink() {
   let code = null;
@@ -292,10 +293,10 @@ export async function readProgressLink() {
   if (!code) return false;
   try { history.replaceState(null, '', location.pathname); } catch { /* */ }
   let data;
-  try { data = await unpack(code); } catch { X.toast('Link dei progressi non valido', 1500); return false; }
+  try { data = await unpack(code); } catch { X.toast(L`Link dei progressi non valido`, 1500); return false; }
   if (!data || !data.save) return false;
   const s = data.save;
-  X.showCard(`<h2>Progressi trovati</h2><p>Livello <b>${Math.min(s.level || 1, X.MAX_LEVEL)}</b> · <b>${s.coins || 0}</b> monete${data.nick ? ` · nome <b>${esc(data.nick)}</b>` : ''}.</p>
+  X.showCard(L`<h2>Progressi trovati</h2><p>Livello <b>${Math.min(s.level || 1, X.MAX_LEVEL)}</b> · <b>${s.coins || 0}</b> monete${data.nick ? L` · nome <b>${esc(data.nick)}</b>` : ''}.</p>
     <p>Li carico su questo dispositivo? Quelli che ci sono adesso (livello <b>${X.save.level || 1}</b>) vengono sostituiti.</p>
     <div class="row"><button id="cNo" class="btn btn-gray">No</button><button id="cYes" class="btn btn-play">Sì, caricali</button></div>`, {
     cNo: X.hideCard,
@@ -307,12 +308,12 @@ export async function readProgressLink() {
 // ---------------- eventi a data (Halloween, Natale, Oktoberfest) ----------------
 // durante l'evento alcune tessere portano un simbolo: toglile per riempire la barra e ritirare i premi
 export const EVENTS = [
-  { id: 'halloween', name: 'Halloween EDT', item: 'zucche', one: 'zucca', img: 'e_zucca', from: [10, 20], to: [11, 5], color: '#ff7a1a', who: 'gabbah',
-    intro: 'Dolcetto o multetto? Nei livelli spuntano le <b>zucche col casco</b>: toglile e vinci i premi di Halloween!' },
-  { id: 'natale', name: 'Natale EDT', item: 'regali', one: 'regalo', img: 'e_regalo', from: [12, 8], to: [1, 6], color: '#2f8fd3', who: 'svetlana',
-    intro: 'Babbo Natale ha perso i regali sul sentiero! Raccoglili nei livelli e vinci i premi di Natale.' },
-  { id: 'oktoberfest', name: 'Oktoberfest EDT', item: 'brezel', one: 'brezel', img: 'e_brezel', from: [9, 18], to: [10, 6], color: '#3d8bff', who: 'purcello',
-    intro: 'O\'zapft is! Nei livelli trovi i <b>brezel</b>: raccoglili e vinci i premi dell\'Oktoberfest.' },
+  { id: 'halloween', name: 'Halloween EDT', item: L`zucche`, one: 'zucca', img: 'e_zucca', from: [10, 20], to: [11, 5], color: '#ff7a1a', who: 'gabbah',
+    intro: L`Dolcetto o multetto? Nei livelli spuntano le <b>zucche col casco</b>: toglile e vinci i premi di Halloween!` },
+  { id: 'natale', name: 'Natale EDT', item: L`regali`, one: 'regalo', img: 'e_regalo', from: [12, 8], to: [1, 6], color: '#2f8fd3', who: 'svetlana',
+    intro: L`Babbo Natale ha perso i regali sul sentiero! Raccoglili nei livelli e vinci i premi di Natale.` },
+  { id: 'oktoberfest', name: 'Oktoberfest EDT', item: L`brezel`, one: L`brezel`, img: 'e_brezel', from: [9, 18], to: [10, 6], color: '#3d8bff', who: 'purcello',
+    intro: L`O'zapft is! Nei livelli trovi i <b>brezel</b>: raccoglili e vinci i premi dell'Oktoberfest.` },
 ];
 export const EV_STEPS = [
   { n: 10, coins: 100 }, { n: 25, p: 'mH' }, { n: 45, coins: 200, stk: 1 }, { n: 70, p: 'bomb' }, { n: 100, coins: 400, p: 'grappa', stk: 1 },
@@ -346,14 +347,14 @@ export function eventGain(n = 1) {
   X.persist();
   return out;
 }
-const rewardTxt = (r) => [r.coins ? `+${r.coins} monete` : '', r.p ? `+1 ${P_NAME[r.p]}` : '', r.stk ? '+1 figurina' : ''].filter(Boolean).join(' · ');
+const rewardTxt = (r) => [r.coins ? L`+${r.coins} monete` : '', r.p ? `+1 ${P_NAME[r.p]}` : '', r.stk ? L`+1 figurina` : ''].filter(Boolean).join(' · ');
 export function eventRewardsPopup(list) {
   if (!list.length) return Promise.resolve();
   const ev = currentEvent();
   const stk = list.some((r) => r.stk);
   return new Promise((done) => {
     X.fireworks(1400);
-    X.showCard(`<h2>${ev.name}</h2><div class="evbig" style="background-image:${X.I(ev.img)}"></div><p>Premio sbloccato!</p><p><b>${list.map(rewardTxt).join('<br>')}</b></p>
+    X.showCard(L`<h2>${ev.name}</h2><div class="evbig" style="background-image:${X.I(ev.img)}"></div><p>Premio sbloccato!</p><p><b>${list.map(rewardTxt).join('<br>')}</b></p>
       <div class="row"><button id="cOk" class="btn btn-play">Grande!</button></div>`, { cOk: () => { X.hideCard(); X.coinsUI(); if (stk) revealSticker(drawSticker()).then(done); else done(); } });
   });
 }
@@ -365,9 +366,9 @@ export function openEvent() {
   const list = EV_STEPS.map((r, i) => `<div class="evr${i < st.got ? ' got' : ''}"><b>${r.n}</b><span>${rewardTxt(r)}</span><i>${i < st.got ? '✓' : ''}</i></div>`).join('');
   const end = new Date(new Date().getFullYear() + (ev.to[0] < ev.from[0] && new Date().getMonth() + 1 >= ev.from[0] ? 1 : 0), ev.to[0] - 1, ev.to[1], 23, 59);
   const days = Math.max(0, Math.ceil((end - new Date()) / 864e5));
-  X.showCard(`<h2>${ev.name}</h2>${X.speakerHTML(ev.who, ev.intro)}
+  X.showCard(L`<h2>${ev.name}</h2>${X.speakerHTML(ev.who, ev.intro)}
     <div class="evbar"><div class="evfill" style="width:${Math.min(100, st.n / max * 100)}%;background:${ev.color}"></div>${marks}</div>
-    <p class="evcount"><span class="evico" style="background-image:${X.I(ev.img)}"></span> <b>${st.n}</b> ${ev.item} · finisce tra <b>${days} ${days === 1 ? 'giorno' : 'giorni'}</b></p>
+    <p class="evcount"><span class="evico" style="background-image:${X.I(ev.img)}"></span> <b>${st.n}</b> ${ev.item} · finisce tra <b>${days} ${days === 1 ? L`giorno` : 'giorni'}</b></p>
     <div class="evlist">${list}</div>
     <div class="row"><button id="cClose" class="btn btn-play">Gioca!</button></div>`, { cClose: X.hideCard });
 }
@@ -386,7 +387,7 @@ export function openPilot(onDone) {
   const m = me();
   const faces = PILOTS.map((w) => `<button class="pilot${w === m.who ? ' on' : ''}" data-w="${w}" style="background-image:${X.I(CHARS[w].img)}"></button>`).join('');
   const cols = HELMETS.map((c, i) => `<button class="hcol${i === m.col ? ' on' : ''}" data-c="${i}" style="background:${c}"></button>`).join('');
-  X.showCard(`<h2>Il tuo pilota</h2><p>Scegli chi sei e il colore del casco: ti vedono così in classifica.</p>
+  X.showCard(L`<h2>Il tuo pilota</h2><p>Scegli chi sei e il colore del casco: ti vedono così in classifica.</p>
     <div class="pilotprev">${avatarHTML(m, 86)}<b>${X.getNick() || 'Tu'}</b></div>
     <div class="pilots">${faces}</div><div class="hcols">${cols}</div>
     <div class="row"><button id="cOk" class="btn btn-play">Fatto</button></div>`, { cOk: () => { X.hideCard(); onDone && onDone(); } });
@@ -462,7 +463,7 @@ export async function makeVideo(o) {
         const fy = H - ease((k - 3.4) / .4) * 210;
         ctx.fillStyle = '#f2c94c'; ctx.fillRect(0, fy - 6, W, 6);
         ctx.fillStyle = '#e8322a'; ctx.fillRect(0, fy, W, 130);
-        outlined(ctx, o.footer || 'MI BATTI? 🍺', W / 2, fy + 88, 62, '#fff', '#7d120d');
+        outlined(ctx, o.footer || L`MI BATTI? 🍺`, W / 2, fy + 88, 62, '#fff', '#7d120d');
         ctx.fillStyle = '#0e1d3d'; ctx.fillRect(0, fy + 130, W, 80);
         ctx.font = '800 28px "EDT Body", sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText('ilgabbah-ux.github.io/edt-kingdom', W / 2, fy + 180);
       }
@@ -475,15 +476,15 @@ export async function makeVideo(o) {
   return new Blob(chunks, { type: mime.split(';')[0] });
 }
 export async function shareVideo(n, stars, bg) {
-  X.toast('Preparo il video… (6 secondi)', 2500);
+  X.toast(L`Preparo il video… (6 secondi)`, 2500);
   let blob;
-  try { blob = await makeVideo({ bg, title: `LIVELLO ${n} SUPERATO!`, line1: `${X.getNick() || 'Io'} ti sfida`, stars, who: me().who }); } catch { X.toast('Questo telefono non sa registrare il video: uso l\'immagine', 1800); shareWin(n, stars, bg); return; }
+  try { blob = await makeVideo({ bg, title: L`LIVELLO ${n} SUPERATO!`, line1: L`${X.getNick() || 'Io'} ti sfida`, stars, who: me().who }); } catch { X.toast(L`Questo telefono non sa registrare il video: uso l'immagine`, 1800); shareWin(n, stars, bg); return; }
   const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
-  const file = new File([blob], `enduro-drinking-kingdom-livello-${n}.${ext}`, { type: blob.type });
-  const url = gameURL({ sfida: n, s: stars, da: X.getNick() || 'Un amico' });
-  const text = `🏍️🍺 Livello ${n} di Enduro Drinking Kingdom con ${stars} ⭐! Mi batti?`;
+  const file = new File([blob], L`enduro-drinking-kingdom-livello-${n}.${ext}`, { type: blob.type });
+  const url = gameURL({ sfida: n, s: stars, da: X.getNick() || L`Un amico` });
+  const text = L`🏍️🍺 Livello ${n} di Enduro Drinking Kingdom con ${stars} ⭐! Mi batti?`;
   try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: `${text} ${url}` }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   try { await navigator.clipboard.writeText(`${text} ${url}`); } catch { /* */ }
-  X.toast('Video salvato! Caricalo su TikTok o Reels', 1800);
+  X.toast(L`Video salvato! Caricalo su TikTok o Reels`, 1800);
 }

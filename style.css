@@ -844,3 +844,8 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .evr span { flex: 1; text-align: left; }
 .evr i { color: #3fbf4f; font-style: normal; font-size: 16px; }
 .evr.got { opacity: .6; }
+/* language switch */
+.langrow{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0 4px}
+.langrow span{font-size:20px}
+.langrow button{font:inherit;font-weight:800;font-size:14px;padding:8px 12px;border-radius:12px;border:2px solid rgba(255,255,255,.25);background:rgba(0,0,0,.25);color:#fff;cursor:pointer}
+.langrow button.on{background:#ffb02e;border-color:#fff3c4;color:#3a1d00}

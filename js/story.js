@@ -1,64 +1,65 @@
 // Enduro Drinking Kingdom — la storia: scene animate a tutto schermo (camera in movimento, effetti, narratore, voci), si possono saltare
+import { L } from './i18n.js';
 import { CHARS } from './kingdom.js';
 
 // ogni scena: img, cam (movimento della camera), fx (effetti), narr (voce narrante), lines (battute dei personaggi)
 export const STORY = {
   intro: {
-    title: 'Capitolo 1', name: 'Un giro easy',
+    title: L`Capitolo 1`, name: L`Un giro easy`,
     scenes: [
-      { img: 'st1_1', cam: 'up', fx: ['sun', 'dust'], narr: { t: 'All\'alba… l\'Enduro Drinking Team sale nella valle, in cerca di un posto tutto suo.', v: 's_narr0' } },
-      { img: 'st1_2', cam: 'in', fx: ['leaves', 'sun'], lines: [{ who: 'gabbah', t: 'Ragazzi… qui ci facciamo il Campo Base!', v: 's_gabbah0' }] },
-      { img: 'st1_3', cam: 'out', fx: ['confetti', 'sparkle'], narr: { t: 'Bandiera piantata, birre stappate: il Campo Base dell\'EDT è nato!', v: 's_narr1' } },
-      { img: 'st1_4', cam: 'punch', fx: ['leaves', 'shake'], lines: [{ who: 'forestale', t: 'Alt! Qui non si può! Questa è una multa!', v: 's_forestale0' }] },
-      { img: 'st1_5', cam: 'left', fx: ['sparkle', 'leaves'], lines: [{ who: 'gabbah', t: 'Tranquilli… è un giro easy!', v: 's_gabbah1' }] },
+      { img: 'st1_1', cam: 'up', fx: ['sun', 'dust'], narr: { t: L`All'alba… l'Enduro Drinking Team sale nella valle, in cerca di un posto tutto suo.`, v: 's_narr0' } },
+      { img: 'st1_2', cam: 'in', fx: ['leaves', 'sun'], lines: [{ who: 'gabbah', t: L`Ragazzi… qui ci facciamo il Campo Base!`, v: 's_gabbah0' }] },
+      { img: 'st1_3', cam: 'out', fx: ['confetti', 'sparkle'], narr: { t: L`Bandiera piantata, birre stappate: il Campo Base dell'EDT è nato!`, v: 's_narr1' } },
+      { img: 'st1_4', cam: 'punch', fx: ['leaves', 'shake'], lines: [{ who: 'forestale', t: L`Alt! Qui non si può! Questa è una multa!`, v: 's_forestale0' }] },
+      { img: 'st1_5', cam: 'left', fx: ['sparkle', 'leaves'], lines: [{ who: 'gabbah', t: L`Tranquilli… è un giro easy!`, v: 's_gabbah1' }] },
     ],
-    end: { t: 'Vinci i livelli, costruisci il Campo Base… e fai scappare la Forestale!', v: 's_narr2' },
+    end: { t: L`Vinci i livelli, costruisci il Campo Base… e fai scappare la Forestale!`, v: 's_narr2' },
   },
   passo: {
-    title: 'Capitolo 2', name: 'Verso il Passo',
+    title: L`Capitolo 2`, name: L`Verso il Passo`,
     scenes: [
-      { img: 'st2_1', cam: 'right', fx: ['dust', 'sparkle'], narr: { t: 'Il Campo Base è finito. La Forestale scappa in jeep… ma ha giurato vendetta.', v: 's_narr3' }, lines: [{ who: 'forestale', t: 'Non finisce qui! Ci vediamo al Passo!', v: 's_forestale1' }] },
-      { img: 'st2_2', cam: 'in', fx: ['snow'], lines: [{ who: 'miti', t: 'Ragazzi, guardate le tracce! È salita al Passo!', v: 's_miti0' }] },
-      { img: 'st2_3', cam: 'left', fx: ['blizzard', 'shiver'], lines: [{ who: 'mirco', t: 'Campa giù… fa un freddo cane… io torno in mutua!', v: 's_mirco0' }] },
-      { img: 'st2_4', cam: 'punch', fx: ['snow', 'shake'], lines: [{ who: 'forestale2', t: 'Quassù comando io! Catene da neve obbligatorie!', v: 's_forestale2' }] },
+      { img: 'st2_1', cam: 'right', fx: ['dust', 'sparkle'], narr: { t: L`Il Campo Base è finito. La Forestale scappa in jeep… ma ha giurato vendetta.`, v: 's_narr3' }, lines: [{ who: 'forestale', t: L`Non finisce qui! Ci vediamo al Passo!`, v: 's_forestale1' }] },
+      { img: 'st2_2', cam: 'in', fx: ['snow'], lines: [{ who: 'miti', t: L`Ragazzi, guardate le tracce! È salita al Passo!`, v: 's_miti0' }] },
+      { img: 'st2_3', cam: 'left', fx: ['blizzard', 'shiver'], lines: [{ who: 'mirco', t: L`Campa giù… fa un freddo cane… io torno in mutua!`, v: 's_mirco0' }] },
+      { img: 'st2_4', cam: 'punch', fx: ['snow', 'shake'], lines: [{ who: 'forestale2', t: L`Quassù comando io! Catene da neve obbligatorie!`, v: 's_forestale2' }] },
     ],
-    end: { t: 'Conquista il Passo: neve, ghiaccio… e una Forestale col colbacco.', v: 's_narr4' },
+    end: { t: L`Conquista il Passo: neve, ghiaccio… e una Forestale col colbacco.`, v: 's_narr4' },
   },
   cava: {
-    title: 'Capitolo 3', name: 'La Cava',
+    title: L`Capitolo 3`, name: L`La Cava`,
     scenes: [
-      { img: 'st3_1', cam: 'down', fx: ['avalanche', 'shake'], narr: { t: 'Una valanga travolge la Forestale… e la porta giù, fino a una vecchia cava di marmo.', v: 's_narr5' }, lines: [{ who: 'forestale2', t: 'Aiutooo!', v: 's_forestale3' }] },
-      { img: 'st3_2', cam: 'right', fx: ['splash', 'sparkle'], lines: [{ who: 'costa', t: 'Guarda che laghetto… qui ci sono trote enormi!', v: 's_costa0' }] },
-      { img: 'st3_3', cam: 'in', fx: ['dust'], lines: [{ who: 'forestale3', t: 'Cantiere chiuso! Caschetto obbligatorio!', v: 's_forestale4' }] },
-      { img: 'st3_4', cam: 'punch', fx: ['debris', 'dust', 'shake'], lines: [{ who: 'purcello', t: 'Ci penso io. Da dietro, come sempre!', v: 's_purcello0' }] },
+      { img: 'st3_1', cam: 'down', fx: ['avalanche', 'shake'], narr: { t: L`Una valanga travolge la Forestale… e la porta giù, fino a una vecchia cava di marmo.`, v: 's_narr5' }, lines: [{ who: 'forestale2', t: L`Aiutooo!`, v: 's_forestale3' }] },
+      { img: 'st3_2', cam: 'right', fx: ['splash', 'sparkle'], lines: [{ who: 'costa', t: L`Guarda che laghetto… qui ci sono trote enormi!`, v: 's_costa0' }] },
+      { img: 'st3_3', cam: 'in', fx: ['dust'], lines: [{ who: 'forestale3', t: L`Cantiere chiuso! Caschetto obbligatorio!`, v: 's_forestale4' }] },
+      { img: 'st3_4', cam: 'punch', fx: ['debris', 'dust', 'shake'], lines: [{ who: 'purcello', t: L`Ci penso io. Da dietro, come sempre!`, v: 's_purcello0' }] },
     ],
-    end: { t: 'Riapri la Cava: nastri, sassi e casse ovunque.', v: 's_narr6' },
+    end: { t: L`Riapri la Cava: nastri, sassi e casse ovunque.`, v: 's_narr6' },
   },
   finale: {
-    title: 'Finale', name: 'Festa in cava',
+    title: L`Finale`, name: L`Festa in cava`,
     scenes: [
-      { img: 'st4_1', cam: 'up', fx: ['fireworks', 'lights'], narr: { t: 'La Cava è dell\'EDT. Stanotte… si festeggia!', v: 's_narr7' }, lines: [{ who: 'svetlana', t: 'Ciao ragazzi! Stasera si balla!', v: 's_svetlana0' }] },
-      { img: 'st4_2', cam: 'in', fx: ['sparkle', 'lights'], lines: [{ who: 'gabbah', t: 'Dai, Forestale… una birra e facciamo pace.', v: 's_gabbah2' }, { who: 'forestale3', t: 'Va bene… ma solo una!', v: 's_forestale5' }] },
-      { img: 'st4_3', cam: 'out', fx: ['fireworks', 'confetti'], lines: [{ who: 'gabbah', t: 'EDT per sempre! Giro easy!', v: 's_gabbah3' }] },
+      { img: 'st4_1', cam: 'up', fx: ['fireworks', 'lights'], narr: { t: L`La Cava è dell'EDT. Stanotte… si festeggia!`, v: 's_narr7' }, lines: [{ who: 'svetlana', t: L`Ciao ragazzi! Stasera si balla!`, v: 's_svetlana0' }] },
+      { img: 'st4_2', cam: 'in', fx: ['sparkle', 'lights'], lines: [{ who: 'gabbah', t: L`Dai, Forestale… una birra e facciamo pace.`, v: 's_gabbah2' }, { who: 'forestale3', t: L`Va bene… ma solo una!`, v: 's_forestale5' }] },
+      { img: 'st4_3', cam: 'out', fx: ['fireworks', 'confetti'], lines: [{ who: 'gabbah', t: L`EDT per sempre! Giro easy!`, v: 's_gabbah3' }] },
     ],
-    end: { t: 'La festa va avanti fino all\'alba… ma qualcuno ha un piano.', v: 's_narr9' },
+    end: { t: L`La festa va avanti fino all'alba… ma qualcuno ha un piano.`, v: 's_narr9' },
   },
   marocco: {
-    title: 'Capitolo 4', name: 'Il Marocco',
+    title: L`Capitolo 4`, name: L`Il Marocco`,
     scenes: [
-      { img: 'st5_1', cam: 'right', fx: ['sun', 'sparkle'], narr: { t: 'Intanto, la Forestale ha un cugino… in Marocco. E l\'EDT carica le moto: si parte!', v: 's_narr10' } },
-      { img: 'st5_2', cam: 'punch', fx: ['dust', 'shiver'], lines: [{ who: 'mirco', t: 'Campa giù… qui c\'è più sabbia che birra!', v: 's_mirco1' }, { who: 'costa', t: 'Tieni duro, Mirco! Ti tiro fuori con la canna da pesca!', v: 's_costa1' }] },
-      { img: 'st5_3', cam: 'in', fx: ['sun', 'shake'], lines: [{ who: 'forestale4', t: 'Benvenuti in Marocco! L\'autovelox ce l\'ho anche nel deserto!', v: 's_forestale6' }] },
-      { img: 'st5_4', cam: 'out', fx: ['lights', 'sparkle'], lines: [{ who: 'svetlana', t: 'Un tè alla menta… e poi si balla!', v: 's_svetlana1' }, { who: 'gabbah', t: 'Tranquilli… anche qui è un giro easy!', v: 's_gabbah4' }] },
+      { img: 'st5_1', cam: 'right', fx: ['sun', 'sparkle'], narr: { t: L`Intanto, la Forestale ha un cugino… in Marocco. E l'EDT carica le moto: si parte!`, v: 's_narr10' } },
+      { img: 'st5_2', cam: 'punch', fx: ['dust', 'shiver'], lines: [{ who: 'mirco', t: L`Campa giù… qui c'è più sabbia che birra!`, v: 's_mirco1' }, { who: 'costa', t: L`Tieni duro, Mirco! Ti tiro fuori con la canna da pesca!`, v: 's_costa1' }] },
+      { img: 'st5_3', cam: 'in', fx: ['sun', 'shake'], lines: [{ who: 'forestale4', t: L`Benvenuti in Marocco! L'autovelox ce l'ho anche nel deserto!`, v: 's_forestale6' }] },
+      { img: 'st5_4', cam: 'out', fx: ['lights', 'sparkle'], lines: [{ who: 'svetlana', t: L`Un tè alla menta… e poi si balla!`, v: 's_svetlana1' }, { who: 'gabbah', t: L`Tranquilli… anche qui è un giro easy!`, v: 's_gabbah4' }] },
     ],
-    end: { t: 'Conquista il Marocco: sabbia, dune… e autovelox nel deserto!', v: 's_narr11' },
+    end: { t: L`Conquista il Marocco: sabbia, dune… e autovelox nel deserto!`, v: 's_narr11' },
   },
   fine: {
-    title: 'Finale', name: 'Il Marocco è dell\'EDT',
+    title: L`Finale`, name: L`Il Marocco è dell'EDT`,
     scenes: [
-      { img: 'st5_5', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: 'Dopo mille dune e mille tè alla menta… il Marocco è dell\'EDT.', v: 's_narr12' }, lines: [{ who: 'gabbah', t: 'EDT per sempre! Giro easy!', v: 's_gabbah3' }] },
+      { img: 'st5_5', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Dopo mille dune e mille tè alla menta… il Marocco è dell'EDT.`, v: 's_narr12' }, lines: [{ who: 'gabbah', t: L`EDT per sempre! Giro easy!`, v: 's_gabbah3' }] },
     ],
-    end: { t: 'Fine… per ora. Grazie per aver giocato con l\'Enduro Drinking Team!', v: 's_narr8' },
+    end: { t: L`Fine… per ora. Grazie per aver giocato con l'Enduro Drinking Team!`, v: 's_narr8' },
   },
 };
 export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine'];
@@ -156,7 +157,7 @@ export function playStory(id) {
   return new Promise((done) => {
     const root = document.createElement('div');
     root.id = 'story';
-    root.innerHTML = `<div class="st-stage"></div><div class="st-rays"></div><canvas class="st-fx"></canvas>
+    root.innerHTML = L`<div class="st-stage"></div><div class="st-rays"></div><canvas class="st-fx"></canvas>
       <div class="st-dots">${ch.scenes.map(() => '<i></i>').join('')}</div>
       <button class="st-skip">Salta ⏭</button>
       <div class="st-cap"></div>
@@ -222,7 +223,7 @@ export function playStory(id) {
       n++;
       if (n >= steps.length) { finish(); return; }
       const st = steps[n];
-      if (st.l.end) { root.querySelector('.st-skip').textContent = 'Gioca ▶'; root.classList.add('ending'); }
+      if (st.l.end) { root.querySelector('.st-skip').textContent = L`Gioca ▶`; root.classList.add('ending'); }
       if (st.first && st.si >= 0) showScene(ch.scenes[st.si], st.si);
       say(st.l);
     };

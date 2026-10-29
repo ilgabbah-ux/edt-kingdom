@@ -1,16 +1,17 @@
 // EDT Kingdom — livelli
+import { L } from './i18n.js';
 import { makeRng, ROWS, COLS } from './engine.js';
 
 // Layout (9 righe x 8 colonne):
 // '.' normale   '#' casella vuota (fuori griglia)
 // m/M fango (1/2 strati)   r/R sasso (1/2 colpi)   c/C cassa di birra (1/2 colpi)
 // k tessera incatenata   t multa della Forestale (si allarga!)
-const L = (s) => s.trim().split('\n').map((x) => x.trim());
+const LY = (s) => s.trim().split('\n').map((x) => x.trim());
 
 const HAND = {
   1: { moves: 20, colors: 5, tiles: [[0, 12]],
-    intro: ['gabbah', 'Primo giro: metti in fila 3 birre uguali e sono tue. Tranquillo, è un giro easy.'] },
-  2: { moves: 20, colors: 5, tiles: [[1, 14], [3, 10]], layout: L(`
+    intro: ['gabbah', L`Primo giro: metti in fila 3 birre uguali e sono tue. Tranquillo, è un giro easy.`] },
+  2: { moves: 20, colors: 5, tiles: [[1, 14], [3, 10]], layout: LY(`
     ##....##
     #......#
     ........
@@ -20,8 +21,8 @@ const HAND = {
     ........
     #......#
     ##....##`),
-    intro: ['miti', 'Metti in fila 4 tessere e ti esce una <b>moto</b>: parte a manetta e si porta via tutta la riga.'] },
-  3: { moves: 24, colors: 5, layout: L(`
+    intro: ['miti', L`Metti in fila 4 tessere e ti esce una <b>moto</b>: parte a manetta e si porta via tutta la riga.`] },
+  3: { moves: 24, colors: 5, layout: LY(`
     ........
     ........
     ........
@@ -31,8 +32,8 @@ const HAND = {
     ..mmmm..
     ........
     ........`),
-    intro: ['mirco', 'Qui è tutto fango. Fai i tris sopra le pozze per pulirle. Io vi guardo da qui... campa giù.'] },
-  4: { moves: 25, colors: 5, layout: L(`
+    intro: ['mirco', L`Qui è tutto fango. Fai i tris sopra le pozze per pulirle. Io vi guardo da qui... campa giù.`] },
+  4: { moves: 25, colors: 5, layout: LY(`
     ........
     ........
     r..rr..r
@@ -42,10 +43,10 @@ const HAND = {
     ........
     ........
     ........`),
-    intro: ['purcello', 'Sassi in mezzo al sentiero! Fai i tris <b>accanto</b> ai sassi per spaccarli. E se ti pianti, arrivo io da dietro.'] },
+    intro: ['purcello', L`Sassi in mezzo al sentiero! Fai i tris <b>accanto</b> ai sassi per spaccarli. E se ti pianti, arrivo io da dietro.`] },
   5: { moves: 24, colors: 5, boss: { hp: 150, every: 5 },
-    intro: ['forestale', 'Alt! Forestale. Sentiero chiuso. Ogni 5 mosse vi tiro un sasso in mezzo ai piedi, e poi vi faccio pure la multa.'] },
-  6: { moves: 26, colors: 5, layout: L(`
+    intro: ['forestale', L`Alt! Forestale. Sentiero chiuso. Ogni 5 mosse vi tiro un sasso in mezzo ai piedi, e poi vi faccio pure la multa.`] },
+  6: { moves: 26, colors: 5, layout: LY(`
     ........
     ........
     ........
@@ -55,8 +56,8 @@ const HAND = {
     ..cccc..
     ........
     ........`),
-    intro: ['gabbah', 'Casse di birra in mezzo al sentiero! Si aprono come i sassi: fai i tris lì accanto. Peccato sprecarle.'] },
-  7: { moves: 27, colors: 5, tiles: [[2, 12]], layout: L(`
+    intro: ['gabbah', L`Casse di birra in mezzo al sentiero! Si aprono come i sassi: fai i tris lì accanto. Peccato sprecarle.`] },
+  7: { moves: 27, colors: 5, tiles: [[2, 12]], layout: LY(`
     ........
     ........
     .k....k.
@@ -66,8 +67,8 @@ const HAND = {
     .k....k.
     ........
     ........`),
-    intro: ['renard', 'Qualcuno ha incatenato i pezzi del garage! Non si spostano, ma se li metti in un tris la catena salta.'] },
-  8: { moves: 26, colors: 5, layout: L(`
+    intro: ['renard', L`Qualcuno ha incatenato i pezzi del garage! Non si spostano, ma se li metti in un tris la catena salta.`] },
+  8: { moves: 26, colors: 5, layout: LY(`
     ###..###
     ##....##
     #.mmmm.#
@@ -77,8 +78,8 @@ const HAND = {
     #.mmmm.#
     ##....##
     ###..###`),
-    intro: ['mirco', 'Fango profondo, quello col <b>2</b>: va pulito due volte. Io aspetto all\'asciutto.'] },
-  9: { moves: 26, colors: 5, layout: L(`
+    intro: ['mirco', L`Fango profondo, quello col <b>2</b>: va pulito due volte. Io aspetto all'asciutto.`] },
+  9: { moves: 26, colors: 5, layout: LY(`
     ........
     ........
     ........
@@ -88,8 +89,8 @@ const HAND = {
     ........
     ........
     ........`),
-    intro: ['forestale', 'Vi ho lasciato qualche <b>multa</b>. Se in un turno non ne togliete nessuna, se ne aggiunge un\'altra. Buon divertimento!'] },
-  10: { moves: 26, colors: 5, boss: { hp: 170, every: 5 }, layout: L(`
+    intro: ['forestale', L`Vi ho lasciato qualche <b>multa</b>. Se in un turno non ne togliete nessuna, se ne aggiunge un'altra. Buon divertimento!`] },
+  10: { moves: 26, colors: 5, boss: { hp: 170, every: 5 }, layout: LY(`
     ........
     ........
     r......r
@@ -99,8 +100,8 @@ const HAND = {
     r......r
     ........
     ........`),
-    intro: ['forestale', 'Libretto, assicurazione e patente. E quella gomma lì è omologata?'] },
-  11: { moves: 26, colors: 5, layout: L(`
+    intro: ['forestale', L`Libretto, assicurazione e patente. E quella gomma lì è omologata?`] },
+  11: { moves: 26, colors: 5, layout: LY(`
     #mmmmmm#
     mm....mm
     m......m
@@ -110,8 +111,8 @@ const HAND = {
     m......m
     mm....mm
     #mmmmmm#`),
-    intro: ['costa', 'Il fango ha circondato la mia bancarella! Pulisci tutto il bordo, che il pesce deve restare fresco.'] },
-  12: { moves: 27, colors: 5, tiles: [[0, 18]], layout: L(`
+    intro: ['costa', L`Il fango ha circondato la mia bancarella! Pulisci tutto il bordo, che il pesce deve restare fresco.`] },
+  12: { moves: 27, colors: 5, tiles: [[0, 18]], layout: LY(`
     ........
     ........
     CC....CC
@@ -121,8 +122,8 @@ const HAND = {
     cc....cc
     ........
     ........`),
-    intro: ['gabbah', 'Casse doppie: ci vogliono due colpi. E intanto raccogli le birre, che stasera si festeggia.'] },
-  13: { moves: 29, colors: 6, layout: L(`
+    intro: ['gabbah', L`Casse doppie: ci vogliono due colpi. E intanto raccogli le birre, che stasera si festeggia.`] },
+  13: { moves: 29, colors: 6, layout: LY(`
     ........
     .mmmmmm.
     .mkmmkm.
@@ -132,8 +133,8 @@ const HAND = {
     .mkmmkm.
     .mmmmmm.
     ........`),
-    intro: ['purcello', 'Fango e catene insieme. Ce la fai da solo o ti serve la spinta?'] },
-  14: { moves: 26, colors: 6, layout: L(`
+    intro: ['purcello', L`Fango e catene insieme. Ce la fai da solo o ti serve la spinta?`] },
+  14: { moves: 26, colors: 6, layout: LY(`
     ........
     .r....r.
     ........
@@ -143,8 +144,8 @@ const HAND = {
     ........
     .r....r.
     ........`),
-    intro: ['forestale', 'Multe e sassi, il mio menù preferito. Se lasciate correre, le multe si moltiplicano.'] },
-  15: { moves: 27, colors: 6, boss: { hp: 190, every: 4 }, layout: L(`
+    intro: ['forestale', L`Multe e sassi, il mio menù preferito. Se lasciate correre, le multe si moltiplicano.`] },
+  15: { moves: 27, colors: 6, boss: { hp: 190, every: 4 }, layout: LY(`
     ........
     ........
     ........
@@ -154,8 +155,8 @@ const HAND = {
     ........
     ........
     ........`),
-    intro: ['forestale', 'Ho sequestrato le vostre casse di birra. E ora tiro sassi ogni 4 mosse!'] },
-  16: { moves: 28, colors: 6, layout: L(`
+    intro: ['forestale', L`Ho sequestrato le vostre casse di birra. E ora tiro sassi ogni 4 mosse!`] },
+  16: { moves: 28, colors: 6, layout: LY(`
     ........
     .m....m.
     ........
@@ -165,8 +166,8 @@ const HAND = {
     ........
     ........
     mmmmmmmm`),
-    intro: ['mirco', 'Questo è il sentiero dopo tre giorni di pioggia. Buona fortuna, io resto in tenda.'] },
-  17: { moves: 24, colors: 6, tiles: [[4, 16], [5, 16]], layout: L(`
+    intro: ['mirco', L`Questo è il sentiero dopo tre giorni di pioggia. Buona fortuna, io resto in tenda.`] },
+  17: { moves: 24, colors: 6, tiles: [[4, 16], [5, 16]], layout: LY(`
     ###..###
     ##....##
     #......#
@@ -176,8 +177,8 @@ const HAND = {
     #......#
     ##....##
     ###..###`),
-    intro: ['renard', 'Mi servono gomme e stivali per il garage. Tante. Tranquillo, te li pago... prima o poi.'] },
-  18: { moves: 30, colors: 6, layout: L(`
+    intro: ['renard', L`Mi servono gomme e stivali per il garage. Tante. Tranquillo, te li pago... prima o poi.`] },
+  18: { moves: 30, colors: 6, layout: LY(`
     ........
     .CCCCCC.
     .C....C.
@@ -187,8 +188,8 @@ const HAND = {
     .CCCCCC.
     ........
     ........`),
-    intro: ['gabbah', 'Il forte delle casse! Dentro ci sono i pezzi incatenati. Sfondalo e libera tutto.'] },
-  19: { moves: 32, colors: 6, layout: L(`
+    intro: ['gabbah', L`Il forte delle casse! Dentro ci sono i pezzi incatenati. Sfondalo e libera tutto.`] },
+  19: { moves: 32, colors: 6, layout: LY(`
     ##mmmm##
     #m....m#
     .r.tt.r.
@@ -198,8 +199,8 @@ const HAND = {
     .r....r.
     #m....m#
     ##mmmm##`),
-    intro: ['miti', 'Un po\' di tutto: fango, sassi, casse, catene e pure una multa. Io riprendo, tu spacca.'] },
-  20: { moves: 28, colors: 6, boss: { hp: 220, every: 4 }, layout: L(`
+    intro: ['miti', L`Un po' di tutto: fango, sassi, casse, catene e pure una multa. Io riprendo, tu spacca.`] },
+  20: { moves: 28, colors: 6, boss: { hp: 220, every: 4 }, layout: LY(`
     ........
     ........
     ........
@@ -209,14 +210,14 @@ const HAND = {
     .r....r.
     ........
     ........`),
-    intro: ['forestale', 'Ancora voi? Oggi ho il blocchetto nuovo, ancora da inaugurare. E pure le multe che si allargano!'] },
+    intro: ['forestale', L`Ancora voi? Oggi ho il blocchetto nuovo, ancora da inaugurare. E pure le multe che si allargano!`] },
 };
 
 const BOSS_LINES = [
-  'Marmitta aperta in zona protetta? Questa la scrivo in stampatello.',
-  'Vi ho visto dal binocolo. Anche quando nascondevate la birra.',
-  'Qui i cinghiali dormono. Spegnete quei motori o arrivano i sassi!',
-  'Libretto, assicurazione e patente. E quella gomma lì è omologata?',
+  L`Marmitta aperta in zona protetta? Questa la scrivo in stampatello.`,
+  L`Vi ho visto dal binocolo. Anche quando nascondevate la birra.`,
+  L`Qui i cinghiali dormono. Spegnete quei motori o arrivano i sassi!`,
+  L`Libretto, assicurazione e patente. E quella gomma lì è omologata?`,
 ];
 
 // obiettivi calcolati dal disegno della griglia
@@ -251,22 +252,22 @@ export function getLevel(n) {
 const BALANCE = {1: 20, 2: 20, 3: 20, 4: 16, 5: 18, 6: 16, 7: 16, 8: 18, 9: 16, 10: 16, 11: 26, 12: 16, 13: 29, 14: 26, 15: 24, 16: 30, 17: 20, 18: 34, 19: 36, 20: 28, 21: 16, 22: 26, 23: 16, 24: 27, 25: 26, 26: 23, 27: 17, 28: 36, 29: 16, 30: 28, 31: 34, 32: 16, 33: 26, 34: 27, 35: 30, 36: 28, 37: 22, 38: 23, 39: 15, 40: 30, 41: 15, 42: 27, 43: 29, 44: 29, 45: 35, 46: 31, 47: 20, 48: 36, 49: 26, 50: 31, 51: 17, 52: 23, 53: 22, 54: 21, 55: 36, 56: 19, 57: 15, 58: 27, 59: 15, 60: 33, 61: 21, 62: 22, 63: 28, 64: 23, 65: 34, 66: 21, 67: 32, 68: 35, 69: 25, 70: 37, 71: 15, 72: 20, 73: 26, 74: 28, 75: 36, 76: 24, 77: 15, 78: 15, 79: 19, 80: 38, 81: 31, 82: 15, 83: 25, 84: 40, 85: 40, 86: 29, 87: 28, 88: 22, 89: 40, 90: 40};
 
 const BOSS_LINES3 = [
-  'Cantiere chiuso! Caschetto, giubbino arancione e un blocchetto nuovo di zecca.',
-  'In cava si va a passo d\'uomo. Voi andate a passo di moto: multa!',
-  'Ho chiamato anche i rinforzi. Sono io, con un altro cappello.',
-  'Qui ogni sasso è sotto sequestro. E presto anche voi.',
+  L`Cantiere chiuso! Caschetto, giubbino arancione e un blocchetto nuovo di zecca.`,
+  L`In cava si va a passo d'uomo. Voi andate a passo di moto: multa!`,
+  L`Ho chiamato anche i rinforzi. Sono io, con un altro cappello.`,
+  L`Qui ogni sasso è sotto sequestro. E presto anche voi.`,
 ];
 const BOSS_LINES2 = [
-  'Quassù comanda la Forestale d\'alta quota. Gomme da neve? Senza, è multa!',
-  'Ho le ciaspole, il fischietto e un blocchetto nuovo. Fate i bravi.',
-  'Il ghiaccio è dalla mia parte. Vediamo quanto scivolate.',
-  'Al Passo i limiti li decido io. E sono bassissimi.',
+  L`Quassù comanda la Forestale d'alta quota. Gomme da neve? Senza, è multa!`,
+  L`Ho le ciaspole, il fischietto e un blocchetto nuovo. Fate i bravi.`,
+  L`Il ghiaccio è dalla mia parte. Vediamo quanto scivolate.`,
+  L`Al Passo i limiti li decido io. E sono bassissimi.`,
 ];
 const BOSS_LINES4 = [
-  'Sono in vacanza, ma il blocchetto me lo porto sempre dietro.',
-  'Nel deserto il limite è 30 all\'ora. Anche per i cammelli.',
-  'Ho messo autovelox dietro ogni duna. Sorridete!',
-  'Mio cugino al Passo vi saluta. E vi fa la multa.',
+  L`Sono in vacanza, ma il blocchetto me lo porto sempre dietro.`,
+  L`Nel deserto il limite è 30 all'ora. Anche per i cammelli.`,
+  L`Ho messo autovelox dietro ogni duna. Sorridete!`,
+  L`Mio cugino al Passo vi saluta. E vi fa la multa.`,
 ];
 // zona 4, il Marocco: sabbia (k), acqua che si allarga (t), autovelox (v), gomme (g), fusti da portare giù (d), livelli a tempo
 function moroccoLevel(n, rng, tier) {

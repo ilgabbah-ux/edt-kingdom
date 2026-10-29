@@ -1,4 +1,5 @@
 // Classifica EDT online. Usa la stessa app web (Google Apps Script + foglio) della classifica di EDT Giro Easy:
+import { L } from './i18n.js';
 // EDT Kingdom scrive nel "percorso" 19, che Giro Easy non usa. Stessi nomi protetti col codice del telefono,
 // e su ilgabbah-ux.github.io nome e codice sono già quelli di Giro Easy.
 // Punteggio = stelle * 100 + livello raggiunto (vince chi ha più stelle, a parità chi è più avanti).
@@ -68,7 +69,7 @@ export async function submit(stars, level, rider = 'EDT Kingdom') {
 export const WE_MODE = 18;
 const weOf = (d) => ((d.boards && d.boards[WE_MODE]) || []).map((e) => ({ name: e.n, id: Math.floor(e.s / 1000), pts: e.s % 1000, rider: e.r || '' }));
 export async function weTop() { return weOf(await call({ action: 'top', act: String(WE_MODE) })); }
-export async function weSubmit(id, pts, rider = 'EDT Kingdom weekend') {
+export async function weSubmit(id, pts, rider = L`EDT Kingdom weekend`) {
   const name = getNick();
   if (!name || pts <= 0) return null;
   const d = await call({ action: 'add', act: String(WE_MODE), name, score: id * 1000 + Math.min(999, pts), mode: WE_MODE, rider, time: 0, win: 0, v: '1', k: getCode() });

@@ -6,7 +6,7 @@ npx -y esbuild@0.24.0 js/game.js --bundle --format=iife --minify --target=es2017
 V=$(date +%s)
 {
   echo "const CACHE = 'edtk-$V';"
-  printf "const FILES = ['./', 'index.html', 'style.css?v=12', 'game.min.js?v=12', 'manifest.json', 'icon-192.png'"
+  printf "const FILES = ['./', 'index.html', 'style.css?v=13', 'game.min.js?v=13', 'manifest.json', 'icon-192.png'"
   for f in img/*.webp fonts/*.woff2; do printf ", '%s'" "$f"; done
   echo "];"
   cat <<'JS'
@@ -18,7 +18,7 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   const isAsset = /\.(webp|png|woff2)$/.test(url.pathname);
   if (isAsset) e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request).then((res) => { const cp = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); return res; })));
-  else e.respondWith(fetch(e.request).then((res) => { const cp = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); return res; }).catch(() => caches.match(e.request)));
+  else e.respondWith(fetch(e.request, { cache: 'no-cache' }).then((res) => { const cp = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); return res; }).catch(() => caches.match(e.request)));
 });
 JS
 } > sw.js

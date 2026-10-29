@@ -580,7 +580,7 @@ function layout() {
   const bottom = $('.boosters').getBoundingClientRect().height || 80;
   const availW = appR.width - 34;
   const availH = appR.height - top - bottom - 20;
-  G.S = Math.floor(Math.min(availW / COLS, availH / ROWS, 64));
+  G.S = Math.floor(Math.min(availW / COLS, availH / ROWS, 92));
   document.documentElement.style.setProperty('--cell', G.S + 'px');
   const wrap = $('#boardWrap');
   wrap.style.width = G.S * COLS + 'px';

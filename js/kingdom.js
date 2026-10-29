@@ -10,6 +10,8 @@ export const CHARS = {
   costa: { name: 'Costa', img: 'c_costa' },
   renard: { name: 'Renard', img: 'c_renard' },
   svetlana: { name: 'Svetlana', img: 'c_svetlana' },
+  ...Object.fromEntries(['max', 'angelo', 'gusta', 'ciprian', 'daniel', 'linus', 'albertone', 'andrea', 'claudio', 'luigi', 'siro', 'erika', 'maggie', 'albo', 'sergio', 'paletta', 'brizio', 'alex', 'guccio']
+    .map((id) => [id, { name: id[0].toUpperCase() + id.slice(1), img: 'c_' + id }])),
   forestale: { name: L`La Forestale`, img: 'forestale' },
   forestale2: { name: L`La Forestale (in versione invernale)`, img: 'forestale2' },
   forestale3: { name: L`La Forestale del cantiere`, img: 'forestale3' },

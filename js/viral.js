@@ -120,6 +120,15 @@ export const PAGES = [
   { id: 'momenti', name: L`Momenti EDT`, prize: 400, items: [
     ['m1', L`All'alba nella valle`, 'st1_1', 1], ['m2', L`La bandiera`, 'st1_3', 1], ['m3', L`Tranquilli, è un giro easy`, 'st1_5', 2], ['m4', L`Mirco gela`, 'st2_3', 1],
     ['m5', L`La valanga`, 'st3_1', 2], ['m6', L`La ruspa di Purcello`, 'st3_4', 1], ['m7', L`Svetlana in concerto`, 'st4_1', 2], ['m8', L`Foto di gruppo`, 'st4_3', 3]] },
+  { id: 'giro1', name: L`Giro Easy 1`, prize: 300, items: [
+    ['g_max', 'Max', 'c_max', 1], ['g_angelo', 'Angelo', 'c_angelo', 1], ['g_gusta', 'Gusta', 'c_gusta', 1], ['g_ciprian', 'Ciprian', 'c_ciprian', 1],
+    ['g_daniel', 'Daniel', 'c_daniel', 1], ['g_linus', 'Linus', 'c_linus', 2], ['g_albertone', 'Albertone', 'c_albertone', 1], ['g_andrea', 'Andrea', 'c_andrea', 2]] },
+  { id: 'giro2', name: L`Giro Easy 2`, prize: 350, items: [
+    ['g_claudio', 'Claudio', 'c_claudio', 1], ['g_luigi', 'Luigi', 'c_luigi', 1], ['g_siro', 'Siro', 'c_siro', 1], ['g_erika', 'Erika', 'c_erika', 2],
+    ['g_maggie', 'Maggie', 'c_maggie', 2], ['g_albo', 'Albo', 'c_albo', 1], ['g_sergio', 'Sergio', 'c_sergio', 2], ['g_paletta', 'Paletta', 'c_paletta', 1]] },
+  { id: 'marocco', name: L`Marocco`, prize: 450, items: [
+    ['g_brizio', 'Brizio', 'c_brizio', 2], ['g_alex', 'Alex', 'c_alex', 2], ['g_guccio', 'Guccio', 'c_guccio', 3], ['fo4', L`La Forestale in vacanza`, 'forestale4', 2],
+    ['mm1', L`Partenza per il Marocco`, 'st5_1', 1], ['mm2', L`Il deserto`, 'st5_2', 1], ['mm3', L`La Kasbah`, 'b_kasbah', 2], ['mm4', L`Festa nell'oasi`, 'st5_5', 3]] },
 ];
 const RAR = { 1: [L`Comune`, 10], 2: [L`Rara`, 4], 3: ['D\'oro', 1] };
 const ALL = PAGES.flatMap((p) => p.items.map(([id, name, img, r]) => ({ id, name, img, r, page: p })));
@@ -374,7 +383,7 @@ export function openEvent() {
 }
 
 // ---------------- il tuo pilota: personaggio e colore del casco (si vede in classifica) ----------------
-export const PILOTS = ['gabbah', 'miti', 'mirco', 'purcello', 'costa', 'renard', 'svetlana'];
+export const PILOTS = ['gabbah', 'miti', 'mirco', 'purcello', 'costa', 'renard', 'svetlana', 'max', 'angelo', 'gusta', 'ciprian', 'daniel', 'linus', 'albertone', 'andrea', 'claudio', 'luigi', 'siro', 'erika', 'maggie', 'albo', 'sergio', 'paletta', 'brizio', 'alex', 'guccio'];
 export const HELMETS = ['#e8322a', '#2f5fa8', '#ffd34d', '#4fd25f', '#ff4fa3', '#8a4fff', '#ff7a1a', '#ffffff'];
 export function me() { if (!X.save.me) X.save.me = { who: 'gabbah', col: 1 }; return X.save.me; }
 export const riderTag = () => `EDTK|${me().who}|${me().col}`;

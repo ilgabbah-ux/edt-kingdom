@@ -1,7 +1,8 @@
 // EDT Kingdom — interfaccia, animazioni, campo base
 import { L, LANG, setLang } from './i18n.js';
+import { BUDDIES, BUDDY, unlockedBuddies } from './piloti.js';
 import { Board, ROWS, COLS, key, unkey, inside, newTile } from './engine.js';
-import { getLevel, MAX_LEVEL } from './levels.js';
+import { getLevel, MAX_LEVEL, isHard } from './levels.js';
 import { BUILDINGS, CHARS, ZONES, zoneOfLevel } from './kingdom.js';
 import * as FX from './fx.js';
 import * as AU from './audio.js';
@@ -130,6 +131,18 @@ function mapPoint(map, x, y) {
   return [(W - 1280 * k) / 2 + x * k, (H - 1280 * k) / 2 + y * k];
 }
 
+// le etichette degli edifici non devono finire sotto i pulsanti laterali né fuori dallo schermo
+function fitTags(map) {
+  const side = document.querySelector('#home .sidebtns'), mr = map.getBoundingClientRect();
+  const minX = side ? side.getBoundingClientRect().right + 4 : mr.left + 4, maxX = mr.right - 4;
+  map.querySelectorAll('.bld .tag').forEach((t) => {
+    t.style.transform = '';
+    const r = t.getBoundingClientRect();
+    let dx = 0;
+    if (r.left < minX) dx = minX - r.left; else if (r.right > maxX) dx = maxX - r.right;
+    if (dx) t.style.transform = `translateX(${Math.round(dx)}px)`;
+  });
+}
 function renderHome(popId = null) {
   renderWeekBadge();
   $('#albPct').textContent = `${V.albumCount()}/${V.albumTotal()}`;
@@ -183,6 +196,7 @@ function renderHome(popId = null) {
   sign.innerHTML = `${zi > 0 ? '<button class="zarr" data-d="-1">◀</button>' : ''}<span>${zone.name}</span>${zi < cz ? '<button class="zarr" data-d="1">▶</button>' : ''}`;
   sign.querySelectorAll('.zarr').forEach((bt) => { bt.onclick = (e) => { e.stopPropagation(); viewZone = ZONES[zi + +bt.dataset.d]; sfx.click(); renderHome(); }; });
   map.appendChild(sign);
+  requestAnimationFrame(() => fitTags(map));
 
   const btnB = $('#btnBuild');
   if (nb) {
@@ -599,7 +613,7 @@ function openLevelList() {
   for (let n = 1; n <= last; n++) {
     const st = save.best[n] || 0;
     const boss = n % 5 === 0;
-    cells.push(`<button class="lv${n === last && n === save.level ? ' cur' : ''}${boss ? ' boss' : ''}" data-n="${n}"><b>${n}</b><span>${[1, 2, 3].map((k) => `<i class="${k <= st ? 'on' : ''}"></i>`).join('')}</span></button>`);
+    cells.push(`<button class="lv${n === last && n === save.level ? ' cur' : ''}${boss ? ' boss' : ''}${isHard(n) ? ' hard' : ''}" data-n="${n}"><b>${n}</b><span>${[1, 2, 3].map((k) => `<i class="${k <= st ? 'on' : ''}"></i>`).join('')}</span></button>`);
   }
   const tot = Object.values(save.best).reduce((a, b) => a + b, 0);
   showCard(L`<h2>I tuoi livelli</h2><p>Stelle prese: <b>${tot}</b> su <b>${(last - (save.level > last ? 0 : 1)) * 3}</b>. Rigioca un livello per prendere le stelle che mancano.</p>
@@ -636,7 +650,7 @@ const goalLeft = (gl) => Math.max(0, gl.n - gl.done);
 function renderGoals(bumpIdx = -1) {
   const box = $('#goals');
   if (!box.children.length || box.children.length !== G.goals.length) {
-    box.innerHTML = G.goals.map((gl, i) => `<div class="goal" data-i="${i}" style="background-image:${goalURI(gl)}"><b></b></div>`).join('');
+    box.innerHTML = G.goals.map((gl, i) => `<div class="goal" data-i="${i}" data-t="${gl.type}" style="background-image:${goalURI(gl)}"><b></b></div>`).join('');
     [...box.children].forEach((el, i) => { el.onclick = () => goalInfo(G.goals[i]); });
   }
   G.goals.forEach((gl, i) => {
@@ -684,6 +698,7 @@ function renderMoves() {
     $('.moves').classList.toggle('low', G.moves <= 5);
   }
   $('#bHammer').classList.toggle('active', G.hammer);
+  { const hb = $('#bHammer b'), fr = G.freeHammer > 0; if (hb && hb.dataset.fr !== String(fr)) { hb.dataset.fr = String(fr); hb.innerHTML = fr ? L`GRATIS` : '100 <i class="ic ic-coin"></i>'; } $('#bHammer').classList.toggle('free', fr); }
   $('#bShield').classList.toggle('on', G.shield);
 }
 
@@ -1490,8 +1505,8 @@ async function useHammer(cell) {
   if (G.busy || G.over) return;
   if (!G.board.get(...cell)) return;
   G.hammer = false;
-  if (save.coins < 100) { renderMoves(); return; }
-  save.coins -= 100; persist();
+  if (G.freeHammer > 0) G.freeHammer--;
+  else { if (save.coins < 100) { renderMoves(); return; } save.coins -= 100; persist(); }
   G.busy = true; clearHint();
   renderMoves();
   const [r, c] = cell;
@@ -1573,6 +1588,7 @@ async function endTurn() {
   if ((G.moveCount || 0) % 2 === 0) placeEventTokens();
   if ((G.moveCount || 0) % 4 === 0 && Math.random() < 0.6) makeGold();
   if (!G.boss && !G.helped && !G.exhibit && (G.moveCount || 0) >= 5 && G.moves > 3 && Math.random() < 0.22) await surpriseHelper();
+  if (G.buddyObj && G.buddyObj.perk.sprint && !G.sprinted && !G.time && G.moves <= 5 && G.moves > 0) { G.sprinted = true; placeStartPowers(['mH']); peekSay(L`Maggie: sprint finale, tieni una moto!`); }
   saveRun();
   if (G.explainQ.size) { const ks = [...G.explainQ]; G.explainQ.clear(); await explain(ks, ks.length > 1 ? L`Nuovi potenziamenti!` : L`Nuovo potenziamento!`); }
   G.busy = false;
@@ -1635,7 +1651,7 @@ async function winLevel() {
   const prev = save.best[n] || 0;
   const gain = Math.max(0, stars - prev);
   save.best[n] = Math.max(prev, stars);
-  const coins = first ? 50 + left * 10 : 20 + left * 3;
+  const coins = Math.round((first ? 50 + left * 10 : 20 + left * 3) * (1 + ((G.buddyObj && G.buddyObj.perk.coins) || 0) / 100) * (lv.hard ? 2 : 1));
   save.stars += gain;
   pendingStar += gain;
   if (first) save.streak = Math.min(3, (save.streak || 0) + 1);
@@ -1666,7 +1682,7 @@ async function winLevel() {
     { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg), cVid: () => V.shareVideo(n, stars, ZONES[zoneOfLevel(n)].bg),
       cHome: async () => { hideCard(); await afterWin(); explain(['coins'], L`Hai guadagnato monete!`).then(goHome); },
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
-  async function afterWin() { if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
+  async function afterWin() { await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
   const ar = app.getBoundingClientRect();
   for (let k = 1; k <= stars; k++) {
@@ -1684,6 +1700,14 @@ async function winLevel() {
 }
 
 async function loseLevel() {
+  if (G.buddyObj && G.buddyObj.perk.save && !G.buddySaved && !G.exhibit) {
+    G.buddySaved = true;
+    if (G.time) G.timeLeft += 20; else G.moves += G.buddyObj.perk.save;
+    G.over = false; G.busy = false;
+    FX.banner(L`Ci pensa Giacu!`, G.time ? L`+20 secondi` : L`+${G.buddyObj.perk.save} mosse gratis`, '#ff4fa3');
+    renderMoves(); saveRun(); scheduleHint();
+    return;
+  }
   G.over = true;
   clearRun();
   V.chestTick(false);
@@ -1703,7 +1727,7 @@ async function loseLevel() {
       <button id="cQuit" class="btn btn-gray">Mollo</button>
       <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>${G.time ? L`+20 secondi` : L`+5 mosse`}</button>
     </div>`, {
-    cQuit: () => { hideCard(); save.streak = 0; clearRun(); retryOrHome(); },
+    cQuit: () => { hideCard(); if (G.buddyObj && G.buddyObj.perk.streak && save.streak) toast(L`Sergio ti salva la serie di vittorie!`, 1400); else save.streak = 0; persist(); clearRun(); retryOrHome(); },
     cMore: () => {
       if (!canBuy) return;
       save.coins -= 200; persist();
@@ -2014,6 +2038,88 @@ function levelThings(lv) {
 }
 
 // ---------- avvio livello ----------
+// ---------- compagno di giro (piloti di Giro Easy) ----------
+function curBuddy() {
+  const ul = unlockedBuddies(save.level);
+  if (!ul.length) return null;
+  return ul.find((b) => b.id === save.buddy) || ul[ul.length - 1];
+}
+function buddyBoxHTML(b, line) {
+  return `<div class="buddy"><span class="bav" style="background-image:${I('c_' + b.id)}"></span>
+    <div class="btx"><small>${L`Compagno di giro`}</small><b>${b.name} <em>· ${b.nick}</em></b><p>${b.desc}</p>${line ? `<q>${line}</q>` : ''}</div>
+    <button id="cBuddy" class="bchg">${L`Cambia`}</button></div>`;
+}
+function openBuddyPicker(back) {
+  const cur = curBuddy();
+  const cells = BUDDIES.map((b) => {
+    const ok = save.level > b.at;
+    return `<button class="bpick${ok ? '' : ' lock'}${cur && cur.id === b.id ? ' on' : ''}" data-id="${b.id}" ${ok ? '' : 'disabled'}>
+      <span class="bav" style="background-image:${I('c_' + b.id)}"></span><b>${ok ? b.name : '?'}</b><small>${ok ? b.nick : L`dopo il livello ${b.at}`}</small></button>`;
+  }).join('');
+  showCard(`<h2>${L`Compagno di giro`}</h2><p class="small">${L`Scegli chi ti accompagna: ognuno ha il suo aiuto. Se ne sblocca uno nuovo ogni 3 livelli.`}</p>
+    <div class="bgrid">${cells}</div><p class="bdesc" id="bDesc">${cur ? `<b>${cur.name}</b>: ${cur.desc}` : ''}</p>
+    <div class="row"><button id="cBOk" class="btn btn-play">${L`Fatto`}</button></div>`, { cBOk: () => { hideCard(); back && back(); } });
+  document.querySelectorAll('.bpick:not(.lock)').forEach((el) => {
+    el.onclick = () => {
+      sfx.click(); save.buddy = el.dataset.id; persist();
+      document.querySelectorAll('.bpick').forEach((x) => x.classList.toggle('on', x === el));
+      const b = BUDDY[el.dataset.id]; $('#bDesc').innerHTML = `<b>${b.name}</b>: ${b.desc}`;
+    };
+  });
+}
+// annuncia i compagni appena sbloccati (dopo una vittoria, al ritorno al campo base)
+async function announceBuddies() {
+  save.buddySeen = save.buddySeen || [];
+  const fresh = unlockedBuddies(save.level).filter((b) => !save.buddySeen.includes(b.id));
+  if (fresh.length > 1) {   // chi aveva già tanti livelli: un'unica scheda con tutti
+    fresh.forEach((b) => save.buddySeen.push(b.id)); save.buddy = fresh[fresh.length - 1].id; persist();
+    await new Promise((res) => showCard(`<h2>${L`Arrivano i piloti di Giro Easy!`}</h2>
+      <div class="bgrid mini">${fresh.map((b) => `<span class="bav" style="background-image:${I('c_' + b.id)}"></span>`).join('')}</div>
+      <p>${L`Da ora ogni livello lo fai con un <b>compagno di giro</b>: ognuno ha il suo aiuto. Ne hai già <b>${fresh.length}</b>, gli altri si sbloccano andando avanti.`}</p>
+      <div class="row"><button id="cBGo" class="btn btn-play">${L`Vediamoli!`}</button></div>`, { cBGo: () => { hideCard(); res(); } }));
+    fireworks(900);
+    return;
+  }
+  for (const b of fresh) {
+    save.buddySeen.push(b.id); save.buddy = b.id; persist();
+    sfx.win && sfx.win();
+    await new Promise((res) => showCard(`<h2>${L`Nuovo compagno di giro!`}</h2>
+      <div class="bnew"><span class="bav big" style="background-image:${I('c_' + b.id)}"></span></div>
+      <h3 class="bname">${b.name} <em>· ${b.nick}</em></h3><p>${b.desc}</p><p class="small"><q>${b.lines[0]}</q></p>
+      <div class="row"><button id="cBGo" class="btn btn-play">${L`Si parte!`}</button></div>`, { cBGo: () => { hideCard(); res(); } }));
+    fireworks(900);
+  }
+}
+// applica l'aiuto del compagno all'inizio del livello
+function applyBuddy(extras) {
+  const b = G.buddyObj; if (!b) return extras;
+  const p = b.perk;
+  if (p.moves) { if (G.time) { G.time += p.moves * 4; G.timeLeft += p.moves * 4; } else G.moves += p.moves; }
+  if (p.hammer) G.freeHammer = p.hammer;
+  if (p.clear) setTimeout(() => buddyClear(p.clear, p.n), 1700);
+  setTimeout(() => peekSay(`${b.name}: ${pick(b.lines)}`), 900);
+  return p.power ? [...extras, ...p.power] : extras;
+}
+async function buddyClear(type, n) {
+  if (G.over || !G.board) return;
+  if (G.busy) { setTimeout(() => buddyClear(type, n), 400); return; }
+  const b = G.board, cand = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const t = b.grid[r][c];
+    if (type === 'mud' && b.mud[r][c] > 0) cand.push([r, c]);
+    else if (type === 'rock' && t && t.rock && !t.kind) cand.push([r, c]);
+    else if (type === 'crate' && t && t.kind === 'crate') cand.push([r, c]);
+    else if (type === 'chain' && t && t.chain) cand.push([r, c]);
+  }
+  if (!cand.length) return;
+  const cells = new Set();
+  for (let i = 0; i < n && cand.length; i++) { const [r, c] = cand.splice(Math.floor(Math.random() * cand.length), 1)[0]; cells.add(key(r, c)); const [x, y] = cellCenter(r, c); FX.ring(x, y, G.S * 1.2, '#fff6a0', 7); }
+  G.busy = true; sfx.boom();
+  await resolve({ pending: [{ cells }] });
+  G.busy = false;
+  if (allDone()) { await winLevel(); return; }
+  saveRun(); scheduleHint();
+}
 const PRE = [
   { id: 'mH', name: L`Moto`, cost: 60, img: 'p_moto' },
   { id: 'bomb', name: L`Tanica`, cost: 90, img: 'p_tanica' },
@@ -2053,7 +2159,7 @@ function saveRun() {
     n: G.level.n, moves: G.moves, goals: G.goals.map((g) => g.done), extraN: G.goals.map((g) => g.n),
     boss: G.boss ? G.boss.count : null, shield: G.shield, time: G.time ? G.timeLeft : null,
     grid: b.grid.map((row) => row.map((t) => (t ? [t.color, t.power || 0, t.rock || 0, t.chain ? 1 : 0, t.kind || 0, t.drop ? 1 : 0] : null))),
-    mud: b.mud, ticket: b.ticket,
+    mud: b.mud, ticket: b.ticket, buddy: G.buddyObj ? G.buddyObj.id : null, bsaved: G.buddySaved, sprint: G.sprinted, hused: G.buddyObj && G.buddyObj.perk.hammer && !G.freeHammer,
   };
   persist();
 }
@@ -2084,6 +2190,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   G.ticketCleared = false; G.explainQ = new Set(); G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
   G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null; G.droneFix = null; G.helped = false; G.moveCount = 0;
   G.time = lv.time || 0; G.timeLeft = resume && resume.time != null ? resume.time : G.time;
+  G.buddyObj = resume ? (resume.buddy ? BUDDY[resume.buddy] : null) : curBuddy(); G.freeHammer = 0; G.buddySaved = !!(resume && resume.bsaved); G.sprinted = !!(resume && resume.sprint);
   clearPreview(); clearHint();
   if (resume) {
     const b = G.board;
@@ -2105,6 +2212,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   }
   $('#goals').innerHTML = '';
   $('#gLevel').textContent = n;
+  $('#game').classList.toggle('hardlv', !!lv.hard);
   $('#bossbar').classList.toggle('hidden', !G.boss);
   $('#bShield').style.display = G.boss ? '' : 'none';
   const zl = zoneOfLevel(n);
@@ -2130,6 +2238,9 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   renderGoals();
   renderMoves();
   scheduleHint();
+  if (!resume) extras = applyBuddy(extras);
+  else if (G.buddyObj && G.buddyObj.perk.hammer && !resume.hused) G.freeHammer = G.buddyObj.perk.hammer;
+  renderMoves();
   if (extras.length) placeStartPowers(extras);
   setTimeout(() => { if (G.level === lv && !G.busy) saveRun(); }, 100);
   if (resume) { FX.banner(L`Si riparte!`, L`Livello ${n}`, '#ffd34d'); return; }
@@ -2147,6 +2258,7 @@ async function openLevel(num) {
     await say('gabbah', L`Hai finito tutti i sentieri! Nuove zone (e nuove multe) arrivano coi prossimi aggiornamenti.`);
     return;
   }
+  if (unlockedBuddies(save.level).some((b) => !(save.buddySeen || []).includes(b.id))) await announceBuddies();
   const lv = getLevel(n);
   const best = save.best[n] || 0;
   const goalsHTML = lv.goals.map((g) => `<div class="goal" style="background-image:${goalURI(g)}"><b>${g.n}</b></div>`).join('');
@@ -2159,7 +2271,8 @@ async function openLevel(num) {
     ['renard', L`Se una tessera non si sposta, c'è il mio martello. Costa poco, giuro.`],
   ];
   const tip = lv.intro || (() => { const t = TIPS[lv.n % TIPS.length]; return { who: t[0], text: t[1] }; })();
-  const intro = speakerHTML(tip.who, tip.text);
+  const bud = curBuddy();
+  const intro = bud ? (lv.intro ? speakerHTML(tip.who, tip.text) : '') + buddyBoxHTML(bud, '') : speakerHTML(tip.who, tip.text);
   const news = levelThings(lv).filter((k) => !save.seen[k]);
   const newsHTML = news.length ? L`<div class="newsbox"><div class="prehead">Novità in questo livello</div><div class="hlist">${news.map(helpRow).join('')}</div></div>` : '';
   const gifts = streakGifts();
@@ -2173,12 +2286,12 @@ async function openLevel(num) {
   }).join('');
   const streak = save.streak || 0;
   const bestHTML = n < save.level ? `<div class="bestrow">${[1, 2, 3].map((k) => `<i class="ic ic-star${k <= best ? '' : ' off'}"></i>`).join('')}<span>${best >= 3 ? L`già perfetto` : L`record: prova a fare meglio`}</span></div>` : '';
-  showCard(L`<h2>${lv.boss ? L`Arriva la Forestale!` : L`Livello ${lv.n}`}</h2>${bestHTML}${intro}
+  showCard(L`<h2${lv.hard ? ' class="red"' : ''}>${lv.boss ? L`Arriva la Forestale!` : lv.hard ? L`Livello ${lv.n} 💀` : L`Livello ${lv.n}`}</h2>${lv.hard ? L`<p class="hardnote">Livello difficile: se lo vinci, <b>monete doppie</b>.</p>` : ''}${bestHTML}${intro}
     ${newsHTML}<div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? L`. Svuota la sua pazienza prima che ti riempia di sassi!` : ''}</p>
     <div class="prebox"><div class="prehead">${streak ? L`🔥 Serie di vittorie: <b>${streak}</b>` : L`Parti con un aiuto?`}<span>${streak ? L`regali già in griglia` : L`vinci di fila per averli gratis`}</span></div>
     <div class="prerow">${preHTML}</div><div class="prehelp"><b>Moto</b> pulisce una riga · <b>Tanica</b> esplode intorno · <b>Grappa</b> via un colore</div></div>
     <div class="row"><button id="cBack" class="btn btn-gray">Indietro</button><button id="cPlay" class="btn btn-play">Gioca!</button></div>`,
-  { cBack: hideCard, cPlay: () => {
+  { cBack: hideCard, cBuddy: () => openBuddyPicker(() => openLevel(n)), cPlay: () => {
     let cost = 0;
     chosen.forEach((id) => { if (save.inv[id] > 0) save.inv[id]--; else cost += PRE.find((p) => p.id === id).cost; });
     save.coins -= cost; persist();
@@ -2273,7 +2386,7 @@ $('#bHelp').onclick = () => { if (G.busy || G.over) return; sfx.click(); showHin
 $('#bHammer').onclick = async () => {
   if (G.busy || G.over) return;
   if (!save.seen.hammer) { await explain(['hammer']); }
-  if (!G.hammer && save.coins < 100) { toast(L`Servono 100 monete`, 1000); return; }
+  if (!G.hammer && save.coins < 100 && !(G.freeHammer > 0)) { toast(L`Servono 100 monete`, 1000); return; }
   G.hammer = !G.hammer;
   if (G.hammer) toast(L`Tocca cosa spaccare`, 1000);
   renderMoves();

@@ -1107,16 +1107,75 @@ async function trySwap(a, bCell) {
   await endTurn();
 }
 
+// chi compare a urlare nella super combo
+const COMBO_WHO = (k) => k.includes('grappa') ? (k === 'grappa+grappa' ? 'svetlana' : 'costa') : k === 'bomb+bomb' ? 'gabbah' : k.includes('bomb') ? 'purcello' : k.includes('drone') ? 'miti' : 'mirco';
+// i due potenziamenti si agganciano: volano uno sull'altro girando, il tabellone rallenta e zooma
+async function fuseIntro(ta, tb, at, from) {
+  const ea = G.els.get(ta.id), eb = G.els.get(tb.id);
+  const P = pos(...at), Q = pos(...from);
+  const wrap = $('#boardWrap');
+  app.classList.add('fusing');
+  wrap.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.07)' }, { transform: 'scale(1.04)' }], { duration: 700, easing: 'ease-out', fill: 'forwards' });
+  [ea, eb].forEach((e) => { if (e) e.style.zIndex = 30; });
+  eb?.animate([{ transform: Q + ' scale(1)' }, { transform: P + ' scale(1.35) rotate(-200deg)' }, { transform: P + ' scale(.6) rotate(-540deg)' }], { duration: 650, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'forwards' });
+  ea?.animate([{ transform: P + ' scale(1)' }, { transform: P + ' scale(1.5) rotate(180deg)' }, { transform: P + ' scale(.6) rotate(540deg)' }], { duration: 650, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'forwards' });
+  const [cx, cy] = cellCenter(...at);
+  for (let k = 0; k < 5; k++) setTimeout(() => { FX.ring(cx, cy, G.S * (1.6 - k * .22), k % 2 ? '#ffe27a' : '#ffffff', 5); beep(500 + k * 140, .08, 'triangle', .08, 200); }, k * 110);
+  FX.buzz([20, 40, 20, 40, 60]);
+  await sleep(640);
+  wrap.animate([{ transform: 'scale(1.04)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.2,1.4,.4,1)', fill: 'forwards' });
+  app.classList.remove('fusing');
+}
+// il personaggio entra in grande di lato con il nome della combo
+function cutIn(who, title) {
+  const c = CHARS[who]; if (!c) return;
+  document.querySelectorAll('.cutin').forEach((e) => e.remove());
+  const d = document.createElement('div');
+  d.className = 'cutin';
+  d.innerHTML = `<div class="ci-band"></div><div class="ci-face" style="background-image:${I(c.img)}"></div><div class="ci-txt"><small>SUPER COMBO</small><b>${title}</b></div>`;
+  app.appendChild(d);
+  setTimeout(() => d.classList.add('out'), 1250);
+  setTimeout(() => d.remove(), 1650);
+}
+function flyer(uri, cls = '') { const d = document.createElement('div'); d.className = 'rider ' + cls; d.style.backgroundImage = uri; app.appendChild(d); return d; }
+// squadriglia: 3 droni decollano, girano sopra la griglia e picchiano
+function droneSwarm(cx, cy) {
+  const S = G.S;
+  for (let i = 0; i < 3; i++) {
+    const d = flyer(RIDE_URI.drone, 'drone-fx'), w = d.offsetWidth || S;
+    const t0 = performance.now(), dur = 1100, a0 = i * 2.094;
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / dur);
+      const R = S * (0.4 + 2.2 * Math.sin(k * Math.PI)), a = a0 + k * 7;
+      const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R * .7 - S * 1.2 * Math.sin(k * Math.PI);
+      d.style.transform = `translate(${x - w / 2}px, ${y - w / 2}px) rotate(${Math.cos(a) * 18}deg) scale(${1 + .3 * Math.sin(k * Math.PI)})`;
+      if (k < 1) requestAnimationFrame(step); else { FX.ring(x, y, S, '#bdf0ff', 6); FX.burst(x, y, '#bdf0ff', 10, 1.2); d.remove(); }
+    };
+    requestAnimationFrame(step);
+  }
+}
+// bottiglia di grappa che gira in aria e versa luce
+function grappaBottle(cx, cy, big) {
+  const d = flyer(I('p_grappa'), 'bottle-fx' + (big ? ' big' : ''));
+  const w = d.offsetWidth || G.S * 1.6;
+  d.style.left = (cx - w / 2) + 'px'; d.style.top = (cy - w / 2) + 'px';
+  setTimeout(() => d.remove(), 1500);
+  if (big) { const L = document.createElement('div'); L.className = 'holylight'; app.appendChild(L); setTimeout(() => L.remove(), 1700); }
+}
+
 async function comboPowers(ta, tb, at, ka, kb) {
   const b = G.board;
   const [r, c] = at;
-  const res = b.comboBlast(ta.power, tb.power, r, c, G.goals);
   const keyName = [ta.power, tb.power].sort().join('+');
   const nm = COMBO_NAMES[keyName] || (keyName.includes('grappa') ? 'Benedizione di San Braulio!' : 'Super combo!');
-  FX.banner(nm, 'SUPER COMBO', '#ffd34d');
-  voice(pick(['gabbah', 'miti', 'purcello', 'costa', 'svetlana']), 2, 5000);
+  await fuseIntro(ta, tb, at, unkey(kb));
+  const res = b.comboBlast(ta.power, tb.power, r, c, G.goals);
+  const who = COMBO_WHO(keyName);
+  cutIn(who, nm);
+  voice(who, 2, 5000);
   const [cx, cy] = cellCenter(r, c);
-  FX.flash(.7); FX.shake(12, .5); FX.glow(cx, cy, G.S * 3.5); FX.ring(cx, cy, G.S * 4.5, '#ffffff', 16);
+  FX.flash(.8); FX.shake(14, .55); FX.glow(cx, cy, G.S * 3.5); FX.ring(cx, cy, G.S * 4.5, '#ffffff', 16);
+  if (keyName.includes('grappa')) grappaBottle(cx, cy, keyName === 'grappa+grappa');
   if (res.convert) {
     sfx.power(); FX.rays(cx, cy, G.S * 5);
     const want = res.convert.power;
@@ -1140,14 +1199,40 @@ async function comboPowers(ta, tb, at, ka, kb) {
   const S = G.S;
   const br = $('#board').getBoundingClientRect(), ar = app.getBoundingClientRect();
   const bx = br.left - ar.left, by = br.top - ar.top;
-  if (keyName === 'bomb+bomb') { FX.fire(cx, cy, S * 4); FX.ring(cx, cy, S * 5.5, '#ffe9a0', 20); }
-  else if (keyName.startsWith('drone+drone')) { FX.dust(cx, cy, 14, 'rgba(220,240,255,.9)'); }
-  else {
-    const w = keyName.includes('bomb') ? S * 2.6 : S * .9;
+  if (keyName === 'bomb+bomb') {
+    // maxi esplosione a fungo: palla di fuoco, onde d'urto in sequenza, detriti, colonna di fumo
+    FX.fire(cx, cy, S * 4.5);
+    for (let k = 0; k < 4; k++) setTimeout(() => FX.ring(cx, cy, S * (2.5 + k * 1.6), k % 2 ? '#ffb340' : '#fff3c0', 18 - k * 3), k * 120);
+    for (let k = 0; k < 3; k++) setTimeout(() => { FX.fire(cx + (Math.random() - .5) * S * 3, cy + (Math.random() - .5) * S * 3, S * 2); FX.shake(10 - k * 2, .3); }, 160 + k * 170);
+    ['#8a5a2e', '#bdb6a8', '#5e3818', '#ffd34d'].forEach((col) => FX.burst(cx, cy, col, 16, 2.4));
+    for (let k = 0; k < 8; k++) setTimeout(() => FX.dust(cx + (Math.random() - .5) * S, cy - k * S * .35, 3, 'rgba(70,60,55,.55)'), k * 60);
+    app.classList.add('bigboom'); setTimeout(() => app.classList.remove('bigboom'), 700);
+    FX.buzz([80, 40, 160]);
+  } else if (keyName.startsWith('drone+drone')) {
+    droneSwarm(cx, cy); FX.dust(cx, cy, 14, 'rgba(220,240,255,.9)');
+  } else if (keyName.includes('bomb')) {
+    // moto in fiamme: tre righe e tre colonne di fuoco, le moto passano infuocate
+    for (let d = -1; d <= 1; d++) {
+      const yy = cy + d * S, xx = cx + d * S;
+      setTimeout(() => {
+        FX.streak(bx, yy, bx + COLS * S, yy, '#ffb340', S * .8); FX.streak(xx, by, xx, by + ROWS * S, '#ffb340', S * .8);
+        for (let k = 0; k < COLS; k++) setTimeout(() => FX.fire(bx + (k + .5) * S, yy, S * .9), k * 35);
+        for (let k = 0; k < ROWS; k++) setTimeout(() => FX.fire(xx, by + (k + .5) * S, S * .9), k * 35);
+      }, (d + 1) * 90);
+    }
+    FX.rideAcross(RIDE_URI.mH, bx - S, cy, bx + COLS * S + S, cy, 420).then(() => {});
+    FX.rideAcross(RIDE_URI.mV, cx, by + ROWS * S + S, cx, by - S, 440);
+    setTimeout(() => document.querySelectorAll('.rider').forEach((e) => e.classList.add('onfire')), 10);
+    FX.fire(cx, cy, S * 3);
+  } else {
+    // doppia sgasata: due moto a croce con scia di polvere, poi altre due di ritorno
+    const w = S * .9;
     FX.streak(bx, cy, bx + COLS * S, cy, '#fff6c8', w); FX.streak(cx, by, cx, by + ROWS * S, '#fff6c8', w);
     FX.rideAcross(RIDE_URI.mH, bx - S, cy, bx + COLS * S + S, cy, 380);
     FX.rideAcross(RIDE_URI.mV, cx, by + ROWS * S + S, cx, by - S, 400);
-    if (keyName.includes('bomb')) FX.fire(cx, cy, S * 2.5);
+    setTimeout(() => { FX.rideAcross(RIDE_URI.mH, bx + COLS * S + S, cy + S * .35, bx - S, cy + S * .35, 360); FX.rideAcross(RIDE_URI.mV, cx + S * .35, by - S, cx + S * .35, by + ROWS * S + S, 380); }, 260);
+    for (let k = 0; k < 10; k++) setTimeout(() => { FX.dust(bx + Math.random() * COLS * S, cy + S * .3, 2); FX.dust(cx + S * .3, by + Math.random() * ROWS * S, 2); }, k * 40);
+    sfx.moto && sfx.moto();
   }
   sfx.boom();
   res.cells.add(ka); res.cells.add(kb);

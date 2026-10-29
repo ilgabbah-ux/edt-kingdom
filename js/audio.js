@@ -25,13 +25,13 @@ function ensure() {
 export function unlock() {
   if (!ensure()) return;
   if (ctx.state === 'suspended') ctx.resume();
-  if (!unlocked) { unlocked = true; if (wantTrack) startTrack(wantTrack); }
+  if (!unlocked) { unlocked = true; preloadMusic(); if (wantTrack) startTrack(wantTrack); }
 }
 
 export function setMusic(on) {
   state.music = on;
   if (ctx) musicBus.gain.setTargetAtTime(on ? 0.32 : 0, ctx.currentTime, 0.05);
-  if (on && wantTrack && !timer) startTrack(wantTrack);
+  if (on && wantTrack && !timer && !srcNode) startTrack(wantTrack);
 }
 export function setSfx(on) { state.sfx = on; if (ctx) sfxBus.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.02); }
 // abbassa la musica mentre parla un personaggio
@@ -116,7 +116,7 @@ export const sfx = {
   combo(step) { const b = S(); if (!b) return; const base = 392 * Math.pow(2, Math.min(step, 7) * 2 / 12); [0, 4, 7].forEach((s, i) => tone(b, { f: base * Math.pow(2, s / 12), type: 'square', t: i * 0.05, d: 0.12, vol: 0.06, lp: 3000 })); },
   coin() { const b = S(); if (!b) return; tone(b, { f: 988, type: 'square', d: 0.07, vol: 0.06, lp: 4000 }); tone(b, { f: 1319, type: 'square', t: 0.07, d: 0.18, vol: 0.06, lp: 4000 }); },
   star() { const b = S(); if (!b) return; [0, 5, 9, 12].forEach((s, i) => tone(b, { f: 659 * Math.pow(2, s / 12), type: 'triangle', t: i * 0.06, d: 0.25, vol: 0.1 })); },
-  win() { const b = S(); if (!b) return; [[0, 0], [4, .12], [7, .24], [12, .36], [7, .52], [12, .64]].forEach(([s, t]) => tone(b, { f: 523 * Math.pow(2, s / 12), type: 'square', t, d: 0.2, vol: 0.08, lp: 3500 })); tone(b, { f: 131, type: 'triangle', t: 0.36, d: 0.6, vol: 0.2 }); },
+  win() { const b = S(); if (!b) return; if (winJingle()) return; [[0, 0], [4, .12], [7, .24], [12, .36], [7, .52], [12, .64]].forEach(([s, t]) => tone(b, { f: 523 * Math.pow(2, s / 12), type: 'square', t, d: 0.2, vol: 0.08, lp: 3500 })); tone(b, { f: 131, type: 'triangle', t: 0.36, d: 0.6, vol: 0.2 }); },
   lose() { const b = S(); if (!b) return; [[7, 0], [6, .2], [5, .4], [4, .6]].forEach(([s, t]) => tone(b, { f: 262 * Math.pow(2, s / 12), type: 'triangle', t, d: 0.3, vol: 0.12 })); },
   whistle() { const b = S(); if (!b) return; [0, 0.18].forEach((t, i) => { tone(b, { f: 2100, type: 'sine', t, a: 0.01, d: i ? 0.32 : 0.12, vol: 0.09 }); tone(b, { f: 2150, type: 'sine', t, a: 0.01, d: i ? 0.32 : 0.12, vol: 0.05 }); }); },
   hammer() { const b = S(); if (!b) return; noise(b, { f: 1400, d: 0.08, vol: 0.25, q: 3 }); tone(b, { f: 180, f2: 90, type: 'square', d: 0.08, vol: 0.08, lp: 1200 }); },
@@ -146,20 +146,55 @@ const TRACKS = {
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 let wantTrack = null, timer = 0, step = 0, nextT = 0, cur = null;
 
+// musica vera (brani ElevenLabs in loop); se un file non si carica resta quella sintetica
+const FILES = { home: 'm_home', game: 'm_game', boss: 'm_boss' };
+const bufs = {}, loading = {};
+let srcNode = null, srcGain = null;
+const fileSrc = (n) => (window.__V && window.__V[n]) || `audio/${n}.mp3`;
+function loadBuf(n) {
+  if (bufs[n] || loading[n] || !ensure()) return loading[n];
+  loading[n] = fetch(fileSrc(n)).then((r) => { if (!r.ok) throw new Error('x'); return r.arrayBuffer(); })
+    .then((a) => new Promise((res, rej) => ctx.decodeAudioData(a, res, rej)))
+    .then((b) => { bufs[n] = b; if (wantTrack && FILES[wantTrack] === n && timer) startTrack(wantTrack); return b; })
+    .catch(() => null);
+  return loading[n];
+}
+function preloadMusic() { Object.values(FILES).forEach(loadBuf); loadBuf('j_win'); }
+function stopSrc() {
+  if (!srcNode) return;
+  const n = srcNode, g = srcGain; srcNode = null; srcGain = null;
+  try { g.gain.setTargetAtTime(0, ctx.currentTime, 0.15); n.stop(ctx.currentTime + 0.6); } catch { /* */ }
+}
 function startTrack(name) {
-  stopTimer();
+  stopTimer(); stopSrc();
   if (!state.music || !unlocked || !ensure()) return;
+  const f = FILES[name];
+  if (f && bufs[f]) {
+    srcNode = ctx.createBufferSource(); srcNode.buffer = bufs[f]; srcNode.loop = true;
+    srcGain = ctx.createGain(); srcGain.gain.setValueAtTime(0, ctx.currentTime); srcGain.gain.linearRampToValueAtTime(0.75, ctx.currentTime + 0.6);
+    srcNode.connect(srcGain).connect(musicBus); srcNode.start();
+    return;
+  }
+  if (f) loadBuf(f);
   cur = TRACKS[name]; step = 0; nextT = ctx.currentTime + 0.1;
   timer = setInterval(schedule, 25);
 }
+export function winJingle() {
+  if (!ensure() || !state.sfx || !bufs.j_win) return false;
+  const n = ctx.createBufferSource(); n.buffer = bufs.j_win;
+  const g = ctx.createGain(); g.gain.value = 0.9;
+  n.connect(g).connect(sfxBus); n.start();
+  duck(bufs.j_win.duration);
+  return true;
+}
 function stopTimer() { if (timer) { clearInterval(timer); timer = 0; } }
 export function playMusic(name) {
-  if (wantTrack === name && timer) return;
+  if (wantTrack === name && (timer || srcNode)) return;
   wantTrack = name;
   if (ctx) musicBus.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
   setTimeout(() => { startTrack(name); if (ctx && state.music) musicBus.gain.setTargetAtTime(0.32, ctx.currentTime, 0.3); }, 180);
 }
-export function stopMusic() { wantTrack = null; stopTimer(); }
+export function stopMusic() { wantTrack = null; stopTimer(); stopSrc(); }
 
 function mtone(f, t, d, vol, type, lp = 2400, a = 0.008) {
   const o = ctx.createOscillator(); o.type = type; o.frequency.value = f;

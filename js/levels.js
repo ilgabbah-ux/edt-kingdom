@@ -278,7 +278,7 @@ const BOSS_LINES4 = [
 // zona 4, il Marocco: sabbia (k), acqua che si allarga (t), autovelox (v), gomme (g), fusti da portare giù (d), livelli a tempo
 function moroccoLevel(n, rng, tier) {
   const colors = 6;
-  const pick = ['sand', 'velox', 'drop', 'time', 'gomme', 'water', 'velox+sand', 'drop+sand', 'gomme+mud', 'time', 'drop', 'velox+gomme'];
+  const pick = ['sand', 'velox', 'drop', 'time', 'gomme', 'water', 'velox+sand', 'drop+sand', 'gomme+mud', 'dune+sand', 'spice+mud', 'velox+gomme'];
   const FIRST = { 91: 'sand', 92: 'velox', 93: 'drop', 94: 'time', 96: 'gomme', 97: 'water' };   // ogni novità da sola, la prima volta
   const kind = FIRST[n] || pick[(n * 5 + Math.floor(rng() * 3)) % pick.length];
   if (kind === 'time') {
@@ -287,7 +287,7 @@ function moroccoLevel(n, rng, tier) {
     const goals = [{ type: 'tile', t: a, n: 22 + Math.min(tier, 6) }, { type: 'tile', t: b2, n: 22 + Math.min(tier, 6) }, ...goalsFrom(layout)];
     return { n, moves: 999, time: 105 + goals.length * 10, colors, goals, layout };
   }
-  const base = kind.includes('sand') ? 'chain' : kind.includes('water') ? 'multa' : kind.includes('mud') ? 'mud' : '';
+  const base = [kind.includes('sand') ? 'chain' : '', kind.includes('water') ? 'multa' : '', kind.includes('mud') ? 'mud' : '', kind.includes('dune') ? 'rock' : '', kind.includes('spice') ? 'crate' : ''].filter(Boolean).join('+');
   const G = makeLayout(rng, tier, base || 'none', rng() < 0.45).map((r) => r.split(''));
   const free = (r, c) => G[r][c] === '.';
   const sym = (r, c, ch) => { if (free(r, c)) G[r][c] = ch; if (free(r, 7 - c)) G[r][7 - c] = ch; };

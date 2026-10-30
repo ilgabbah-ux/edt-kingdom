@@ -22,7 +22,7 @@ const RIDER_UP = I('r_up'), RIDER_DOWN = I('r_down');
 const RIDE_URI = { mH: I('fx_moto'), mV: I('fx_moto_v'), drone: I('fx_drone') };   // senza medaglione, per le animazioni
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
 let ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
-const MUD_URI = [null, I('o_fango1'), I('o_fango2')];
+let MUD_URI = [null, I('o_fango1'), I('o_fango2')];
 let FORESTALE_URI = I('forestale');
 let CRATE_URI = [null, I('o_cassa1'), I('o_cassa2')];
 const MUG_URI = [I('o_boccale3'), I('o_boccale2'), I('o_boccale1'), I('o_boccale0')];   // per colpi rimasti: 0 pieno … 3 vuoto
@@ -914,7 +914,7 @@ function goalInfo(gl) {
   sfx.click();
   if (gl.type === 'tile') { tipBubble('t0_birra', L`Togli <b>${goalLeft(gl)}</b> di queste tessere facendo tris con loro.`, goalURI(gl)); return; }
   const zl = zoneOfLevel(G.level.n);
-  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type === 'multa' && zl === 5 ? 'potion' : zl === 5 && gl.type === 'rock' ? 'pumpkin' : zl === 5 && gl.type === 'crate' ? 'coffin' : gl.type;
+  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type === 'multa' && zl === 5 ? 'potion' : zl === 5 && gl.type === 'rock' ? 'pumpkin' : zl === 5 && gl.type === 'crate' ? 'coffin' : zl === 3 && gl.type === 'rock' ? 'dune' : zl === 3 && gl.type === 'crate' ? 'spice' : zl === 3 && gl.type === 'mud' ? 'redmud' : gl.type;
   const h = HELP[k]; if (h) tipBubble(h.img, `<b>${h.t}</b>: ${h.d}`);
 }
 function tipBubble(img, html, uri) {
@@ -2049,6 +2049,9 @@ const COACH = {
   web: ['svetlana', L`Le ragnatele bloccano le tessere: fai un tris con quelle tessere per liberarle.`],
   potion: ['forestale6', L`Se in un turno non togli nessuna pozione, se ne versa un'altra. Muahahah!`],
   pumpkin: ['costa', L`Le zucche si rompono facendo tris <b>accanto</b>. Quelle scure vanno colpite due volte.`],
+  dune: ['miti', L`I blocchi di sabbia si sgretolano facendo tris <b>accanto</b>. Quelli interi vanno colpiti due volte.`],
+  spice: ['costa', L`Le ceste di spezie si aprono con i tris <b>accanto</b> o con un potenziamento.`],
+  redmud: ['mirco', L`Il fango rosso del deserto si pulisce facendo tris <b>sopra</b>. Quello scuro va fatto due volte.`],
   coffin: ['luigi', L`Le bare si aprono con i tris <b>accanto</b> o con un potenziamento.`],
   bill: ['forestale5', L`Ogni turno che non paghi un conto, se ne aggiunge un altro. Pagate, pagate!`],
   tile: ['gabbah', L`Cerca le tessere dell'obiettivo in alto: fai tris con quelle, il resto viene da sé.`],
@@ -2195,6 +2198,9 @@ const HELP = {
   web: { img: 'o_ragnatela', t: L`Ragnatela`, d: L`Nel bosco di Halloween le ragnatele legano le tessere: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.` },
   potion: { img: 'o_pozione', t: L`Pozione rovesciata`, d: L`Copre la casella e si toglie con un tris sopra. Se in un turno <b>non ne togli nessuna</b>, la Forestale vampira ne rovescia un'altra.` },
   pumpkin: { img: 'o_zucca', t: L`Zucca`, d: L`Blocca la casella. Si rompe facendo un tris <b>accanto</b> o con un potenziamento. Le zucche scure vanno colpite due volte.` },
+  dune: { img: 'o_duna2', t: L`Blocco di sabbia`, d: L`Blocca la casella. Si sgretola facendo un tris <b>accanto</b> o con un potenziamento. Quelli interi vanno colpiti due volte.` },
+  spice: { img: 'o_spezie2', t: L`Cesta di spezie`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
+  redmud: { img: 'o_fango_m1', t: L`Fango rosso`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quello scuro va pulito due volte.` },
   coffin: { img: 'o_bara', t: L`Bara`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
   bill: { img: 'o_conto', t: L`Conto da pagare`, d: L`Copre la casella e si paga con un tris sopra. Se in un turno <b>non ne paghi nessuno</b>, ne arriva un altro.` },
   // come si gioca
@@ -2246,7 +2252,7 @@ const HELP = {
 const GUIDE = [
   [L`Come si gioca`, ['swap', 'goals', 'stars', 'hint']],
   [L`Potenziamenti`, ['mH', 'bomb', 'drone', 'grappa', 'combo']],
-  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'web', 'multa', 'water', 'bill', 'potion', 'pumpkin', 'coffin', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
+  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'web', 'multa', 'water', 'bill', 'potion', 'pumpkin', 'coffin', 'dune', 'spice', 'redmud', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
   [L`Aiuti`, ['coins', 'hammer', 'shield', 'pre']],
   [L`Campo Base`, ['build', 'zones', 'daily', 'weekly', 'levels', 'rank']],
   [L`Extra`, ['album', 'chest', 'weekend', 'share', 'gold', 'helper']],
@@ -2294,17 +2300,17 @@ function explain(keys, title = L`Novità!`) {
   if (!keys.length) return Promise.resolve();
   keys.forEach((k) => { save.seen[k] = 1; }); persist();
   return new Promise((res) => showCard(`<h2>${title}</h2><div class="hlist">${keys.map(helpRow).join('')}</div>
-    <div class="row"><button id="cOk" class="btn btn-play">Ho capito!</button></div>`, { cOk: () => { hideCard(); res(); } }));
+    <div class="row"><button id="cOk" class="btn btn-play">${L`Ho capito!`}</button></div>`, { cOk: () => { hideCard(); res(); } }));
 }
 const KIND = (p) => (p === 'mV' ? 'mH' : p);
 // tipi di ostacoli presenti in un livello
 function levelThings(lv) {
   const LYS = (lv.layout || []).join('');
   const out = [];
-  if (/[mM]/.test(LYS)) out.push('mud');
-  const hz = zoneOfLevel(lv.n) === 5;
-  if (/[rR]/.test(LYS)) out.push(hz ? 'pumpkin' : 'rock');
-  if (/[cC]/.test(LYS)) out.push(hz ? 'coffin' : 'crate');
+  const hz = zoneOfLevel(lv.n) === 5, mz = zoneOfLevel(lv.n) === 3;
+  if (/[mM]/.test(LYS)) out.push(mz ? 'redmud' : 'mud');
+  if (/[rR]/.test(LYS)) out.push(hz ? 'pumpkin' : mz ? 'dune' : 'rock');
+  if (/[cC]/.test(LYS)) out.push(hz ? 'coffin' : mz ? 'spice' : 'crate');
   if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zoneOfLevel(lv.n)]);
   if (/b/.test(LYS)) out.push('mug');
   if (/v/.test(LYS)) out.push('velox');
@@ -2521,8 +2527,9 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   FORESTALE_URI = I(ZONES[zl].boss);
   CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela'][zl]);
   MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : zl === 5 ? 'o_pozione' : 'o_multa');
-  ROCK_URI = zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile'), I('o_barile')] : [null, I('o_sasso1'), I('o_sasso2')];
-  CRATE_URI = zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie'), I('o_bottiglie')] : [null, I('o_cassa1'), I('o_cassa2')];
+  ROCK_URI = zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile'), I('o_barile')] : zl === 3 ? [null, I('o_duna1'), I('o_duna2')] : [null, I('o_sasso1'), I('o_sasso2')];
+  CRATE_URI = zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie'), I('o_bottiglie')] : zl === 3 ? [null, I('o_spezie1'), I('o_spezie2')] : [null, I('o_cassa1'), I('o_cassa2')];
+  MUD_URI = zl === 3 ? [null, I('o_fango_m1'), I('o_fango_m2')] : [null, I('o_fango1'), I('o_fango2')];
   $('#board').classList.toggle('fest', zl === 4);
   $('#board').classList.toggle('hallo', zl === 5);
   $('#game').classList.toggle('hallo', zl === 5);
@@ -2755,7 +2762,7 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 // caricamento leggero: prima solo quello che serve subito (tessere, ostacoli e la zona attuale), il resto dopo con calma
 const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); });

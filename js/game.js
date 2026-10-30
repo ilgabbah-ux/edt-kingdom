@@ -75,6 +75,15 @@ function speakerHTML(who, text) {
 }
 // voci dei personaggi (ElevenLabs): 0 e 1 = battute, 2 = esultanza (per la Forestale: resa)
 const VOICED = ['gabbah', 'miti', 'mirco', 'purcello', 'costa', 'renard', 'svetlana', 'forestale'];
+// compagni di giro con la voce vera (ElevenLabs): file v_<id>0 e v_<id>1 = le due battute in piloti.js
+const BUD_VOICED = ['angelo', 'erika', 'maggie', 'alex', 'giacu'];
+function budVoice(id, i) {
+  if (!save.voice || !save.sfx || !BUD_VOICED.includes(id)) return;
+  const src = (window.__V && window.__V['v_' + id + i]) || `audio/v_${id}${i}.mp3`;
+  try { if (vAudio) vAudio.pause(); vAudio = new Audio(src); vAudio.play().catch(() => {}); AU.duck(1.8); lastVoice = performance.now(); } catch { /* niente */ }
+}
+// battuta del compagno: testo nel fumetto e, se c'è, la sua voce
+function budLine(b) { const i = Math.floor(Math.random() * b.lines.length); peekSay(b.lines[i]); budVoice(b.id, i); }
 let vAudio = null, lastVoice = 0;
 if (save.voice === undefined) save.voice = true;
 function voice(who, idx = -1, minGap = 0) {
@@ -129,7 +138,7 @@ function bldXY(b) {
 // quanto dell'edificio è già su (dal basso): tappa 0 niente, 1 fondamenta, 2 metà, 3 finito
 const RISE = [0, 0.3, 0.68, 1];
 const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, STEPS))]) * 100)}% 0 0 0)`;
-const homeTrack = () => (currentZone().id === 'oktober' ? 'okt' : 'home');
+const homeTrack = () => ({ oktober: 'okt', hallo: 'hall' }[currentZone().id] || 'home');
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 
 // converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
@@ -497,11 +506,12 @@ async function tryBuild() {
       if (nz) {
         if (nz.id === 'marocco') await showStory('finale');
         if (nz.id === 'oktober') await showStory('fine');
+        if (nz.id === 'hallo') await showStory('oktofine');
         await showStory(nz.id);
         viewZone = null; renderHome();
         FX.banner(nz.name, L`Nuova zona sbloccata!`, '#bdf0ff');
       } else {
-        await showStory('oktofine');
+        await showStory('hallofine');
         fireworks(2600);
       }
     }
@@ -620,29 +630,89 @@ function weekTrack(kind, color = -1, amount = 1) {
   if (save.week.done >= w.n) { persist(); setTimeout(() => toast(L`Sfida della settimana completata!`, 1600), 400); }
   renderWeekBadge();
 }
+// ---------------- missioni del giorno: 3 piccoli obiettivi, si rinnovano a mezzanotte ----------------
+const MISSIONS = [
+  { id: 'birre', t: L`Togli <b>60 birre</b>`, kind: 'tile', color: 0, n: 60, img: 't0_birra', c: 40 },
+  { id: 'caschi', t: L`Togli <b>60 caschi</b>`, kind: 'tile', color: 1, n: 60, img: 't1_casco', c: 40 },
+  { id: 'gomme', t: L`Togli <b>60 gomme</b>`, kind: 'tile', color: 4, n: 60, img: 't4_gomma', c: 40 },
+  { id: 'fango', t: L`Pulisci <b>15 pozze di fango</b>`, kind: 'mud', n: 15, img: 'o_fango1', c: 50 },
+  { id: 'sassi', t: L`Spacca <b>12 sassi o casse</b>`, kind: 'block', n: 12, img: 'o_sasso1', c: 50 },
+  { id: 'power', t: L`Crea <b>6 potenziamenti</b>`, kind: 'power', n: 6, img: 'p_moto', c: 60 },
+  { id: 'win2', t: L`Vinci <b>2 livelli</b>`, kind: 'anywin', n: 2, img: 'u_stella', c: 60 },
+  { id: 'stars', t: L`Prendi <b>5 stelle</b>`, kind: 'stars', n: 5, img: 'u_stella', c: 70 },
+  { id: 'buddy', t: L`Vinci un livello <b>con un compagno di giro</b>`, kind: 'buddy', n: 1, img: 'c_angelo', c: 60 },
+];
+const MISS_BONUS = 100;   // premio extra quando le fai tutte e 3
+function missions() {
+  const d = dayKey();
+  if (!save.miss || save.miss.d !== d) {
+    // scelta fissa per il giorno (uguale per tutti), mai due dello stesso tipo
+    let h = 0; for (const ch of d) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const pool = MISSIONS.filter((m) => m.kind !== 'buddy' || unlockedBuddies(save.level).length);
+    const ids = [], kinds = new Set();
+    for (let k = 0; ids.length < 3 && k < 60; k++) { h = (h * 1103515245 + 12345) >>> 0; const m = pool[h % pool.length]; if (!kinds.has(m.kind)) { kinds.add(m.kind); ids.push(m.id); } }
+    save.miss = { d, ids, done: [0, 0, 0], got: [0, 0, 0], bonus: 0 }; persist();
+  }
+  return save.miss.ids.map((id, i) => ({ ...MISSIONS.find((m) => m.id === id), done: save.miss.done[i], got: save.miss.got[i], i }));
+}
+function missTrack(kind, color = -1, amount = 1) {
+  if (G.exhibit) return;
+  let changed = false;
+  missions().forEach((m) => {
+    if (m.got || m.done >= m.n || m.kind !== kind || (kind === 'tile' && m.color !== color)) return;
+    save.miss.done[m.i] = Math.min(m.n, m.done + amount); changed = true;
+    if (save.miss.done[m.i] >= m.n) setTimeout(() => toast(L`Missione completata!`, 1400), 300);
+  });
+  if (changed) renderWeekBadge();
+}
+const missReady = () => missions().filter((m) => !m.got && m.done >= m.n).length + (save.miss.got.every(Boolean) && !save.miss.bonus ? 1 : 0);
+function missHTML() {
+  const ms = missions();
+  const rows = ms.map((m) => `<div class="wk ms${m.got ? ' got' : ''}"><span class="hi" style="background-image:${I(m.img)}"></span><div><p>${m.t}</p>
+    <div class="wkbar"><i style="width:${Math.min(100, m.done / m.n * 100)}%"></i><span>${m.done} / ${m.n}</span></div></div>
+    ${m.got ? '<b class="mok">✓</b>' : m.done >= m.n ? `<button class="btn btn-play mgo" data-m="${m.i}">+${m.c}</button>` : `<b class="mrw">+${m.c} ${IC_C}</b>`}</div>`).join('');
+  const all = save.miss.got.every(Boolean);
+  return L`<h3 class="msh">Missioni di oggi</h3>${rows}
+    <p class="small">${all ? (save.miss.bonus ? L`Tutte fatte! Domani ne arrivano 3 nuove.` : '') : L`Falle tutte e 3: <b>+${MISS_BONUS} ${IC_C}</b> e un <b>Martello</b> in regalo`}</p>
+    ${all && !save.miss.bonus ? L`<div class="row"><button id="cMBonus" class="btn btn-play">Ritira il bonus!</button></div>` : ''}`;
+}
+function claimMission(i) {
+  const m = missions()[i]; if (!m || m.got || m.done < m.n) return;
+  save.miss.got[i] = 1; save.coins += m.c; persist(); sfx.coin();
+  $('#hCoins').textContent = save.coins; renderWeekBadge();
+}
 function renderWeekBadge() {
   const b = $('#weekPct'); if (!b) return;
-  const w = weekly();
-  b.textContent = w.claimed ? '✓' : w.done >= w.n ? '!' : Math.floor(w.done / w.n * 100) + '%';
-  b.parentElement.classList.toggle('ready', !w.claimed && w.done >= w.n);
+  const w = weekly(), mr = missReady(), wr = !w.claimed && w.done >= w.n;
+  b.textContent = mr || wr ? '!' : missions().filter((m) => m.got).length + '/3';
+  b.parentElement.classList.toggle('ready', !!(mr || wr));
 }
 function openWeekly() {
   const w = weekly();
   const pct = Math.min(100, w.done / w.n * 100);
   const daysLeft = 7 - ((new Date().getDay() + 6) % 7);
-  showCard(L`<h2>Sfida della settimana</h2>
+  showCard(L`<h2>Missioni e sfide</h2>${missHTML()}
+    <h3 class="msh">Sfida della settimana</h3>
     <div class="wk"><span class="hi" style="background-image:${I(w.img)}"></span><div><p>${w.t} entro domenica.</p>
     <div class="wkbar"><i style="width:${pct}%"></i><span>${w.done} / ${w.n}</span></div></div></div>
-    <p class="small">Premio: <b>300 ${IC_C}</b> + <b>1 Grappa</b> + <b>1 Tanica</b> · ${w.claimed ? L`già ritirato, la prossima sfida arriva lunedì` : (daysLeft === 1 ? L`ultimo giorno` : L`mancano ${daysLeft} giorni`)}</p>
+    <p class="small">Premio: <b>500 ${IC_C}</b> + <b>Grappa</b> + <b>Tanica</b> + <b>2 figurine</b> · ${w.claimed ? L`già ritirato, la prossima sfida arriva lunedì` : (daysLeft === 1 ? L`ultimo giorno` : L`mancano ${daysLeft} giorni`)}</p>
     <div class="row">${!w.claimed && w.done >= w.n ? L`<button id="cClaim" class="btn btn-play">Ritira il premio!</button>` : L`<button id="cClose" class="btn btn-play">Ok</button>`}</div>`, {
     cClose: hideCard,
-    cClaim: () => {
-      save.week.claimed = true; save.coins += 300; save.inv.grappa = (save.inv.grappa || 0) + 1; save.inv.bomb = (save.inv.bomb || 0) + 1;
+    cMBonus: () => {
+      save.miss.bonus = 1; save.coins += MISS_BONUS; save.inv.hammer = (save.inv.hammer || 0) + 1; persist();
+      sfx.coin(); fireworks(1000); $('#hCoins').textContent = save.coins; renderWeekBadge();
+      FX.banner(L`Missioni completate!`, L`+${MISS_BONUS} monete e un Martello`, '#7fe36f'); openWeekly();
+    },
+    cClaim: async () => {
+      save.week.claimed = true; save.coins += 500; save.inv.grappa = (save.inv.grappa || 0) + 1; save.inv.bomb = (save.inv.bomb || 0) + 1;
       persist(); hideCard(); sfx.coin(); fireworks(1500); voice('gabbah', 2);
       $('#hCoins').textContent = save.coins; renderWeekBadge();
-      FX.banner(L`Sfida vinta!`, L`+300 monete, Grappa e Tanica`, '#ffd34d');
+      FX.banner(L`Sfida vinta!`, L`+500 monete, Grappa, Tanica e 2 figurine`, '#ffd34d');
+      await new Promise((r) => setTimeout(r, 1600));
+      for (let k = 0; k < 2; k++) await V.revealSticker(V.drawSticker());
     },
   });
+  document.querySelectorAll('.mgo[data-m]').forEach((b) => { b.onclick = () => { claimMission(+b.dataset.m); openWeekly(); }; });
 }
 
 // ---------------- classifica EDT online ----------------
@@ -844,7 +914,7 @@ function goalInfo(gl) {
   sfx.click();
   if (gl.type === 'tile') { tipBubble('t0_birra', L`Togli <b>${goalLeft(gl)}</b> di queste tessere facendo tris con loro.`, goalURI(gl)); return; }
   const zl = zoneOfLevel(G.level.n);
-  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type;
+  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type === 'multa' && zl === 5 ? 'potion' : zl === 5 && gl.type === 'rock' ? 'pumpkin' : zl === 5 && gl.type === 'crate' ? 'coffin' : gl.type;
   const h = HELP[k]; if (h) tipBubble(h.img, `<b>${h.t}</b>: ${h.d}`);
 }
 function tipBubble(img, html, uri) {
@@ -1133,9 +1203,9 @@ function flyToGoal(goalIdx, uri, r, c) {
 // ---------- obiettivi ----------
 let flyBudget = 0;
 function credit(type, r, c, color = -1, amount = 1) {
-  if (type === 'tile') weekTrack('tile', color, amount);
-  else if (type === 'mud') weekTrack('mud');
-  else if (type === 'rock' || type === 'crate') weekTrack('block');
+  if (type === 'tile') { weekTrack('tile', color, amount); missTrack('tile', color, amount); }
+  else if (type === 'mud') { weekTrack('mud'); missTrack('mud'); }
+  else if (type === 'rock' || type === 'crate') { weekTrack('block'); missTrack('block'); }
   G.goals.forEach((gl, i) => {
     if (gl.done >= gl.n) return;
     let hit = false;
@@ -1337,7 +1407,7 @@ async function doClear(clear, matched, created, pre = []) {
     FX.glow(x, y, G.S * 1.3); FX.ring(x, y, G.S * 1.2, '#fff6a0', 6);
     floater(POWER_SHOUT[cr.power], r, c);
     if (!save.seen[KIND(cr.power)]) G.explainQ.add(KIND(cr.power));
-    weekTrack('power');
+    weekTrack('power'); missTrack('power');
   }
   sfx.pop(Math.min(n, 8) / 2);
   renderMud();
@@ -1833,6 +1903,7 @@ async function winLevel() {
   }
   const first = n >= save.level;
   if (first) weekTrack('win');   // contano solo i livelli nuovi, non quelli rigiocati
+  missTrack('anywin'); missTrack('stars', -1, stars); if (G.buddyObj) missTrack('buddy');
   teamTrack();
   const prev = save.best[n] || 0;
   const gain = Math.max(0, stars - prev);
@@ -1890,6 +1961,7 @@ async function loseLevel() {
     G.buddySaved = true;
     if (G.time) G.timeLeft += 20; else G.moves += G.buddyObj.perk.save;
     G.over = false; G.busy = false;
+    budVoice('giacu', 0);
     FX.banner(L`Ci pensa Giacu!`, G.time ? L`+20 secondi` : L`+${G.buddyObj.perk.save} mosse gratis`, '#ff4fa3');
     renderMoves(); saveRun(); scheduleHint();
     return;
@@ -1974,6 +2046,10 @@ function scheduleHint() {
 const COACH = {
   mug: ['claudio', L`I boccali si riempiono con <b>3 tris accanto</b>. Quando sono pieni fanno PROSIT e puliscono tutto intorno!`],
   garland: ['gabbah', L`I festoni bloccano le tessere: mettile in un tris per liberarle.`],
+  web: ['svetlana', L`Le ragnatele bloccano le tessere: fai un tris con quelle tessere per liberarle.`],
+  potion: ['forestale6', L`Se in un turno non togli nessuna pozione, se ne versa un'altra. Muahahah!`],
+  pumpkin: ['costa', L`Le zucche si rompono facendo tris <b>accanto</b>. Quelle scure vanno colpite due volte.`],
+  coffin: ['luigi', L`Le bare si aprono con i tris <b>accanto</b> o con un potenziamento.`],
   bill: ['forestale5', L`Ogni turno che non paghi un conto, se ne aggiunge un altro. Pagate, pagate!`],
   tile: ['gabbah', L`Cerca le tessere dell'obiettivo in alto: fai tris con quelle, il resto viene da sé.`],
   mud: ['mirco', L`Il fango si pulisce solo facendo tris <b>sopra</b> le pozze. Quelle col 2 vanno fatte due volte.`],
@@ -2116,6 +2192,10 @@ function showPreview(cell, t) {
 const HELP = {
   mug: { img: 'o_boccale2', t: L`Boccale da riempire`, d: L`Fai <b>3 tris accanto</b> al boccale per riempirlo. Quando è pieno: <b>PROSIT!</b> La schiuma pulisce tutte le caselle intorno.` },
   garland: { img: 'o_ghirlanda', t: L`Festone bavarese`, d: L`All'Oktoberfest i festoni bianchi e blu legano le tessere: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.` },
+  web: { img: 'o_ragnatela', t: L`Ragnatela`, d: L`Nel bosco di Halloween le ragnatele legano le tessere: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.` },
+  potion: { img: 'o_pozione', t: L`Pozione rovesciata`, d: L`Copre la casella e si toglie con un tris sopra. Se in un turno <b>non ne togli nessuna</b>, la Forestale vampira ne rovescia un'altra.` },
+  pumpkin: { img: 'o_zucca', t: L`Zucca`, d: L`Blocca la casella. Si rompe facendo un tris <b>accanto</b> o con un potenziamento. Le zucche scure vanno colpite due volte.` },
+  coffin: { img: 'o_bara', t: L`Bara`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
   bill: { img: 'o_conto', t: L`Conto da pagare`, d: L`Copre la casella e si paga con un tris sopra. Se in un turno <b>non ne paghi nessuno</b>, ne arriva un altro.` },
   // come si gioca
   swap: { img: 't0_birra', t: L`Fai tris`, d: L`Trascina una tessera sulla vicina (o toccale una dopo l'altra) per scambiarle. Se ne metti <b>3 o più uguali in fila</b> spariscono e quelle sopra cadono.` },
@@ -2166,7 +2246,7 @@ const HELP = {
 const GUIDE = [
   [L`Come si gioca`, ['swap', 'goals', 'stars', 'hint']],
   [L`Potenziamenti`, ['mH', 'bomb', 'drone', 'grappa', 'combo']],
-  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'multa', 'water', 'bill', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
+  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'web', 'multa', 'water', 'bill', 'potion', 'pumpkin', 'coffin', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
   [L`Aiuti`, ['coins', 'hammer', 'shield', 'pre']],
   [L`Campo Base`, ['build', 'zones', 'daily', 'weekly', 'levels', 'rank']],
   [L`Extra`, ['album', 'chest', 'weekend', 'share', 'gold', 'helper']],
@@ -2196,6 +2276,7 @@ function storyUnlocked(id) {
   if (save.story[id]) return true;
   if (id === 'finale') return save.level > 90 || !!save.story.marocco;
   if (id === 'fine') return save.level > 120 || !!save.story.oktober;
+  if (id === 'oktofine') return save.level > 150 || !!save.story.hallo || !!save.story.oktofine;
   const z = ZONES.find((zz) => zz.id === id);
   return z ? save.level >= z.from : false;
 }
@@ -2221,15 +2302,16 @@ function levelThings(lv) {
   const LYS = (lv.layout || []).join('');
   const out = [];
   if (/[mM]/.test(LYS)) out.push('mud');
-  if (/[rR]/.test(LYS)) out.push('rock');
-  if (/[cC]/.test(LYS)) out.push('crate');
-  if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand', 'garland'][zoneOfLevel(lv.n)]);
+  const hz = zoneOfLevel(lv.n) === 5;
+  if (/[rR]/.test(LYS)) out.push(hz ? 'pumpkin' : 'rock');
+  if (/[cC]/.test(LYS)) out.push(hz ? 'coffin' : 'crate');
+  if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zoneOfLevel(lv.n)]);
   if (/b/.test(LYS)) out.push('mug');
   if (/v/.test(LYS)) out.push('velox');
   if (/g/.test(LYS)) out.push('gomme');
   if (lv.drops) out.push('drop');
   if (lv.time) out.push('time');
-  if (/t/.test(LYS)) out.push(zoneOfLevel(lv.n) === 3 ? 'water' : zoneOfLevel(lv.n) === 4 ? 'bill' : 'multa');
+  if (/t/.test(LYS)) out.push(zoneOfLevel(lv.n) === 3 ? 'water' : zoneOfLevel(lv.n) === 4 ? 'bill' : zoneOfLevel(lv.n) === 5 ? 'potion' : 'multa');
   if (lv.boss) out.push('boss');
   return out;
 }
@@ -2295,7 +2377,7 @@ function buddyEntrance(b) {
   app.appendChild(d);
   beep(520, .08, 'triangle', .08, 200); setTimeout(() => beep(780, .1, 'triangle', .08, 200), 120);
   setTimeout(() => { d.classList.add('back'); }, 1350);
-  setTimeout(() => { d.remove(); peekSay(pick(b.lines)); const pk = $('#peek'); if (pk) { pk.classList.add('hop'); setTimeout(() => pk.classList.remove('hop'), 600); } }, 1900);
+  setTimeout(() => { d.remove(); budLine(b); const pk = $('#peek'); if (pk) { pk.classList.add('hop'); setTimeout(() => pk.classList.remove('hop'), 600); } }, 1900);
 }
 // il compagno esulta durante la partita (combo, potenziamenti, quasi fatta)
 const BUD_CHEER = [L`Che manetta!`, L`Così si fa!`, L`Easy!`, L`Vai che ci siamo!`, L`Campa giù!`, L`Spettacolo!`];
@@ -2303,7 +2385,8 @@ let budCheerT = 0;
 function buddyCheer(kind) {
   if (!G.buddyObj || performance.now() - budCheerT < 4000) return;
   budCheerT = performance.now();
-  peekSay(kind === 'near' ? L`Manca pochissimo!` : Math.random() < .35 ? pick(G.buddyObj.lines) : pick(BUD_CHEER));
+  if (kind !== 'near' && Math.random() < .35) { budLine(G.buddyObj); return; }
+  peekSay(kind === 'near' ? L`Manca pochissimo!` : pick(BUD_CHEER));
 }
 // applica l'aiuto del compagno all'inizio del livello
 function applyBuddy(extras) {
@@ -2436,11 +2519,13 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   $('#bShield').style.display = G.boss ? '' : 'none';
   const zl = zoneOfLevel(n);
   FORESTALE_URI = I(ZONES[zl].boss);
-  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda'][zl]);
-  MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : 'o_multa');
-  ROCK_URI = zl === 4 ? [null, I('o_barile'), I('o_barile')] : [null, I('o_sasso1'), I('o_sasso2')];
-  CRATE_URI = zl === 4 ? [null, I('o_bottiglie'), I('o_bottiglie')] : [null, I('o_cassa1'), I('o_cassa2')];
+  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela'][zl]);
+  MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : zl === 5 ? 'o_pozione' : 'o_multa');
+  ROCK_URI = zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile'), I('o_barile')] : [null, I('o_sasso1'), I('o_sasso2')];
+  CRATE_URI = zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie'), I('o_bottiglie')] : [null, I('o_cassa1'), I('o_cassa2')];
   $('#board').classList.toggle('fest', zl === 4);
+  $('#board').classList.toggle('hallo', zl === 5);
+  $('#game').classList.toggle('hallo', zl === 5);
   $('#game').classList.toggle('fest', zl === 4);
   $('#board').classList.toggle('desert', zl === 3);
   $('#game').classList.toggle('desert', zl === 3);
@@ -2452,7 +2537,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   bf.classList.remove('beaten', 'angry', 'hit');
   if (G.boss) bf.style.backgroundImage = FORESTALE_URI;
   showScreen('game');
-  AU.playMusic(lv.boss ? 'boss' : zoneOfLevel(n) === 4 ? 'okt' : 'game');
+  AU.playMusic(lv.boss ? 'boss' : zoneOfLevel(n) === 4 ? 'okt' : zoneOfLevel(n) === 5 ? 'hall' : 'game');
   layout();
   { const pk = document.querySelector('#peek i'); if (pk) pk.style.backgroundImage = G.buddyObj ? I('c_' + G.buddyObj.id) : I(CHARS[V.me().who].img); $('#peek').classList.toggle('bud', !!G.buddyObj); }
   buildBoardDOM();
@@ -2590,7 +2675,7 @@ function bindToggles() {
     if (!b) return;
     b.onclick = () => { save[key] = !save[key]; persist(); apply(save[key]); b.classList.toggle('on', save[key]); sfx.click(); if (key === 'vibra' && save.vibra) { try { navigator.vibrate && navigator.vibrate(40); } catch { /* */ } } };
   };
-  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : G.level && zoneOfLevel(G.level.n) === 4 ? 'okt' : 'game') : homeTrack()); });
+  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : G.level && zoneOfLevel(G.level.n) === 4 ? 'okt' : G.level && zoneOfLevel(G.level.n) === 5 ? 'hall' : 'game') : homeTrack()); });
   flip('tSfx', 'sfx', AU.setSfx);
   flip('tVib', 'vibra', FX.setVibra);
   flip('tVoice', 'voice', () => {});
@@ -2670,7 +2755,7 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 // caricamento leggero: prima solo quello che serve subito (tessere, ostacoli e la zona attuale), il resto dopo con calma
 const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); });
@@ -2684,7 +2769,8 @@ AU.playMusic(homeTrack());
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
 const firstStory = !save.story.intro;
 const offerEvent = () => { const ep = V.eventProgress(); if (!ep || save.evSeen === ep.st.id) return false; save.evSeen = ep.st.id; persist(); V.openEvent(); return true; };
-const startup = async () => { if (/[?&]stats\b/.test(location.search)) { openStats(); return; } if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
+const startup = async () => { if (/[?&]stats\b/.test(location.search)) { openStats(); return; } if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); }
+  if (currentZone().id === 'hallo' && !save.story.hallo && save.story.oktober) { if (!save.story.oktofine) await showStory('oktofine'); await showStory('hallo'); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
 if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
 else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {

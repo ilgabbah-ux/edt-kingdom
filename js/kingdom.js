@@ -17,6 +17,7 @@ export const CHARS = {
   forestale3: { name: L`La Forestale del cantiere`, img: 'forestale3' },
   forestale4: { name: L`La Forestale in vacanza`, img: 'forestale4' },
   forestale5: { name: L`La Forestale all'Oktoberfest`, img: 'forestale5' },
+  forestale6: { name: L`La Forestale vampira`, img: 'forestale6' },
 };
 
 // x,y in percentuale sulla mappa
@@ -133,6 +134,27 @@ const OKTOBER = [
   { id: 'birreria', name: L`Birreria reale dell'EDT`, ix: 36, iy: 13, who: 'guccio',
     text: L`La birreria più bella della festa, con il boccale d'oro sul tetto. San Braulio benedice ogni spina.` },
 ];
+// Halloween nel bosco (151-180)
+const HALLO = [
+  { id: 'zucche', name: L`Campo di zucche`, ix: 70, iy: 77, who: 'costa',
+    text: L`Zucche grandi come pneumatici. Una l'ho svuotata e ci tengo le trote al fresco.` },
+  { id: 'falo', name: L`Falò nel bosco`, ix: 30, iy: 70, who: 'mirco',
+    text: L`Fuoco acceso, marshmallow e borsa frigo. Qui i fantasmi non arrivano. Spero. Campa giù.` },
+  { id: 'cimitero', name: L`Cimitero delle moto`, ix: 52, iy: 56, who: 'renard',
+    text: L`Qui riposano le moto che ho promesso di sistemare. Un giorno le resuscito. Forse.` },
+  { id: 'pozioni', name: L`Banco delle pozioni`, ix: 33, iy: 46, who: 'claudio',
+    text: L`Pozioni verdi, rosse e viola. Le ho assaggiate tutte: la migliore è il Barolo.` },
+  { id: 'fantasmi', name: L`Carro dei fantasmi`, ix: 64, iy: 45, who: 'luigi',
+    text: L`Fantasmi a bordo e giù in discesa. Spedivello anche col carro, non c'è niente da fare.` },
+  { id: 'lanterne', name: L`Arco delle lanterne`, ix: 45, iy: 36, who: 'miti',
+    text: L`Cento lanterne accese sul sentiero. Nessuno si perde nel bosco: il Protettore veglia.` },
+  { id: 'strega', name: L`Capanna della strega`, ix: 33, iy: 28, who: 'svetlana',
+    text: L`Calderone acceso, scopa parcheggiata. Stasera la strega sono io, e le pozioni le offro io.` },
+  { id: 'rampa', name: L`Salto della luna`, ix: 64, iy: 27, who: 'brizio',
+    text: L`Impennata, rampa e su davanti alla luna piena. La foto più bella dell'anno!` },
+  { id: 'castello', name: L`Castello dell'EDT`, ix: 46, iy: 18, who: 'gabbah',
+    text: L`Il castello della Forestale vampira adesso è nostro. Bandiera EDT sulla torre e birre in cantina!` },
+];
 export const ZONES = [
   { id: 'valle', name: L`La Valle`, bg: 'map_bg', boss: 'forestale', from: 1,
     // sentiero sulla mappa (pixel dell'immagine 1280x1280) per la moto che gira
@@ -146,12 +168,15 @@ export const ZONES = [
     trail: [[470,1275],[460,1180],[440,1090],[420,1010],[390,930],[400,860],[430,800],[440,740],[400,690],[380,640],[420,590],[500,560],[570,530],[620,480],[640,420],[600,360],[540,320],[520,270],[560,220],[620,180],[640,140]], buildings: MAROCCO },
   { id: 'oktober', name: L`L'Oktoberfest`, bg: 'map5_bg', boss: 'forestale5', from: 121,
     trail: [[640,1275],[605,1180],[575,1080],[555,990],[545,900],[575,830],[520,760],[470,700],[520,640],[600,600],[640,540],[655,470],[700,420],[700,360],[640,320],[580,270],[600,210],[640,160],[600,120]], buildings: OKTOBER },
+  { id: 'hallo', name: L`Halloween nel bosco`, bg: 'map6_bg', boss: 'forestale6', from: 151,
+    trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: HALLO },
 ];
 VALLE.forEach((b) => { b.zone = 'valle'; });
 PASSO.forEach((b) => { b.zone = 'passo'; });
 CAVA.forEach((b) => { b.zone = 'cava'; });
 MAROCCO.forEach((b) => { b.zone = 'marocco'; });
 OKTOBER.forEach((b) => { b.zone = 'oktober'; });
-export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA, ...MAROCCO, ...OKTOBER];
+HALLO.forEach((b) => { b.zone = 'hallo'; });
+export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA, ...MAROCCO, ...OKTOBER, ...HALLO];
 // zona di un livello: 0 = Valle, 1 = Passo, 2 = Cava
-export const zoneOfLevel = (n) => (n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
+export const zoneOfLevel = (n) => (n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);

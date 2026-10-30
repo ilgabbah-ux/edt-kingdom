@@ -146,7 +146,7 @@ const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 let wantTrack = null, timer = 0, step = 0, nextT = 0, cur = null;
 
 // musica vera (brani ElevenLabs in loop); se un file non si carica resta quella sintetica
-const FILES = { home: 'm_home', game: 'm_game_a', boss: 'm_boss', okt: 'm_okt' };
+const FILES = { home: 'm_home', game: 'm_game_a', boss: 'm_boss', okt: 'm_okt', hall: 'm_hall' };
 let gameFlip = false;
 const bufs = {}, loading = {};
 let srcNode = null, srcGain = null;

@@ -140,9 +140,13 @@ export const PAGES = [
   { id: 'okt', name: L`Oktoberfest`, prize: 500, items: [
     ['ok1', L`Lederhosen addosso`, 'st6_1', 1], ['ok2', L`Il conto della Forestale`, 'st6_2', 1], ['ok3', L`Svetlana sui tavoli`, 'st6_3', 2], ['ok4', L`Prosit finale`, 'st6_4', 3],
     ['fo5', L`La Forestale all'Oktoberfest`, 'forestale5', 2], ['ok5', L`Il tendone EDT`, 'b_tendone', 1], ['ok6', L`Birreria reale`, 'b_birreria', 2], ['ok7', L`Boccale pieno`, 'o_boccale3', 1]] },
+  { id: 'hallo', name: L`Halloween`, prize: 550, items: [
+    ['hw1', L`Strada sbagliata`, 'st7_1', 1], ['hw2', L`Mirco e i fantasmi`, 'st7_2', 1], ['hw3', L`Svetlana strega`, 'st7_4', 2], ['hw4', L`All'alba`, 'st7_5', 3],
+    ['fo6', L`La Forestale vampira`, 'forestale6', 2], ['hw5', L`Il castello dell'EDT`, 'b_castello', 2], ['hw6', L`Salto della luna`, 'b_rampa', 1], ['hw7', L`Zucca`, 'o_zucca', 1]] },
 ];
 const RAR = { 1: [L`Comune`, 10], 2: [L`Rara`, 4], 3: ['D\'oro', 1] };
 const ALL = PAGES.flatMap((p) => p.items.map(([id, name, img, r]) => ({ id, name, img, r, page: p })));
+export const ALBUM_PRIZE = 2000;
 export const albumCount = () => ALL.filter((s) => X.save.album[s.id]).length;
 export const albumTotal = () => ALL.length;
 // pesca una figurina (le d'oro sono rare); restituisce { s, dup }
@@ -178,6 +182,21 @@ function pageComplete(page) {
     X.showCard(L`<h2>Pagina completa!</h2><p>Hai tutta la pagina <b>${page.name}</b>!</p><p><b>+${page.prize} monete</b> e una <b>Grappa</b> per il prossimo livello.</p>
       <div class="row"><button id="cSh" class="btn btn-gray">📣 Condividi</button><button id="cOk" class="btn btn-play">Grande!</button></div>`, {
       cSh: () => shareImage({ title: L`PAGINA COMPLETA!`, line1: page.name, img: page.items[page.items.length - 1][2], who: 'gabbah', footer: L`TU A CHE PUNTO SEI?` }, L`📒 Ho completato la pagina "${page.name}" dell'album di Enduro Drinking Kingdom!`, gameURL()),
+      cOk: () => { X.hideCard(); X.coinsUI(); if (albumCount() >= albumTotal() && !X.save.albumAll) albumComplete().then(done); else done(); },
+    });
+  });
+}
+// album completo: premio grosso una volta sola
+function albumComplete() {
+  X.save.albumAll = 1; X.save.coins += ALBUM_PRIZE; X.save.inv.grappa = (X.save.inv.grappa || 0) + 3;
+  if (!X.save.frames.includes('arcobaleno')) X.save.frames.push('arcobaleno');
+  X.persist();
+  return new Promise((done) => {
+    X.fireworks(3500);
+    X.showCard(L`<h2>ALBUM COMPLETO!</h2><p>Hai tutte le <b>${albumTotal()}</b> figurine EDT. Sei una leggenda!</p>
+      <p><b>+${ALBUM_PRIZE} monete</b>, <b>3 Grappe</b> e la <b>cornice arcobaleno</b> per il tuo pilota.</p>
+      <div class="row"><button id="cSh" class="btn btn-gray">📣 Condividi</button><button id="cOk" class="btn btn-play">Grande!</button></div>`, {
+      cSh: () => shareImage({ title: L`ALBUM COMPLETO!`, line1: L`Tutte le figurine EDT`, img: 'b_statua', who: 'gabbah', footer: L`TU QUANTE NE HAI?` }, L`📒 Ho completato TUTTO l'album di Enduro Drinking Kingdom!`, gameURL()),
       cOk: () => { X.hideCard(); X.coinsUI(); done(); },
     });
   });
@@ -187,10 +206,11 @@ export function openAlbum(pi = 0) {
   const tabs = PAGES.map((pp, i) => `<button class="gtab${i === pi ? ' on' : ''}" data-p="${i}">${pp.name}${X.save.albumDone[pp.id] ? ' ✓' : ''}</button>`).join('');
   const grid = p.items.map(([id, name, img, r]) => X.save.album[id]
     ? `<div class="stk r${r}"><i style="background-image:${X.I(img)}"></i><b>${name}</b>${X.save.album[id] > 1 ? `<em>x${X.save.album[id]}</em>` : ''}</div>`
-    : `<div class="stk empty r${r}"><i></i><b>?</b></div>`).join('');
+    : `<div class="stk empty r${r}"><i class="sil" style="background-image:${X.I(img)}"></i><b>?</b></div>`).join('');
   const have = p.items.filter(([id]) => X.save.album[id]).length;
   X.showCard(L`<h2>Album EDT</h2><div class="gtabs">${tabs}</div>
     <p class="small">${have}/${p.items.length} figurine · completa la pagina: <b>+${p.prize} monete</b> · le trovi vincendo i livelli</p>
+    <p class="small albtot">Album intero: <b>${albumCount()}/${albumTotal()}</b> · completalo tutto: <b>+${ALBUM_PRIZE} monete</b>, <b>3 Grappe</b> e la <b>cornice arcobaleno</b>${X.save.albumAll ? ' ✓' : ''}</p>
     <div class="stkgrid">${grid}</div>
     <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: X.hideCard });
   document.querySelectorAll('.gtab[data-p]').forEach((b) => { b.onclick = () => { X.sfx.click(); openAlbum(+b.dataset.p); }; });

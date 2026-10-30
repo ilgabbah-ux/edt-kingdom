@@ -75,10 +75,27 @@ export const STORY = {
     scenes: [
       { img: 'st6_4', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Dieci boccali, cento brezel e mille cori dopo… l'Oktoberfest è dell'EDT.`, v: 's_narr16' }, lines: [{ who: 'forestale5', t: L`Va bene, va bene… offro io! Prosit!`, v: 's_forestale8' }, { who: 'gabbah', t: L`EDT per sempre! Giro easy!`, v: 's_gabbah3' }] },
     ],
+    end: { t: L`Ma la strada di casa passa per un bosco… e stanotte è Halloween.`, v: 's_narr20' },
+  },
+  hallo: {
+    title: L`Capitolo 6`, name: L`Halloween nel bosco`,
+    scenes: [
+      { img: 'st7_1', cam: 'in', fx: ['leaves', 'dust'], narr: { t: L`Dopo l'Oktoberfest, l'EDT torna a casa di notte… e sbaglia strada. Nel bosco c'è la nebbia, e la luna è piena.`, v: 's_narr17' } },
+      { img: 'st7_2', cam: 'left', fx: ['leaves', 'shiver'], lines: [{ who: 'mirco', t: L`Campa giù… qui ci sono i fantasmi! Io torno in tenda!`, v: 's_mirco3' }] },
+      { img: 'st7_3', cam: 'punch', fx: ['sparkle', 'shake'], lines: [{ who: 'forestale6', t: L`Benvenuti nel mio bosco… La multa ve la firmo a mezzanotte! Muahahah!`, v: 's_forestale9' }] },
+      { img: 'st7_4', cam: 'out', fx: ['sparkle', 'lights'], lines: [{ who: 'svetlana', t: L`Tranquilli ragazzi: una pozione delle mie… e la Forestale torna normale!`, v: 's_svetlana3' }, { who: 'gabbah', t: L`Dolcetto o scherzetto? Per noi… birretta!`, v: 's_gabbah6' }] },
+    ],
+    end: { t: L`Accendi le lanterne, costruisci il villaggio di Halloween… e caccia la Forestale vampira!`, v: 's_narr18' },
+  },
+  hallofine: {
+    title: L`Finale`, name: L`Il bosco è dell'EDT`,
+    scenes: [
+      { img: 'st7_5', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`All'alba la nebbia si alza. La Forestale vampira scappa nel suo castello… e il bosco è dell'EDT.`, v: 's_narr19' }, lines: [{ who: 'forestale6', t: L`Va bene, va bene… me ne vado. Tanto odio l'alba!`, v: 's_forestale10' }, { who: 'gabbah', t: L`EDT per sempre! Giro easy!`, v: 's_gabbah3' }] },
+    ],
     end: { t: L`Fine… per ora. Grazie per aver giocato con l'Enduro Drinking Team!`, v: 's_narr8' },
   },
 };
-export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine', 'oktober', 'oktofine'];
+export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine', 'oktober', 'oktofine', 'hallo', 'hallofine'];
 
 let opts = {};
 export function initStory(o) { opts = o; }   // { I, SRC, voiceSrc, duck, canVoice, click }

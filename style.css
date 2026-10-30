@@ -1021,3 +1021,21 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .stlist { max-height: 52vh; overflow: auto; margin: 6px 0 10px; text-align: left; }
 .strow { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.15); }
 .strow small { grid-column: 1 / -1; opacity: .7; font-size: 11px; }
+/* missioni del giorno */
+.msh { margin: 10px 0 6px; font: 900 15px/1.1 var(--fb); text-align: left; color: var(--ink); }
+.wk.ms { margin-bottom: 6px; padding: 6px 8px; }
+.wk.ms .hi { width: 40px; height: 40px; }
+.wk.ms p { font-size: 13px; margin-bottom: 4px; }
+.wk.ms.got { opacity: .6; }
+.wk.ms .mgo { padding: 6px 10px; font-size: 14px; min-width: 0; animation: calPulse 1s infinite; }
+.wk.ms .mrw { font: 800 12px var(--fb); white-space: nowrap; }
+.wk.ms .mok { color: #3fae3a; font-size: 22px; }
+/* album: figurine mancanti in ombra */
+.stk.empty i.sil { filter: brightness(0) contrast(1); opacity: .22; }
+.stk.empty b { z-index: 1; }
+.albtot { margin-top: -4px; }
+/* Halloween nel bosco */
+#game.hallo { background: linear-gradient(180deg, rgba(20,10,50,.45), rgba(255,255,255,.02) 30%, rgba(30,10,60,.2) 70%, rgba(10,5,30,.65)), url('img/map6_bg.webp') center 30%/cover !important; }
+#board.hallo .tile.chained::after { background-image: url('img/o_ragnatela.webp') !important; inset: 0 !important; opacity: .82 !important; }
+#board.hallo .ticket { background-image: url('img/o_pozione.webp'); background-size: 86%; background-position: center; background-repeat: no-repeat; }
+#game.hallo #goals .goal[data-t="chain"] { background-color: #e6dcff !important; }

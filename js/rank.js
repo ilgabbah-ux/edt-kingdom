@@ -54,13 +54,15 @@ async function call(params) {
   if (!data || !data.ok) throw new Error('risposta');
   return data;
 }
-const listOf = (d) => ((d.boards && d.boards[MODE]) || []).map((e) => ({ name: e.n, stars: Math.floor(e.s / 100), level: e.s % 100, rider: e.r || '' }));
+const real = (e) => !/^zz_/.test(e.n || '');
+const listOf = (d) => ((d.boards && d.boards[MODE]) || []).filter(real).map((e) => ({ name: e.n, stars: Math.floor(e.s / 100), level: e.s % 100, rider: e.r || '' }));
 
 export async function top() { return listOf(await call({ action: 'top' })); }
-export async function submit(stars, level, rider = 'EDT Kingdom') {
+// g = statistiche anonime dei livelli: 'K1' + una cifra (base 36) per livello = quante volte è stato perso
+export async function submit(stars, level, rider = 'EDT Kingdom', g = '') {
   const name = getNick();
   if (!name || stars <= 0) return null;
-  const d = await call({ action: 'add', name, score: stars * 100 + Math.min(99, level), mode: MODE, rider, time: 0, win: 0, v: '1', k: getCode() });
+  const d = await call({ action: 'add', name, score: stars * 100 + Math.min(99, level), mode: MODE, rider, time: 0, win: 0, v: '1', k: getCode(), ...(g ? { g } : {}) });
   return { taken: !!d.taken, list: listOf(d) };
 }
 
@@ -85,4 +87,13 @@ export async function teamSubmit(w, wins, rider = 'EDT Kingdom team') {
   if (!name || wins <= 0) return null;
   const d = await call({ action: 'add', act: String(TEAM_MODE), name, score: w * 10000 + Math.min(9999, wins), mode: TEAM_MODE, rider, time: 0, win: 0, v: '1', k: getCode() });
   return { taken: !!d.taken, list: teamOf(d) };
+}
+
+// ---- statistiche dei livelli (anonime: si sommano i dati di tutti, senza nomi)
+export async function levelStats() {
+  const d = await call({ action: 'top' });
+  const rows = ((d.boards && d.boards[MODE]) || []).filter(real).map((e) => e.g || '').filter((g) => g.startsWith('K1'));
+  const out = {};
+  for (const g of rows) for (let i = 2; i < g.length; i++) { const v = parseInt(g[i], 36) || 0; const n = i - 1; out[n] = out[n] || { lost: 0, who: 0 }; out[n].lost += v; if (v) out[n].who++; }
+  return { players: rows.length, lv: out };
 }

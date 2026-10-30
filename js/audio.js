@@ -146,7 +146,7 @@ const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 let wantTrack = null, timer = 0, step = 0, nextT = 0, cur = null;
 
 // musica vera (brani ElevenLabs in loop); se un file non si carica resta quella sintetica
-const FILES = { home: 'm_home', game: 'm_game_a', boss: 'm_boss' };
+const FILES = { home: 'm_home', game: 'm_game_a', boss: 'm_boss', okt: 'm_okt' };
 let gameFlip = false;
 const bufs = {}, loading = {};
 let srcNode = null, srcGain = null;
@@ -177,7 +177,7 @@ function startTrack(name) {
     return;
   }
   if (f) loadBuf(f);
-  cur = TRACKS[name]; step = 0; nextT = ctx.currentTime + 0.1;
+  cur = TRACKS[name] || TRACKS.home; step = 0; nextT = ctx.currentTime + 0.1;
   timer = setInterval(schedule, 25);
 }
 export function winJingle() {

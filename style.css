@@ -986,3 +986,38 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .shoppill.newshop::before { content: 'NEGOZIO'; position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 4px; background: #2e9e3a; color: #fff; font: 900 11px var(--fb); padding: 2px 8px; border-radius: 8px; white-space: nowrap; border: 2px solid #fff; }
 :lang(en) .shoppill.newshop::before { content: 'SHOP'; }
 .shoppill { padding-right: 16px !important; } .shoppill b { font-size: clamp(16px, 5.4vw, 24px) !important; white-space: nowrap; }
+
+/* calendario 7 giorni */
+.calgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 12px; }
+.cal { position: relative; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.18); border-radius: 12px; padding: 5px 3px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 78px; }
+.cal small { font-size: 10px; opacity: .8; font-weight: 800; }
+.cal .pi { width: 34px; height: 34px; background: center/contain no-repeat; }
+.cal .cc { font-size: 22px; line-height: 34px; height: 34px; }
+.cal .cc .ic { width: 28px; height: 28px; }
+.cal b { font-size: 11px; line-height: 1.1; text-align: center; }
+.cal.got { opacity: .45; }
+.cal.got em { position: absolute; top: 2px; right: 5px; color: #4fd25f; font-style: normal; font-weight: 900; }
+.cal.now { border-color: #ffd34d; background: rgba(255,211,77,.18); box-shadow: 0 0 14px rgba(255,211,77,.6); animation: calPulse 1.2s ease-in-out infinite; }
+.cal.big { grid-column: span 2; background: linear-gradient(160deg, rgba(255,211,77,.28), rgba(232,50,42,.25)); border-color: #ffd34d; }
+.cal.big .pi { width: 44px; height: 44px; }
+@keyframes calPulse { 50% { transform: scale(1.06); } }
+
+/* pulsanti laterali compatti / richiudibili */
+.sidetog { height: 30px; border-radius: 12px; }
+.sidetog span { font: 900 20px var(--fb); color: var(--ink); line-height: 1; }
+.sidebtns.shut .sidebtn:not(.sidetog) { display: none; }
+.sidebtns.shut .sidetog { height: 44px; width: 44px; }
+.sidetog.dot::after { content: ''; position: absolute; top: -4px; right: -4px; width: 14px; height: 14px; border-radius: 50%; background: #ff5a3c; border: 2px solid var(--ink); animation: pulse 1s ease-in-out infinite; }
+@media (max-height: 720px), (max-width: 380px) {
+  .sidebtns { gap: 5px; top: 58px; left: 6px; }
+  .sidebtn { width: 46px; height: 46px; border-radius: 13px; border-width: 2.5px; }
+  .sidebtn .ic { width: 22px; height: 22px; } .sidebtn span { font-size: 19px; }
+  .sidebtn small { font-size: 8px; }
+  .sidebtn .q { font-size: 21px; }
+  .sidetog { height: 26px; }
+  .sidebtns.shut .sidetog { width: 40px; height: 40px; }
+}
+.shit.tut { border-color: #ffd34d !important; box-shadow: 0 0 0 3px #ffd34d, 0 0 18px rgba(255,211,77,.8); animation: calPulse 1.1s ease-in-out infinite; }
+.stlist { max-height: 52vh; overflow: auto; margin: 6px 0 10px; text-align: left; }
+.strow { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.15); }
+.strow small { grid-column: 1 / -1; opacity: .7; font-size: 11px; }

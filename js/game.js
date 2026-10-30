@@ -129,6 +129,7 @@ function bldXY(b) {
 // quanto dell'edificio è già su (dal basso): tappa 0 niente, 1 fondamenta, 2 metà, 3 finito
 const RISE = [0, 0.3, 0.68, 1];
 const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, STEPS))]) * 100)}% 0 0 0)`;
+const homeTrack = () => (currentZone().id === 'oktober' ? 'okt' : 'home');
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 
 // converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
@@ -237,7 +238,7 @@ function openShop(tab = 0) {
   }; });
 }
 function renderHome(popId = null) {
-  fitMap();
+  fitMap(); setTimeout(sideUI, 0);
   renderWeekBadge();
   $('#albPct').textContent = `${V.albumCount()}/${V.albumTotal()}`;
   { const ep = V.eventProgress(), be = $('#btnEvent');
@@ -554,11 +555,32 @@ function flyStarToCounter() {
 }
 
 // ---------------- premio del giorno ----------------
+// calendario di 7 giorni: premio crescente, il 7° giorno è il grosso
 const DAILY = [
-  { coins: 50 }, { coins: 80 }, { p: 'mH' }, { coins: 120 }, { p: 'bomb' }, { coins: 200 }, { p: 'grappa', coins: 150 },
+  { coins: 50 }, { inv: 'hammer' }, { coins: 100 }, { inv: 'mH' }, { coins: 150 }, { inv: 'bomb' }, { coins: 300, inv: 'grappa', stk: 1 },
 ];
-const P_NAME = { mH: L`Moto`, bomb: L`Tanica`, grappa: L`Grappa` };
-const P_IMG = { mH: 'p_moto', bomb: 'p_tanica', grappa: 'p_grappa' };
+const P_NAME = { mH: L`Moto`, bomb: L`Tanica`, grappa: L`Grappa`, hammer: L`Martello` };
+const P_IMG = { mH: 'p_moto', bomb: 'p_tanica', grappa: 'p_grappa', hammer: 'u_martello' };
+function calTile(d, i, streak) {
+  const st = i + 1 < streak ? ' got' : i + 1 === streak ? ' now' : '';
+  const ico = d.inv ? `<span class="pi" style="background-image:${I(P_IMG[d.inv])}"></span>` : `<span class="cc">${IC_C}</span>`;
+  return `<div class="cal${st}${i === 6 ? ' big' : ''}"><small>${L`Giorno`} ${i + 1}</small>${ico}<b>${d.coins ? '+' + d.coins : ''}${d.inv && d.coins ? ' ' : ''}${d.inv ? P_NAME[d.inv] : ''}${d.stk ? ' 📒' : ''}</b>${i + 1 < streak ? '<em>✓</em>' : ''}</div>`;
+}
+function dailyCalendar(streak, next) {
+  const d = DAILY[streak - 1];
+  showCard(L`<h2>Premio del giorno</h2><p>${streak > 1 ? L`Sei tornato <b>${streak} giorni di fila</b>!` : L`Torna ogni giorno: il premio cresce!`}${streak < 7 ? L` Al <b>7° giorno</b> c'è il premio grosso.` : ''}</p>
+    <div class="calgrid">${DAILY.map((x, i) => calTile(x, i, streak)).join('')}</div>
+    <div class="row"><button id="cCal" class="btn btn-play">${L`Ritira!`}</button></div>`, {
+    cCal: async () => {
+      if (d.coins) save.coins += d.coins;
+      if (d.inv) save.inv[d.inv] = (save.inv[d.inv] || 0) + 1;
+      persist(); $('#hCoins').textContent = save.coins; sfx.coin(); fireworks(streak === 7 ? 1600 : 700); hideCard();
+      FX.banner([d.coins ? '+' + d.coins + ' ' + L`monete` : '', d.inv ? '+1 ' + P_NAME[d.inv] : ''].filter(Boolean).join(' · '), streak === 7 ? L`premio grosso!` : '', '#ffd34d');
+      if (d.stk) { await new Promise((r) => setTimeout(r, 900)); await V.revealSticker(V.drawSticker()); }
+      setTimeout(next, d.stk ? 200 : 900);
+    },
+  });
+}
 function dayKey(d = new Date()) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 function checkDaily() {
   const today = dayKey();
@@ -566,7 +588,7 @@ function checkDaily() {
   const y = new Date(); y.setDate(y.getDate() - 1);
   const streak = save.daily && save.daily.last === dayKey(y) ? (save.daily.streak % 7) + 1 : 1;
   save.daily = { last: today, streak }; persist();
-  V.spinWheel(streak, () => { if (typeof offerEvent === 'function') offerEvent(); });
+  dailyCalendar(streak, () => V.spinWheel(streak, () => { if (typeof offerEvent === 'function') offerEvent(); }));
   return true;
 }
 
@@ -625,10 +647,22 @@ function openWeekly() {
 
 // ---------------- classifica EDT online ----------------
 const esc = (v) => String(v).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+// statistiche anonime: per ogni livello quante volte l'hai perso (una cifra base 36, max 35)
+const statsG = () => { const l = save.lost || {}; let g = 'K1'; const top = Math.min(MAX_LEVEL, Math.max(save.level, ...Object.keys(l).map(Number), 1)); for (let n = 1; n <= top; n++) g += Math.min(35, l[n] || 0).toString(36); return g; };
+async function openStats() {
+  showCard(L`<h2>Statistiche livelli</h2><p>Caricamento...</p>`, {});
+  try {
+    const st = await RANK.levelStats();
+    const rows = Object.entries(st.lv).map(([n, v]) => ({ n: +n, ...v })).filter((r) => r.lost).sort((a, b) => b.lost - a.lost).slice(0, 20);
+    showCard(L`<h2>Dove si perde di più</h2><p>Dati anonimi di <b>${st.players}</b> giocatori in classifica.</p>
+      <div class="stlist">${rows.length ? rows.map((r) => `<div class="strow"><b>${L`Livello`} ${r.n}${isHard(r.n) ? ' 💀' : ''}</b><span>${r.lost} ${L`sconfitte`}</span><small>${r.who} ${L`giocatori`}</small></div>`).join('') : L`<p>Ancora pochi dati: torna tra qualche giorno.</p>`}</div>
+      <div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard });
+  } catch { showCard(L`<h2>Statistiche livelli</h2><p>Connessione assente, riprova.</p><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); }
+}
 const totalStars = () => Object.values(save.best).reduce((a, b) => a + b, 0);
 function submitScore() {
   if (!RANK.getNick()) return;
-  RANK.submit(totalStars(), save.level, V.riderTag()).then((r) => { if (r && r.taken) toast(L`Nome già preso da un altro telefono`, 1600); }).catch(() => {});
+  RANK.submit(totalStars(), save.level, V.riderTag(), statsG()).then((r) => { if (r && r.taken) toast(L`Nome già preso da un altro telefono`, 1600); }).catch(() => {});
 }
 function askNick() {
   showCard(L`<h2>Classifica EDT</h2><p>Scegli il nome con cui comparire in classifica (lo stesso di Giro Easy, se ci giochi).</p>
@@ -1863,6 +1897,7 @@ async function loseLevel() {
   G.over = true;
   clearRun();
   V.chestTick(false);
+  if (!G.exhibit && !G.duel && G.level && G.level.n <= MAX_LEVEL) { save.lost = save.lost || {}; save.lost[G.level.n] = (save.lost[G.level.n] || 0) + 1; persist(); }
   const leftN = G.goals.reduce((a, g) => a + goalLeft(g), 0), totN = G.goals.reduce((a, g) => a + g.n, 0);
   if (leftN <= Math.max(3, totN * 0.08)) {   // perso per un soffio
     FX.shake(10, .4); FX.flash(.3);
@@ -2417,7 +2452,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   bf.classList.remove('beaten', 'angry', 'hit');
   if (G.boss) bf.style.backgroundImage = FORESTALE_URI;
   showScreen('game');
-  AU.playMusic(lv.boss ? 'boss' : 'game');
+  AU.playMusic(lv.boss ? 'boss' : zoneOfLevel(n) === 4 ? 'okt' : 'game');
   layout();
   { const pk = document.querySelector('#peek i'); if (pk) pk.style.backgroundImage = G.buddyObj ? I('c_' + G.buddyObj.id) : I(CHARS[V.me().who].img); $('#peek').classList.toggle('bud', !!G.buddyObj); }
   buildBoardDOM();
@@ -2502,9 +2537,26 @@ async function openLevel(num) {
 function goHome() {
   clearHint(); clearPreview();
   showScreen('home');
-  AU.playMusic('home');
+  AU.playMusic(homeTrack());
   renderHome();
   if (pendingStar) setTimeout(flyStarToCounter, 350);
+  else setTimeout(shopTutorial, 900);
+}
+// primo acquisto guidato: quando hai monete e non hai mai aperto il Negozio, Gabbah te lo mostra e ti regala una Moto
+function shopTutorial() {
+  if (save.seen.shop || save.seen.shopTut || save.coins < 150 || save.level < 6) return;
+  if (!$('#home').classList.contains('active') || !$('#overlay').classList.contains('hidden') || G.building || pendingStar) return;
+  save.seen.shopTut = 1; persist();
+  showCard(`${speakerHTML('gabbah', L`Hai già <b>${save.coins} monete</b>! Le monete servono: nel <b>Negozio</b> compri Moto, Taniche, Grappe e Martelli. Per il tuo primo acquisto ti regalo io una <b>Moto</b>!`)}
+    <div class="row"><button id="cLater" class="btn">${L`Dopo`}</button><button id="cShop" class="btn btn-play">${L`Apri il Negozio`}</button></div>`, {
+    cLater: hideCard,
+    cShop: () => {
+      save.inv.mH = (save.inv.mH || 0) + 1; save.seen.shop = 1; persist();
+      const cp = $('#hCoins') && $('#hCoins').closest('.pill'); if (cp) cp.classList.remove('newshop');
+      hideCard(); sfx.coin(); FX.banner(L`+1 Moto in regalo`, L`la trovi a inizio livello`, '#ffd34d');
+      setTimeout(() => { openShop(0); const b = document.querySelector('.shit[data-pw="mH"]'); if (b) b.classList.add('tut'); }, 900);
+    },
+  });
 }
 
 // ---------- pulsanti ----------
@@ -2516,6 +2568,15 @@ $('#hCoins').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Monete<
 $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Stelle</h2><div class="hlist">${helpRow('stars')}${helpRow('build')}</div><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); };
 $('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
+// pulsanti laterali richiudibili (sugli schermi piccoli coprono la mappa)
+function sideUI() {
+  const sb = $('#home .sidebtns'); if (!sb) return;
+  sb.classList.toggle('shut', !!save.sideShut);
+  const t = $('#btnSide'); t.querySelector('span').textContent = save.sideShut ? '»' : '«';
+  t.classList.toggle('dot', !!save.sideShut && !!sb.querySelector('.sidebtn.ready:not([hidden])'));
+}
+$('#btnSide').onclick = () => { sfx.click(); save.sideShut = !save.sideShut; persist(); sideUI(); const m = $('#map'); if (m) fitTags(m); };
+sideUI();
 $('#btnEvent').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openEvent(); };
 $('#btnAlbum').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openAlbum(); };
 // ---------- impostazioni ----------
@@ -2529,7 +2590,7 @@ function bindToggles() {
     if (!b) return;
     b.onclick = () => { save[key] = !save[key]; persist(); apply(save[key]); b.classList.toggle('on', save[key]); sfx.click(); if (key === 'vibra' && save.vibra) { try { navigator.vibrate && navigator.vibrate(40); } catch { /* */ } } };
   };
-  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : 'game') : 'home'); });
+  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : G.level && zoneOfLevel(G.level.n) === 4 ? 'okt' : 'game') : homeTrack()); });
   flip('tSfx', 'sfx', AU.setSfx);
   flip('tVib', 'vibra', FX.setVibra);
   flip('tVoice', 'voice', () => {});
@@ -2619,11 +2680,11 @@ preload.then(() => setTimeout(() => { const rest = ASSETS.filter((n) => !CORE.in
 document.addEventListener('visibilitychange', () => AU.pause(document.hidden));
 initInput();
 renderHome();
-AU.playMusic('home');
+AU.playMusic(homeTrack());
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
 const firstStory = !save.story.intro;
 const offerEvent = () => { const ep = V.eventProgress(); if (!ep || save.evSeen === ep.st.id) return false; save.evSeen = ep.st.id; persist(); V.openEvent(); return true; };
-const startup = async () => { if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
+const startup = async () => { if (/[?&]stats\b/.test(location.search)) { openStats(); return; } if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
 if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
 else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {

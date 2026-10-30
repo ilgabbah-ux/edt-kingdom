@@ -146,7 +146,16 @@ function fitTags(map) {
     if (dx) t.style.transform = `translateX(${Math.round(dx)}px)`;
   });
 }
+// la mappa finisce sopra il pannello in basso, così nessun edificio resta nascosto dietro "Prossimo lavoro"
+function fitMap() {
+  const hb = document.querySelector('#home .homebar'), map = $('#map');
+  if (!hb || !map || !hb.offsetHeight) return;
+  const b = Math.max(0, hb.offsetHeight - 26) + 'px';
+  if (map.style.bottom !== b) map.style.bottom = b;
+}
+window.addEventListener('resize', () => { fitMap(); });
 function renderHome(popId = null) {
+  fitMap();
   renderWeekBadge();
   $('#albPct').textContent = `${V.albumCount()}/${V.albumTotal()}`;
   { const ep = V.eventProgress(), be = $('#btnEvent');

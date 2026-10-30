@@ -397,11 +397,15 @@ export function openEvent() {
 export const PILOTS = ['gabbah', 'miti', 'mirco', 'purcello', 'costa', 'renard', 'svetlana', 'max', 'angelo', 'gusta', 'ciprian', 'daniel', 'linus', 'albertone', 'andrea', 'claudio', 'luigi', 'siro', 'erika', 'maggie', 'albo', 'sergio', 'paletta', 'brizio', 'alex', 'guccio'];
 export const HELMETS = ['#e8322a', '#2f5fa8', '#ffd34d', '#4fd25f', '#ff4fa3', '#8a4fff', '#ff7a1a', '#ffffff'];
 export function me() { if (!X.save.me) X.save.me = { who: 'gabbah', col: 1 }; return X.save.me; }
-export const riderTag = () => `EDTK|${me().who}|${me().col}`;
-export function parseRider(r) { const m = /^EDTK\|(\w+)\|(\d+)/.exec(r || ''); return m && CHARS[m[1]] ? { who: m[1], col: +m[2] } : null; }
+// cornici del pilota (si comprano nel Negozio)
+export const FRAMES = [
+  { id: 'oro', name: L`Cornice d'oro`, cost: 400 }, { id: 'fuoco', name: L`Cornice di fuoco`, cost: 700 },
+  { id: 'birra', name: L`Cornice della birra`, cost: 900 }, { id: 'arcobaleno', name: L`Cornice arcobaleno`, cost: 1200 }];
+export const riderTag = () => `EDTK|${me().who}|${me().col}${me().fr ? '|' + me().fr : ''}`;
+export function parseRider(r) { const m = /^EDTK\|(\w+)\|(\d+)(?:\|(\w+))?/.exec(r || ''); return m && CHARS[m[1]] ? { who: m[1], col: +m[2], fr: m[3] || '' } : null; }
 export function avatarHTML(p, size = 34) {
   if (!p) return `<span class="rkav" style="width:${size}px;height:${size}px"></span>`;
-  return `<span class="rkav" style="width:${size}px;height:${size}px;background-image:${X.I(CHARS[p.who].img)};box-shadow:0 0 0 3px ${HELMETS[p.col] || HELMETS[1]}"></span>`;
+  return `<span class="rkav${p.fr ? ' fr-' + p.fr : ''}" style="width:${size}px;height:${size}px;background-image:${X.I(CHARS[p.who].img)};box-shadow:0 0 0 3px ${HELMETS[p.col] || HELMETS[1]}"></span>`;
 }
 export function openPilot(onDone) {
   const m = me();
@@ -410,9 +414,11 @@ export function openPilot(onDone) {
   X.showCard(L`<h2>Il tuo pilota</h2><p>Scegli chi sei e il colore del casco: ti vedono così in classifica.</p>
     <div class="pilotprev">${avatarHTML(m, 86)}<b>${X.getNick() || 'Tu'}</b></div>
     <div class="pilots">${faces}</div><div class="hcols">${cols}</div>
+    ${(X.save.frames || []).length ? `<div class="hcols frs"><button class="frb${!m.fr ? ' on' : ''}" data-f="">${L`Nessuna`}</button>${X.save.frames.map((f) => `<button class="frb${m.fr === f ? ' on' : ''}" data-f="${f}"><span class="rkav fr-${f}"></span></button>`).join('')}</div>` : `<p class="small">${L`Cornici speciali per il tuo pilota nel <b>Negozio</b> (tocca le monete).`}</p>`}
     <div class="row"><button id="cOk" class="btn btn-play">Fatto</button></div>`, { cOk: () => { X.hideCard(); onDone && onDone(); } });
   document.querySelectorAll('.pilot').forEach((b) => { b.onclick = () => { m.who = b.dataset.w; X.persist(); X.sfx.click(); openPilot(onDone); }; });
   document.querySelectorAll('.hcol').forEach((b) => { b.onclick = () => { m.col = +b.dataset.c; X.persist(); X.sfx.click(); openPilot(onDone); }; });
+  document.querySelectorAll('.frb').forEach((b) => { b.onclick = () => { m.fr = b.dataset.f; X.persist(); X.sfx.click(); openPilot(onDone); }; });
 }
 
 // ---------------- video della vittoria (6 secondi, verticale) per TikTok / Reels ----------------

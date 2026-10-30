@@ -105,6 +105,9 @@ const STEP_COST = 2;   // stelle per ogni tappa di costruzione
 if (!save.steps) { save.steps = {}; (save.built || []).forEach((id) => { save.steps[id] = STEPS; }); }
 if (!save.best) save.best = {};
 if (!save.inv) save.inv = { mH: 0, bomb: 0, grappa: 0 };
+['drone', 'hammer', 'moves'].forEach((k) => { if (save.inv[k] == null) save.inv[k] = 0; });
+if (!save.gold) save.gold = {};   // edifici dorati: id -> giorno dell'ultimo regalo ritirato
+if (!save.frames) save.frames = [];
 // vecchi salvataggi: i livelli già vinti valgono almeno 1 stella
 for (let n = 1; n < Math.min(save.level, 61); n++) if (!save.best[n]) save.best[n] = 1;
 const stepsOf = (b) => save.steps[b.id] || 0;
@@ -154,6 +157,85 @@ function fitMap() {
   if (map.style.bottom !== b) map.style.bottom = b;
 }
 window.addEventListener('resize', () => { fitMap(); });
+// ---------------- edifici dorati e negozio ----------------
+// (giorno di oggi: dayKey, definita più sotto)
+const GOLD_COST = 600;
+function openBuilt(b) {
+  sfx.click();
+  const gold = save.gold[b.id] != null;
+  if (gold && save.gold[b.id] !== dayKey()) {   // regalo del giorno dell'edificio dorato
+    save.gold[b.id] = dayKey();
+    const r = Math.random(), pw = r < .25 ? pick(['mH', 'bomb', 'hammer']) : null, coins = pw ? 0 : 30 + Math.floor(Math.random() * 4) * 10;
+    if (pw) save.inv[pw] = (save.inv[pw] || 0) + 1; else save.coins += coins;
+    persist(); sfx.win(); renderHome();
+    say(b.who, L`Ecco il regalo di oggi dal mio edificio d'oro: <b>${pw ? { mH: L`una Moto`, bomb: L`una Tanica`, hammer: L`un Martello` }[pw] : coins + ' ' + IC_C}</b>!`, L`Grazie!`);
+    return;
+  }
+  showCard(`${speakerHTML(b.who, b.text)}${gold ? `<p class="small">${L`✨ Edificio d'oro: torna domani per il prossimo regalo.`}</p>` : `<p class="small">${L`Rendilo <b>d'oro</b>: brilla sulla mappa e ogni giorno ti fa un regalo (monete o potenziamenti).`}</p>`}
+    <div class="row">${gold ? '' : `<button id="cGold" class="btn btn-gold">✨ ${GOLD_COST} ${IC_C}</button>`}<button id="cOk" class="btn btn-play">${L`Bello!`}</button></div>`, {
+    cOk: hideCard,
+    cGold: () => {
+      if (save.coins < GOLD_COST) { toast(L`Servono ${GOLD_COST} monete`, 1200); return; }
+      save.coins -= GOLD_COST; save.gold[b.id] = ''; persist(); hideCard(); sfx.win(); fireworks(900); renderHome(b.id);
+      FX.banner(L`Edificio d'oro!`, b.name, '#ffd34d');
+    },
+  });
+}
+const SHOP_PW = [
+  { k: 'mH', img: 'p_moto', name: L`Moto`, cost: 100 }, { k: 'bomb', img: 'p_tanica', name: L`Tanica`, cost: 150 },
+  { k: 'grappa', img: 'p_grappa', name: L`Grappa`, cost: 220 }, { k: 'hammer', img: 'u_martello', name: L`Martello`, cost: 90 },
+  { k: 'moves', img: 'u_nuvola', name: L`+5 mosse`, cost: 180, icon: '+5' },
+];
+const SHOP_PACKS = [
+  { id: 'kit', name: L`Kit del pilota`, desc: L`2 Moto, 1 Tanica, 1 Martello`, cost: 380, give: { mH: 2, bomb: 1, hammer: 1 } },
+  { id: 'boss', name: L`Kit anti-Forestale`, desc: L`2 Tanica, 1 Grappa, 2 +5 mosse`, cost: 780, give: { bomb: 2, grappa: 1, moves: 2 } },
+];
+function openShop(tab = 0) {
+  if (G.building || pendingStar) return;
+  sfx.click();
+  const TABS = [L`Aiuti`, L`Figurine`, L`Stile`, L`Campo Base`];
+  const tabs = `<div class="gtabs">${TABS.map((t, i) => `<button class="gtab${i === tab ? ' on' : ''}" data-sh="${i}">${t}</button>`).join('')}</div>`;
+  let body = '';
+  if (tab === 0) {
+    body = `<div class="shgrid">${SHOP_PW.map((p) => `<button class="shit" data-pw="${p.k}"><span class="pi" style="background-image:${I(p.img)}">${p.icon ? `<em>${p.icon}</em>` : ''}</span><b>${p.name}</b><small>${L`ne hai`} ${save.inv[p.k] || 0}</small><i>${p.cost} ${IC_C}</i></button>`).join('')}</div>
+      ${SHOP_PACKS.map((p) => `<button class="shpack" data-pk="${p.id}"><div><b>${p.name}</b><small>${p.desc}</small></div><i>${p.cost} ${IC_C}</i></button>`).join('')}
+      <p class="small">${L`Li trovi prima di ogni livello ("Parti con un aiuto?") e nei pulsanti in basso durante la partita.`}</p>`;
+  } else if (tab === 1) {
+    body = `<p>${L`Album`}: <b>${V.albumCount()}/${V.albumTotal()}</b></p>
+      <button class="shpack" data-st="3"><div><b>${L`Busta da 3 figurine`}</b><small>${L`3 figurine a caso`}</small></div><i>250 ${IC_C}</i></button>
+      <button class="shpack gold" data-st="6"><div><b>${L`Busta d'oro`}</b><small>${L`6 figurine, risparmi 50 monete`}</small></div><i>450 ${IC_C}</i></button>`;
+  } else if (tab === 2) {
+    body = `<p class="small">${L`Cornici per il tuo pilota: le vedono tutti in classifica.`}</p><div class="shgrid">${V.FRAMES.map((f) => {
+      const own = save.frames.includes(f.id);
+      return `<button class="shit${own ? ' own' : ''}" data-fr="${f.id}"><span class="rkav fr-${f.id}" style="background-image:${I(CHARS[V.me().who].img)};width:54px;height:54px"></span><b>${f.name}</b><i>${own ? L`Tua ✔` : f.cost + ' ' + IC_C}</i></button>`; }).join('')}</div>
+      <div class="row"><button id="cPil" class="btn btn-gray">${L`Il tuo pilota`}</button></div>`;
+  } else {
+    const built = BUILDINGS.filter(isBuilt);
+    body = `<p class="small">${L`Un edificio d'oro brilla sulla mappa e <b>ogni giorno</b> ti regala monete o un potenziamento: tocca il 🎁 sopra l'edificio.`}</p>
+      <div class="shgrid">${built.map((b) => { const g = save.gold[b.id] != null; return `<button class="shit${g ? ' own' : ''}" data-gb="${b.id}"><span class="pi" style="background-image:${I('b_' + b.id)}"></span><b>${b.name}</b><i>${g ? L`D'oro ✔` : GOLD_COST + ' ' + IC_C}</i></button>`; }).join('') || `<p>${L`Costruisci il primo edificio!`}</p>`}</div>`;
+  }
+  showCard(`<h2>${L`Negozio`}</h2><p class="shcoins">${IC_C} <b>${save.coins}</b></p>${tabs}<div class="shbody">${body}</div>
+    <div class="row"><button id="cClose" class="btn btn-play">${L`Chiudi`}</button></div>`, { cClose: () => { hideCard(); renderHome(); }, cPil: () => V.openPilot(() => openShop(2)) });
+  document.querySelectorAll('.gtab[data-sh]').forEach((b) => { b.onclick = () => openShop(+b.dataset.sh); });
+  const pay = (cost) => { if (save.coins < cost) { toast(L`Servono ${cost} monete`, 1200); return false; } save.coins -= cost; persist(); sfx.win(); return true; };
+  document.querySelectorAll('[data-pw]').forEach((b) => { b.onclick = () => { const p = SHOP_PW.find((x) => x.k === b.dataset.pw); if (pay(p.cost)) { save.inv[p.k] = (save.inv[p.k] || 0) + 1; persist(); toast(L`${p.name} nello zaino!`, 900); openShop(0); } }; });
+  document.querySelectorAll('[data-pk]').forEach((b) => { b.onclick = () => { const p = SHOP_PACKS.find((x) => x.id === b.dataset.pk); if (pay(p.cost)) { for (const [k, n] of Object.entries(p.give)) save.inv[k] = (save.inv[k] || 0) + n; persist(); fireworks(700); openShop(0); } }; });
+  document.querySelectorAll('[data-st]').forEach((b) => { b.onclick = async () => {
+    const n = +b.dataset.st; if (!pay(n === 3 ? 250 : 450)) return;
+    hideCard();
+    for (let i = 0; i < n; i++) await V.revealSticker(V.drawSticker());
+    openShop(1);
+  }; });
+  document.querySelectorAll('[data-fr]').forEach((b) => { b.onclick = () => {
+    const f = V.FRAMES.find((x) => x.id === b.dataset.fr);
+    if (save.frames.includes(f.id)) { V.me().fr = f.id; persist(); toast(L`Cornice messa!`, 900); openShop(2); return; }
+    if (pay(f.cost)) { save.frames.push(f.id); V.me().fr = f.id; persist(); fireworks(700); openShop(2); }
+  }; });
+  document.querySelectorAll('[data-gb]').forEach((b) => { b.onclick = () => {
+    const id = b.dataset.gb; if (save.gold[id] != null) return;
+    if (pay(GOLD_COST)) { save.gold[id] = ''; persist(); fireworks(800); openShop(3); }
+  }; });
+}
 function renderHome(popId = null) {
   fitMap();
   renderWeekBadge();
@@ -179,7 +261,8 @@ function renderHome(popId = null) {
     const isNext = b === nb;
     const st = stepsOf(b);
     const d = document.createElement('div');
-    d.className = 'bld ' + (built ? 'built' : isNext ? 'next' : 'ghost') + (b.id === popId ? ' pop' : '');
+    const gold = built && save.gold[b.id] != null, goldReady = gold && save.gold[b.id] !== dayKey();
+    d.className = 'bld ' + (built ? 'built' : isNext ? 'next' : 'ghost') + (b.id === popId ? ' pop' : '') + (gold ? ' golden' : '') + (goldReady ? ' gready' : '');
     d.dataset.id = b.id;
     d.style.left = bldX(b) + '%';
     d.style.top = bldTop(b) + '%';
@@ -190,7 +273,8 @@ function renderHome(popId = null) {
       ${built && CHARS[b.who] ? `<div class="resident" style="background-image:${I(CHARS[b.who].img)};animation-delay:${((b.x || b.ix) + (b.y || b.iy)) % 7 * -0.4}s"></div>` : ''}
       ${built && (b.id === 'bar' || b.id === 'rifugio' || b.id === 'sauna') ? '<div class="smoke"><i></i><i></i><i></i></div>' : ''}
       <div class="tag">${built ? b.name : isNext ? `<i class="ic ic-hammer"></i> ${b.name}` : `<i class="ic ic-lock"></i> ${b.name}`}</div>`;
-    d.onclick = () => (isNext ? tryBuild() : built ? say(b.who, b.text, L`Bello!`) : lockedInfo(b));
+    if (goldReady) { const g = document.createElement('div'); g.className = 'goldgift'; g.textContent = '🎁'; d.appendChild(g); }
+    d.onclick = () => (isNext ? tryBuild() : built ? openBuilt(b) : lockedInfo(b));
     map.appendChild(d);
   }
   if (nb && zoneOf(nb) === zone && save.stars >= STEP_COST) {
@@ -753,7 +837,8 @@ function renderMoves() {
     $('.moves').classList.toggle('low', G.moves <= 5);
   }
   $('#bHammer').classList.toggle('active', G.hammer);
-  { const hb = $('#bHammer b'), fr = G.freeHammer > 0; if (hb && hb.dataset.fr !== String(fr)) { hb.dataset.fr = String(fr); hb.innerHTML = fr ? L`GRATIS` : '100 <i class="ic ic-coin"></i>'; } $('#bHammer').classList.toggle('free', fr); }
+  { const hb = $('#bHammer b'), fr = G.freeHammer > 0, own = save.inv.hammer || 0, key2 = fr + '|' + own; if (hb && hb.dataset.fr !== key2) { hb.dataset.fr = key2; hb.innerHTML = fr ? L`GRATIS` : own ? `x${own}` : '100 <i class="ic ic-coin"></i>'; } $('#bHammer').classList.toggle('free', fr || own > 0); }
+  for (const [id, k, cost] of [['bMoto', 'mH', 120], ['bTanica', 'bomb', 180]]) { const e = document.querySelector('#' + id + ' b'); if (!e) continue; const own = save.inv[k] || 0, key2 = String(own); if (e.dataset.own !== key2) { e.dataset.own = key2; e.innerHTML = own ? `x${own}` : cost + ' <i class="ic ic-coin"></i>'; } document.getElementById(id).classList.toggle('free', own > 0); }
   $('#bShield').classList.toggle('on', G.shield);
 }
 
@@ -1570,6 +1655,7 @@ async function useHammer(cell) {
   if (!G.board.get(...cell)) return;
   G.hammer = false;
   if (G.freeHammer > 0) G.freeHammer--;
+  else if (save.inv.hammer > 0) { save.inv.hammer--; persist(); }
   else { if (save.coins < 100) { renderMoves(); return; } save.coins -= 100; persist(); }
   G.busy = true; clearHint();
   renderMoves();
@@ -1717,7 +1803,7 @@ async function winLevel() {
   const prev = save.best[n] || 0;
   const gain = Math.max(0, stars - prev);
   save.best[n] = Math.max(prev, stars);
-  const coins = Math.round((first ? 50 + left * 10 : 20 + left * 3) * (1 + ((G.buddyObj && G.buddyObj.perk.coins) || 0) / 100) * (lv.hard ? 2 : 1));
+  const coins = Math.round((first ? 30 + left * 6 : 10 + left * 2) * (1 + ((G.buddyObj && G.buddyObj.perk.coins) || 0) / 100) * (lv.hard ? 2 : 1));
   save.stars += gain;
   pendingStar += gain;
   if (first) save.streak = Math.min(3, (save.streak || 0) + 1);
@@ -1786,17 +1872,19 @@ async function loseLevel() {
     await sleep(1700);
   }
   sfx.lose();
-  const canBuy = save.coins >= 200;
+  const ownMoves = !G.time && save.inv.moves > 0;
+  const canBuy = ownMoves || save.coins >= 200;
   const left = G.goals.filter((g) => g.done < g.n).map((g) => `${goalLeft(g)}`).join(', ');
   showCard(L`${speakerHTML('purcello', L`${pick(LOSE_LINES)}<br>Ti mancavano <b>${left}</b>. Con <b>200 ${IC_C}</b> hai <b>${G.time ? '20 secondi' : L`5 mosse`}</b> in più.`)}
     <div class="row">
       <button id="cQuit" class="btn btn-gray">Mollo</button>
-      <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>${G.time ? L`+20 secondi` : L`+5 mosse`}</button>
+      <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>${G.time ? L`+20 secondi` : L`+5 mosse`}${ownMoves ? ` <small>(x${save.inv.moves})</small>` : ''}</button>
     </div>`, {
     cQuit: () => { hideCard(); if (G.buddyObj && G.buddyObj.perk.streak && save.streak) toast(L`Sergio ti salva la serie di vittorie!`, 1400); else save.streak = 0; persist(); clearRun(); retryOrHome(); },
     cMore: () => {
       if (!canBuy) return;
-      save.coins -= 200; persist();
+      if (ownMoves) save.inv.moves--; else save.coins -= 200;
+      persist();
       hideCard();
       if (G.time) G.timeLeft += 20; else G.moves += 5;
       G.over = false; G.busy = false;
@@ -2215,9 +2303,9 @@ async function buddyClear(type, n) {
 // numeri casuali con seme: stessa griglia e stesse tessere in arrivo per i duelli tra amici
 function seededRng(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const PRE = [
-  { id: 'mH', name: L`Moto`, cost: 60, img: 'p_moto' },
-  { id: 'bomb', name: L`Tanica`, cost: 90, img: 'p_tanica' },
-  { id: 'grappa', name: L`Grappa`, cost: 140, img: 'p_grappa' },
+  { id: 'mH', name: L`Moto`, cost: 100, img: 'p_moto' },
+  { id: 'bomb', name: L`Tanica`, cost: 150, img: 'p_tanica' },
+  { id: 'grappa', name: L`Grappa`, cost: 220, img: 'p_grappa' },
 ];
 const streakGifts = () => PRE.slice(0, Math.min(save.streak || 0, 3)).map((p) => p.id);
 
@@ -2473,6 +2561,7 @@ function confirmReset() {
   } });
 }
 $('#btnSettings').onclick = openSettings;
+{ const cp = $('#hCoins') && $('#hCoins').closest('.pill'); if (cp) { cp.classList.add('shoppill'); cp.classList.toggle('newshop', !save.seen.shop); cp.onclick = () => { if (!save.seen.shop) { save.seen.shop = 1; persist(); cp.classList.remove('newshop'); } openShop(0); }; } }
 $('#btnBack').onclick = () => {
   if (G.busy) return;
   showCard(L`<h2>Pausa</h2>${togglesHTML()}
@@ -2487,15 +2576,15 @@ $('#bHelp').onclick = () => { if (G.busy || G.over) return; sfx.click(); showHin
 $('#bHammer').onclick = async () => {
   if (G.busy || G.over) return;
   if (!save.seen.hammer) { await explain(['hammer']); }
-  if (!G.hammer && save.coins < 100 && !(G.freeHammer > 0)) { toast(L`Servono 100 monete`, 1000); return; }
+  if (!G.hammer && save.coins < 100 && !(G.freeHammer > 0) && !(save.inv.hammer > 0)) { toast(L`Servono 100 monete`, 1000); return; }
   G.hammer = !G.hammer;
   if (G.hammer) toast(L`Tocca cosa spaccare`, 1000);
   renderMoves();
 };
 async function buyPower(pw, cost, name) {
   if (G.busy || G.over) return;
-  if (save.coins < cost) { toast(L`Servono ${cost} monete`, 1000); return; }
-  save.coins -= cost; persist();
+  if (save.inv[pw] > 0) { save.inv[pw]--; persist(); renderMoves(); }
+  else { if (save.coins < cost) { toast(L`Servono ${cost} monete`, 1000); return; } save.coins -= cost; persist(); }
   sfx.click();
   placeStartPowers([pw]);
   peekSay(pw === 'bomb' ? L`Tanica piena, si parte!` : L`Ecco una moto: toccala!`);

@@ -7,7 +7,7 @@ function clone(b) {
   const n = Object.create(Board.prototype);
   n.rng = Math.random; n.colors = b.colors;
   n.grid = b.grid.map((row) => row.map((t) => (t ? { ...t } : null)));
-  n.mud = b.mud.map((r) => r.slice()); n.hole = b.hole; n.ticket = b.ticket.map((r) => r.slice());
+  n.mud = b.mud.map((r) => r.slice()); n.gem = b.gem.map((r) => r.slice()); n.hole = b.hole; n.ticket = b.ticket.map((r) => r.slice());
   return n;
 }
 
@@ -57,10 +57,10 @@ function doClear(st, clear, matched, created, pre = []) {
     if (!t || t.rock > 0) continue;
     if (rockHits.has(k)) continue;
     if (t.drop) continue;
-    if (t.chain) { t.chain = false; credit(st, 'chain'); if (b.mud[r][c] > 0) { b.mud[r][c]--; credit(st, 'mud'); } continue; }
+    if (t.chain) { t.chain = false; credit(st, 'chain'); { const ty = b.scrape(r, c); if (ty) credit(st, ty); } continue; }
     if (protect.has(k)) credit(st, 'tile', t.color);
     else { if (t.color >= 0) credit(st, 'tile', t.color); else credit(st, 'boss'); b.grid[r][c] = null; }
-    if (b.mud[r][c] > 0) { b.mud[r][c]--; credit(st, 'mud'); }
+    { const ty = b.scrape(r, c); if (ty) credit(st, ty); }
   }
   for (const cr of created) { const [r, c] = unkey(cr.at); const t = b.grid[r][c]; if (t) { t.power = cr.power; t.color = -1; } }
 }
@@ -101,6 +101,8 @@ function play(st, a, bc) {
 
 const progress = (goals) => goals.reduce((s, g) => s + Math.min(g.done, g.n) / g.n, 0);
 const powers = (b) => b.grid.flat().filter((t) => t && t.power).length;
+// un giocatore vero cerca di far scendere i fusti: premia quanto sono in basso
+const dropDepth = (b) => { let d = 0; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (b.grid[r][c]?.drop) d += r; return d; };
 
 function candidates(b) {
   const out = [];
@@ -113,8 +115,9 @@ function candidates(b) {
   return out;
 }
 
-function runLevel(n, skill = 1) {
-  const lv = getLevel(n);
+export function runLevel(n, skill = 1, z, movesOverride) {
+  const lv = getLevel(n, z ?? undefined);
+  if (movesOverride) lv.moves = movesOverride;
   const ov = (process.env.EDT_MOVES || '').split(':'); if (+ov[0] === n) lv.moves = +ov[1];
   const st = { board: new Board(lv), goals: lv.goals.map((g) => ({ ...g, done: 0 })), ticketCleared: false };
   let moves = lv.time ? Math.round(lv.time / 4.5) : lv.moves, bossCount = lv.boss ? lv.boss.every : 0;
@@ -129,7 +132,7 @@ function runLevel(n, skill = 1) {
     for (const [a, bc] of (pool.length ? pool : cands)) {
       const sim = { board: clone(st.board), goals: st.goals.map((g) => ({ ...g })), ticketCleared: false };
       if (!play(sim, a, bc)) continue;
-      const sc = progress(sim.goals) * 100 + powers(sim.board) * 1.5 + Math.random() * 0.5;
+      const sc = progress(sim.goals) * 100 + powers(sim.board) * 1.5 + dropDepth(sim.board) * 2 + Math.random() * 0.5;
       if (sc > bestScore) { bestScore = sc; best = [a, bc]; }
     }
     st.ticketCleared = false;
@@ -153,6 +156,7 @@ function runLevel(n, skill = 1) {
   return { win: false, left: 0, prog: progress(st.goals) / st.goals.length };
 }
 
+if (process.argv[1] && process.argv[1].endsWith('sim.mjs')) {
 const [from = 1, to = 20, games = 12, skill = 1] = process.argv.slice(2).map(Number);
 for (let n = from; n <= to; n++) {
   let wins = 0, left = 0, prog = 0;
@@ -160,4 +164,5 @@ for (let n = from; n <= to; n++) {
   const lv = getLevel(n);
   const ov2 = (process.env.EDT_MOVES || '').split(':'); if (+ov2[0] === n) lv.moves = +ov2[1];
   console.log(`L${n}\tmosse ${lv.moves}\tvinte ${wins}/${games}\tmosse avanzate ${wins ? (left / wins).toFixed(1) : '-'}\tprogresso perse ${games - wins ? (prog / (games - wins) * 100).toFixed(0) + '%' : '-'}\t${lv.goals.map((g) => g.type + g.n).join(' ')}`);
+}
 }

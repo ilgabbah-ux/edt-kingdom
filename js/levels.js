@@ -1,6 +1,7 @@
 // EDT Kingdom — livelli
 import { L } from './i18n.js';
 import { makeRng, ROWS, COLS } from './engine.js';
+import { TUNED as TUNED0 } from './tuned.js';
 
 // Layout (9 righe x 8 colonne):
 // '.' normale   '#' casella vuota (fuori griglia)
@@ -239,6 +240,8 @@ function goalsFrom(layout = [], tiles = []) {
   if (velox) goals.push({ type: 'velox', n: velox });
   const gomme = cnt(/g/g);
   if (gomme) goals.push({ type: 'gomme', n: gomme });
+  const gem = cnt(/x/g);
+  if (gem) goals.push({ type: 'gem', n: gem });
   const mug = cnt(/b/g);
   if (mug) goals.push({ type: 'mug', n: mug });
   return goals;
@@ -247,11 +250,58 @@ function goalsFrom(layout = [], tiles = []) {
 // livelli difficili (come in Royal Match): uno ogni 10, segnati in rosso e pagati il doppio
 const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 98, 107, 117, 127, 137, 147, 157, 168, 177]);
 export const isHard = (n) => HARD.has(n);
-export function getLevel(n) {
-  const lv0 = baseLevel(n);
-  if (BALANCE[n]) lv0.moves = BALANCE[n];
+// scenario "naturale" di un livello (1-30 Valle, 31-60 Passo, ...)
+export const natZone = (n) => (n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
+// z = scenario in cui si gioca: se è diverso da quello naturale il livello viene costruito con gli ostacoli di quello scenario,
+// con la difficoltà del numero di livello e le mosse tarate col simulatore (TUNED)
+export function getLevel(n, z = natZone(n)) {
+  const zn = natZone(n);
+  let lv0;
+  if (z === zn) { lv0 = baseLevel(n); if (BALANCE[n]) lv0.moves = BALANCE[n]; }
+  else { lv0 = themedLevel(n, z); if (!lv0.time) lv0.moves = Math.round(lv0.moves * 1.2) + 2; }   // non ancora tarato: un po' di margine
+  addTreasure(lv0, n, z);
+  if (!lv0.time && TUNED[z] && TUNED[z][n]) lv0.moves = TUNED[z][n];   // mosse tarate col simulatore
   lv0.hard = isHard(n);
+  lv0.zone = z;
   return lv0;
+}
+// tesori sepolti: in circa un livello su 6 (dal 21 in poi) alcune caselle nascondono un forziere da dissotterrare
+function addTreasure(lv, n, z) {
+  if (n < 21 || lv.boss || lv.time || lv.drops || !lv.layout) return;
+  const h = (n * 2654435761 + z * 40503) >>> 0;
+  if (h % 6 !== 2) return;
+  const rng = makeRng(h);
+  const G = lv.layout.map((r) => r.split(''));
+  const want = 6 + Math.min(4, Math.floor(n / 40));
+  let placed = 0;
+  for (let g = 0; g < 300 && placed < want; g++) {
+    const r = 1 + Math.floor(rng() * (ROWS - 2)), c = Math.floor(rng() * (COLS / 2)), c2 = COLS - 1 - c;
+    if (G[r][c] !== '.' && G[r][c] !== 'm') continue;
+    G[r][c] = 'x'; placed++;
+    if (G[r][c2] === '.' || G[r][c2] === 'm') { G[r][c2] = 'x'; placed++; }
+  }
+  lv.layout = G.map((r) => r.join(''));
+  const all = lv.layout.join('');
+  lv.goals = lv.goals.filter((g) => g.type !== 'mud');
+  const mud = (all.match(/m/g) || []).length + (all.match(/M/g) || []).length * 2;
+  if (mud) lv.goals.push({ type: 'mud', n: mud });
+  lv.goals.unshift({ type: 'gem', n: (all.match(/x/g) || []).length });
+  lv.goals = lv.goals.slice(0, 3);
+  lv.moves += 3;
+}
+let TUNED = TUNED0 || {};
+export function setTuned(t) { TUNED = t || {}; }
+function themedLevel(n, z) {
+  const rng = makeRng(n * 7919 + 13 + z * 104729);
+  const tier = Math.floor((n - 1) / 5);
+  const nn = z * 30 + ((n - 1) % 30) + 1;   // il livello "gemello" dentro lo scenario, per i tipi di ostacolo
+  if (n % 5 === 0) {
+    const lv = bossLevel(n, rng, tier, z);
+    return lv;
+  }
+  const lv = z >= 5 ? halloLevel(nn, rng, tier) : z === 4 ? oktoberLevel(nn, rng, tier) : z === 3 ? moroccoLevel(nn, rng, tier) : plainLevel(nn, rng, tier, z);
+  lv.n = n;
+  return lv;
 }
 
 // mosse calibrate con il simulatore (tools/tune.mjs)
@@ -296,7 +346,7 @@ function moroccoLevel(n, rng, tier) {
   let drops = 0;
   if (kind.includes('drop')) {
     for (const c of [2, 5]) { for (let r = 0; r < 2; r++) if (G[r][c] === '#') G[r][c] = '.'; G[0][c] = 'd'; }
-    for (let c = 0; c < 8; c++) if (G[8][c] === '#') G[8][c] = '.';   // il fondo deve essere aperto
+    openForDrops(G);   // il fondo deve essere aperto
     drops = 4 + Math.min(2, Math.floor((n - 90) / 10));
   }
   let layout = G.map((r) => r.join(''));
@@ -328,7 +378,7 @@ function oktoberLevel(n, rng, tier) {
   let drops = 0;
   if (kind.includes('drop')) {
     for (const c of [2, 5]) { for (let r = 0; r < 2; r++) if (G[r][c] === '#') G[r][c] = '.'; G[0][c] = 'd'; }
-    for (let c = 0; c < 8; c++) if (G[8][c] === '#') G[8][c] = '.';
+    openForDrops(G);
     drops = 4 + Math.min(2, Math.floor((n - 120) / 10));
   }
   let layout = thin(G.map((r) => r.join('')), rng, 18);
@@ -361,7 +411,7 @@ function halloLevel(n, rng, tier) {
   let drops = 0;
   if (kind.includes('drop')) {
     for (const c of [2, 5]) { for (let r = 0; r < 2; r++) if (G[r][c] === '#') G[r][c] = '.'; G[0][c] = 'd'; }
-    for (let c = 0; c < 8; c++) if (G[8][c] === '#') G[8][c] = '.';
+    openForDrops(G);
     drops = 4 + Math.min(2, Math.floor((n - 150) / 10));
   }
   let layout = thin(G.map((r) => r.join('')), rng, 18);
@@ -393,23 +443,30 @@ function baseLevel(n) {
   if (n > 150 && !isBoss) return halloLevel(n, rng, tier);
   if (n > 120 && !isBoss) return oktoberLevel(n, rng, tier);
   if (n > 90 && !isBoss) return moroccoLevel(n, rng, tier);
-  if (isBoss) {
-    const hp = 220 + (tier - 3) * 15;
-    const layout = makeLayout(rng, tier, n > 150 ? (rng() < 0.5 ? 'rock' : 'chain') : n > 120 ? (rng() < 0.5 ? 'crate' : 'chain') : n > 90 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
-    return {
-      n, moves: n > 90 ? 42 : 28, colors, boss: { hp, every: 4 },
-      goals: [{ type: 'boss', n: hp }], layout,
-      intro: n > 150 ? { who: 'forestale6', text: BOSS_LINES6[tier % BOSS_LINES6.length] } : n > 120 ? { who: 'forestale5', text: BOSS_LINES5[tier % BOSS_LINES5.length] } : n > 90 ? { who: 'forestale4', text: BOSS_LINES4[tier % BOSS_LINES4.length] } : n > 60 ? { who: 'forestale3', text: BOSS_LINES3[tier % BOSS_LINES3.length] } : n > 30 ? { who: 'forestale2', text: BOSS_LINES2[tier % BOSS_LINES2.length] } : { who: 'forestale', text: BOSS_LINES[tier % BOSS_LINES.length] },
-    };
-  }
+  if (isBoss) return bossLevel(n, rng, tier, natZone(n));
+  return plainLevel(n, rng, tier, natZone(n));
+}
+function bossLevel(n, rng, tier, z) {
+  const colors = 6;
+  const hp = 220 + (tier - 3) * 15;
+  const layout = makeLayout(rng, tier, z >= 5 ? (rng() < 0.5 ? 'rock' : 'chain') : z === 4 ? (rng() < 0.5 ? 'crate' : 'chain') : z === 3 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
+  const LINES = [BOSS_LINES, BOSS_LINES2, BOSS_LINES3, BOSS_LINES4, BOSS_LINES5, BOSS_LINES6][Math.min(z, 5)];
+  return {
+    n, moves: n > 90 ? 42 : 28, colors, boss: { hp, every: 4 },
+    goals: [{ type: 'boss', n: hp }], layout,
+    intro: { who: ['forestale', 'forestale2', 'forestale3', 'forestale4', 'forestale5', 'forestale6'][Math.min(z, 5)], text: LINES[tier % LINES.length] },
+  };
+}
+function plainLevel(n, rng, tier, z) {
+  const colors = 6;
   // al Passo (31+) il ghiaccio (k) è l'ostacolo di casa
-  const kinds = n > 60
+  const kinds = z >= 2
     ? ['chain', 'rock', 'crate', 'mud+chain', 'crate+multa', 'tile+crate', 'rock', 'chain', 'mud+rock', 'multa']
-    : n > 30
+    : z === 1
     ? ['chain', 'mud+chain', 'chain', 'rock', 'tile+crate', 'mud+chain', 'multa', 'chain', 'crate+multa', 'tile+mud']
     : ['mud', 'rock', 'crate', 'chain', 'multa', 'mud+rock', 'mud+chain', 'crate+multa', 'tile+mud', 'tile+crate'];
   const kind = kinds[Math.floor(rng() * kinds.length)];
-  const layout = thin(makeLayout(rng, tier, kind, rng() < 0.5), rng, n > 30 ? 17 : 18 + Math.min(tier, 6));
+  const layout = thin(makeLayout(rng, tier, kind, rng() < 0.5), rng, z >= 1 ? 17 : 18 + Math.min(tier, 6));
   const tiles = kind.includes('tile') ? [[Math.floor(rng() * colors), 16 + Math.min(tier, 6) * 2]] : [];
   const goals = goalsFrom(layout, tiles);
   const weight = goals.reduce((s, g) => s + (g.type === 'tile' ? g.n / 6 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 3 : g.n / 3), 0);
@@ -417,6 +474,10 @@ function baseLevel(n) {
   return { n, moves: Math.min(moves, 34), colors, goals, layout };
 }
 
+// livelli coi fusti: sotto la prima casella di ogni colonna niente buchi, altrimenti un fusto resta bloccato a metà
+function openForDrops(G) {
+  for (let c = 0; c < G[0].length; c++) { let seen = false; for (let r = 0; r < G.length; r++) { if (G[r][c] !== '#') seen = true; else if (seen) G[r][c] = '.'; } }
+}
 // toglie ostacoli finché il livello non è troppo lungo da completare
 function thin(layout, rng, maxWeight) {
   const G = layout.map((r) => r.split(''));
@@ -470,6 +531,7 @@ function makeLayout(rng, tier, kind, holes) {
   if (kind.includes('rock')) scatter(rng() < 0.4 ? 'R' : 'r', 6 + Math.min(tier, 3));
   if (kind.includes('crate')) scatter(rng() < 0.45 ? 'C' : 'c', 6 + Math.min(tier, 3));
   if (kind.includes('chain')) scatter('k', 6 + Math.min(tier, 4));
+  if (kind.includes('gem')) scatter('x', 6 + Math.min(tier, 4));   // tesori sepolti
   if (kind.includes('multa')) { G[4][3] = G[4][4] = 't'; if (tier > 5) G[2][3] = G[2][4] = 't'; }
   return G.map((row) => row.join(''));
 }

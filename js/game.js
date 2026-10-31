@@ -38,6 +38,7 @@ const RIDE_URI = { mH: I('fx_moto'), mV: I('fx_moto_v'), drone: I('fx_drone') };
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
 let ROCK_URI = [null, I('o_sasso1'), I('o_sasso2')];
 let MUD_URI = [null, I('o_fango1'), I('o_fango2')];
+const TREASURE_URI = I('o_tesoro'), CHEST_URI = I('o_forziere');
 let FORESTALE_URI = I('forestale');
 let CRATE_URI = [null, I('o_cassa1'), I('o_cassa2')];
 const MUG_URI = [I('o_boccale3'), I('o_boccale2'), I('o_boccale1'), I('o_boccale0')];   // per colpi rimasti: 0 pieno … 3 vuoto
@@ -158,7 +159,8 @@ const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, 
 const homeTrack = () => ({ oktober: 'okt', hallo: 'hall' }[currentZone().id] || 'home');
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 // il tema della partita (sfondo, ostacoli, musica, boss) segue la zona che stai costruendo sulla mappa
-function lvZone() { return Math.max(0, ZONES.indexOf(viewZone || currentZone())); }
+let forceZone = null;   // sfida di un amico: si gioca nello scenario del suo link
+function lvZone() { return forceZone != null ? forceZone : Math.max(0, ZONES.indexOf(viewZone || currentZone())); }
 
 // converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
 function mapPoint(map, x, y) {
@@ -370,6 +372,7 @@ function renderHome(popId = null) {
     if (!sameZone && nb && zoneOf(nb) === zone) { const y = bldTop(nb) / 100 * MAPG.Hc; if (y - top < MAPG.band + 30) top = Math.max(0, y - MAPG.band - 40); }
     box.scrollTop = top; }
   requestAnimationFrame(() => fitTags(box));
+  rankBadge();
   // "Raccogli tutto" quando ci sono almeno 2 regali pronti
   { let ga = document.getElementById('giftAll'); const gr = giftsReady().length;
     if (gr >= 2) { if (!ga) { ga = document.createElement('button'); ga.id = 'giftAll'; ga.className = 'giftall'; ga.onclick = (e) => { e.stopPropagation(); collectAll(); }; $('#home').appendChild(ga); } ga.innerHTML = L`🎁 Raccogli tutto <b>${gr}</b>`; }
@@ -1061,6 +1064,7 @@ function goalURI(gl) {
   if (gl.type === 'gomme') return GOMME_URI;
   if (gl.type === 'drop') return DROP_URI;
   if (gl.type === 'mug') return MUG_URI[0];
+  if (gl.type === 'gem') return CHEST_URI;
   return FORESTALE_URI;
 }
 const goalLeft = (gl) => Math.max(0, gl.n - gl.done);
@@ -1089,7 +1093,7 @@ function goalInfo(gl) {
   sfx.click();
   if (gl.type === 'tile') { tipBubble('t0_birra', L`Togli <b>${goalLeft(gl)}</b> di queste tessere facendo tris con loro.`, goalURI(gl)); return; }
   const zl = lvZone(G.level.n);
-  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type === 'multa' && zl === 5 ? 'potion' : zl === 5 && gl.type === 'rock' ? 'pumpkin' : zl === 5 && gl.type === 'crate' ? 'coffin' : zl === 3 && gl.type === 'rock' ? 'dune' : zl === 3 && gl.type === 'crate' ? 'spice' : zl === 3 && gl.type === 'mud' ? 'redmud' : zl === 4 && gl.type === 'rock' ? 'barrel' : zl === 4 && gl.type === 'crate' ? 'bottles' : zl === 4 && gl.type === 'mud' ? 'beer' : gl.type;
+  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type === 'multa' && zl === 5 ? 'potion' : (ZONE_OBS[zl] && ZONE_OBS[zl][gl.type]) || gl.type;
   const h = HELP[k]; if (h) tipBubble(h.img, `<b>${h.t}</b>: ${h.d}`);
 }
 function tipBubble(img, html, uri) {
@@ -1255,7 +1259,7 @@ function renderMud() {
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
     const v = G.board.mud[r][c];
     const m = G.mudEls[r][c];
-    m.style.backgroundImage = v ? MUD_URI[v] : 'none';
+    m.style.backgroundImage = v ? (G.board.gem[r][c] ? TREASURE_URI : MUD_URI[v]) : 'none';
     m.style.opacity = v ? 1 : 0;
     m.classList.toggle('on', !!v);
     G.badges[r][c].hidden = v < 2;
@@ -1588,7 +1592,7 @@ async function doClear(clear, matched, created, pre = []) {
     if (t.chain) {
       t.chain = false; refreshArt(t); credit('chain', r, c); sfx.chain();
       const [cx2, cy2] = cellCenter(r, c); FX.burst(cx2, cy2, '#b9bec8', 9); FX.ring(cx2, cy2, G.S * .8, '#e6ebf2', 6);
-      if (b.mud[r][c] > 0) { b.mud[r][c]--; credit('mud', r, c); mudSplash(r, c, b.mud[r][c]); }
+      { const ty = b.scrape(r, c); if (ty) credit(ty, r, c); if (ty === 'gem') gemPop(r, c); else if (ty || b.gem[r][c]) mudSplash(r, c, b.mud[r][c]); }
       continue;
     }
     if (protect.has(k)) {
@@ -1609,7 +1613,7 @@ async function doClear(clear, matched, created, pre = []) {
       killTile(t, r, c, n++);
       b.grid[r][c] = null;
     }
-    if (b.mud[r][c] > 0) { b.mud[r][c]--; credit('mud', r, c); mudSplash(r, c, b.mud[r][c]); }
+    { const ty = b.scrape(r, c); if (ty) credit(ty, r, c); if (ty === 'gem') gemPop(r, c); else if (ty || b.gem[r][c]) mudSplash(r, c, b.mud[r][c]); }
   }
   for (const cr of created) {
     const [r, c] = unkey(cr.at);
@@ -1633,6 +1637,16 @@ async function doClear(clear, matched, created, pre = []) {
 }
 
 let burstBudget = 0;
+// forziere dissotterrato: salta fuori, monete e vola verso l'obiettivo
+function gemPop(r, c) {
+  sfx.coin(); beep(990, .08, 'triangle', .09, 200);
+  const [x, y] = cellCenter(r, c);
+  FX.burst(x, y, '#ffd34d', 14, 1.4); FX.ring(x, y, G.S * .9, '#fff3a8', 6); FX.glow(x, y, G.S, 'rgba(255,220,90,.9)');
+  const m = G.mudEls[r][c];
+  const ghost = m.cloneNode(); ghost.className = 'mud'; ghost.style.opacity = 1; ghost.style.backgroundImage = CHEST_URI; ghost.style.zIndex = 30;
+  m.parentNode.appendChild(ghost);
+  ghost.animate([{ transform: pos(r, c) + ' scale(.6)', opacity: 1 }, { transform: pos(r, c) + ' translateY(-30%) scale(1.5)', opacity: 1, offset: .45 }, { transform: pos(r, c) + ' translateY(-60%) scale(1.2)', opacity: 0 }], { duration: 700, easing: 'ease-out' }).onfinish = () => ghost.remove();
+}
 function mudSplash(r, c, left) {
   sfx.splash();
   const [mx, my] = cellCenter(r, c);
@@ -1664,6 +1678,7 @@ function killTile(t, r, c) {
   if (!el) return;
   const [x, y] = cellCenter(r, c);
   const col = t.rock ? '#9a958f' : t.power ? '#fff3a8' : t.color >= 0 ? FX.TILE_COLORS[t.color] : '#9a958f';
+  if (burstBudget > 0 && Math.random() < 0.6) FX.theme(x, y, lvZone());
   if (burstBudget-- > 0) FX.burst(x, y, col, t.rock !== undefined && t.color < 0 ? 10 : 7);
   else FX.burst(x, y, col, 2);
   el.classList.add('dying');
@@ -1674,28 +1689,26 @@ function killTile(t, r, c) {
 
 async function applyGravity() {
   const { moves, spawns } = G.board.gravity();
-  let maxD = 0;
-  for (const m of moves) {
-    const el = G.els.get(m.tile.id);
-    if (!el) continue;
-    const d = Math.max(1, m.to - m.from);
-    el.style.transitionDuration = (0.08 + d * 0.05) + 's';
-    el.style.transform = pos(m.to, m.c);
-    maxD = Math.max(maxD, d);
-  }
-  for (const s2 of spawns) {
-    const el = makeTileEl(s2.tile, s2.from, s2.fromC);
+  // caduta "di gomma": accelera, atterra con un piccolo schiacciamento; le colonne partono una dopo l'altra
+  let maxT = 0;
+  const fall = (el, fromR, fromC, toR, toC, extraDelay = 0) => {
+    const d = Math.max(1, toR - fromR);
+    const dur = (150 + Math.sqrt(d) * 95) / SPD.f, delay = (toC * 14 + extraDelay) / SPD.f;
+    const a = pos(fromR, fromC), b = pos(toR, toC);
     el.style.transition = 'none';
-    el.style.transform = pos(s2.from, s2.fromC);
-    void el.offsetWidth;
-    const d = Math.max(1, s2.to - s2.from);
-    el.style.transition = '';
-    el.style.transitionDuration = (0.08 + d * 0.05) + 's';
-    el.style.transform = pos(s2.to, s2.c);
-    maxD = Math.max(maxD, d);
-  }
-  await sleep((0.08 + maxD * 0.05) * 1000 + 40);
-  G.els.forEach((el) => { el.style.transitionDuration = ''; });
+    el.style.transform = b;
+    el.animate([
+      { transform: a, easing: 'cubic-bezier(.5,0,.85,.55)' },
+      { transform: b, offset: 0.74, easing: 'ease-out' },
+      { transform: b + ' scale(1.07,.9)', offset: 0.86, easing: 'ease-in-out' },
+      { transform: b },
+    ], { duration: dur, delay, fill: 'backwards' });
+    maxT = Math.max(maxT, dur + delay);
+  };
+  for (const m of moves) { const el = G.els.get(m.tile.id); if (el) fall(el, m.from, m.fromC ?? m.c, m.to, m.c); }
+  for (const s2 of spawns) { const el = makeTileEl(s2.tile, s2.from, s2.fromC); fall(el, s2.from, s2.fromC, s2.to, s2.c, 30); }
+  await sleep(maxT * SPD.f * 0.82 + 20);   // la cascata successiva può partire mentre le ultime rimbalzano
+  setTimeout(() => G.els.forEach((el) => { el.style.transition = ''; el.style.transitionDuration = ''; }), maxT * 0.25 + 30);
 }
 
 async function resolve({ pending = [], swapCells = [] } = {}) {
@@ -1711,6 +1724,7 @@ async function resolve({ pending = [], swapCells = [] } = {}) {
     }
     for (const p of pending) { p.cells.forEach((k) => clear.add(k)); (p.pre || []).forEach((k) => pre.push(k)); }
     pending = [];
+    if (step >= 2) { const [hr, hc] = unkey([...clear][0]); keepHighlight(10 + step, CASCADE[Math.min(step - 1, CASCADE.length - 1)][0], clear, hr, hc); }
     await doClear(clear, matched, created, pre);
     if (step >= 1) {
       const lv = CASCADE[Math.min(step - 1, CASCADE.length - 1)];
@@ -1885,13 +1899,18 @@ function grappaBottle(cx, cy, big) {
   if (big) { const hl = document.createElement("div"); hl.className = "holylight"; app.appendChild(hl); setTimeout(() => hl.remove(), 1700); }
 }
 
+// il momento migliore della partita (per la clip verticale da condividere)
+function snapGrid() { return G.board.grid.map((row) => row.map((t) => (t ? (artFor(t).match(/url\((['"]?)(.*?)\1\)/) || [])[2] || null : null))); }
+function keepHighlight(score, title, cells, r, c) { if (G.hl && G.hl.score >= score) return; G.hl = { score, title, grid: snapGrid(), cells: [...cells], r, c }; }
 async function comboPowers(ta, tb, at, ka, kb) {
   const b = G.board;
   const [r, c] = at;
   const keyName = [ta.power, tb.power].sort().join('+');
   const nm = COMBO_NAMES[keyName] || (keyName.includes('grappa') ? L`Benedizione di San Braulio!` : L`Super combo!`);
+  const hlSnap = snapGrid();
   await fuseIntro(ta, tb, at, unkey(kb));
   const res = b.comboBlast(ta.power, tb.power, r, c, G.goals);
+  if (!G.hl || G.hl.score < 100) G.hl = { score: 100, title: nm, grid: hlSnap, cells: [...(res.convert ? res.convert.cells : res.cells)], r, c };
   const who = COMBO_WHO(keyName);
   cutIn(who, nm, comboDesc(keyName));
   voice(who, 2, 5000);
@@ -2171,7 +2190,7 @@ async function winLevel() {
     ${sticker ? L`<p class="stkhint">📒 Hai trovato una figurina!</p>` : ''}
     <div class="row sharerow"><button id="cShare" class="btn btn-share">📣 Condividi e sfida</button><button id="cVid" class="btn btn-share vid">🎬 Video TikTok</button></div>
     <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cShare: () => V.shareWin(n, stars, ZONES[lvZone(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[lvZone(n)].bg),
+    { cShare: () => V.shareWin(n, stars, ZONES[lvZone(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[lvZone(n)].bg, G.hl),
       cHome: async () => { hideCard(); await afterWin(); goHome(); },
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
   async function afterWin() { await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
@@ -2287,6 +2306,14 @@ const COACH = {
   dune: ['miti', L`I blocchi di sabbia si sgretolano facendo tris <b>accanto</b>. Quelli interi vanno colpiti due volte.`],
   spice: ['costa', L`Le ceste di spezie si aprono con i tris <b>accanto</b> o con un potenziamento.`],
   redmud: ['mirco', L`Il fango rosso del deserto si pulisce facendo tris <b>sopra</b>. Quello scuro va fatto due volte.`],
+  gem: ['costa', L`Ci sono dei tesori sepolti! Fai tris <b>sopra</b> le caselle col forziere per tirarli fuori.`],
+  snowblock: ['mirco', L`I blocchi di neve si sgretolano con i tris <b>accanto</b>. Quelli interi vanno colpiti due volte. Brrr.`],
+  icecrate: ['costa', L`Le casse ghiacciate si rompono con i tris <b>accanto</b> o con un potenziamento.`],
+  slush: ['purcello', L`La neve sporca si spala facendo tris <b>sopra</b>. Quella alta va fatta due volte.`],
+  marble: ['purcello', L`Il marmo si spacca con i tris <b>accanto</b>. I blocchi interi vanno colpiti due volte.`],
+  cement: ['gabbah', L`I sacchi di cemento si rompono con i tris <b>accanto</b> o con un potenziamento.`],
+  greymud: ['mirco', L`Il fango di cava si pulisce facendo tris <b>sopra</b>. Quello scuro va fatto due volte.`],
+  slime: ['svetlana', L`La melma stregata si pulisce facendo tris <b>sopra</b>. Quella che bolle va fatta due volte.`],
   barrel: ['albertone', L`Le botti si aprono facendo tris <b>accanto</b>. Quelle intere vanno colpite due volte.`],
   bottles: ['claudio', L`Le casse di bottiglie si rompono con i tris <b>accanto</b> o con un potenziamento.`],
   beer: ['mirco', L`La birra rovesciata si asciuga facendo tris <b>sopra</b>. Quella con più schiuma va fatta due volte.`],
@@ -2439,6 +2466,14 @@ const HELP = {
   dune: { img: 'o_duna2', t: L`Blocco di sabbia`, d: L`Blocca la casella. Si sgretola facendo un tris <b>accanto</b> o con un potenziamento. Quelli interi vanno colpiti due volte.` },
   spice: { img: 'o_spezie2', t: L`Cesta di spezie`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
   redmud: { img: 'o_fango_m1', t: L`Fango rosso`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quello scuro va pulito due volte.` },
+  gem: { img: 'o_forziere', t: L`Tesoro sepolto`, d: L`Sotto la terra c'è un forziere. Fai un tris <b>sopra</b> la casella per dissotterrarlo.` },
+  snowblock: { img: 'o_neve2', t: L`Blocco di neve`, d: L`Blocca la casella. Si sgretola facendo un tris <b>accanto</b> o con un potenziamento. Quelli interi vanno colpiti due volte.` },
+  icecrate: { img: 'o_ghiacciata2', t: L`Cassa ghiacciata`, d: L`Blocca la casella come una cassa. Il ghiaccio si rompe con i tris <b>accanto</b> o con un potenziamento.` },
+  slush: { img: 'o_fango_n1', t: L`Neve sporca`, d: L`Sta <b>sotto</b> le tessere. Si spala facendo un tris sopra la pozza. Quella alta va spalata due volte.` },
+  marble: { img: 'o_marmo2', t: L`Blocco di marmo`, d: L`Blocca la casella. Si spacca facendo un tris <b>accanto</b> o con un potenziamento. Quelli interi vanno colpiti due volte.` },
+  cement: { img: 'o_cemento2', t: L`Sacchi di cemento`, d: L`Bloccano la casella come una cassa. Si rompono con i tris <b>accanto</b> o con un potenziamento.` },
+  greymud: { img: 'o_fango_c1', t: L`Fango di cava`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quello scuro va pulito due volte.` },
+  slime: { img: 'o_melma1', t: L`Melma stregata`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quella che bolle va pulita due volte.` },
   barrel: { img: 'o_barile', t: L`Botte di birra`, d: L`Blocca la casella. Si apre facendo un tris <b>accanto</b> o con un potenziamento. Le botti intere vanno colpite due volte.` },
   bottles: { img: 'o_bottiglie', t: L`Cassa di bottiglie`, d: L`Blocca la casella come una cassa. Si rompe con i tris <b>accanto</b> o con un potenziamento.` },
   beer: { img: 'o_birra2', t: L`Birra rovesciata`, d: L`Sta <b>sotto</b> le tessere. Si asciuga facendo un tris sopra la pozza. Quella con più schiuma va asciugata due volte.` },
@@ -2493,7 +2528,7 @@ const HELP = {
 const GUIDE = [
   [L`Come si gioca`, ['swap', 'goals', 'stars', 'hint']],
   [L`Potenziamenti`, ['mH', 'bomb', 'drone', 'grappa', 'combo']],
-  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'web', 'multa', 'water', 'bill', 'potion', 'pumpkin', 'coffin', 'dune', 'spice', 'redmud', 'barrel', 'bottles', 'beer', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
+  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'web', 'multa', 'water', 'bill', 'potion', 'pumpkin', 'coffin', 'dune', 'spice', 'redmud', 'barrel', 'bottles', 'beer', 'snowblock', 'icecrate', 'slush', 'marble', 'cement', 'greymud', 'slime', 'gem', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
   [L`Aiuti`, ['coins', 'hammer', 'shield', 'pre']],
   [L`Campo Base`, ['build', 'zones', 'daily', 'weekly', 'levels', 'rank']],
   [L`Extra`, ['album', 'chest', 'weekend', 'share', 'gold', 'helper']],
@@ -2543,17 +2578,23 @@ function explain(keys, title = L`Novità!`) {
   return new Promise((res) => showCard(`<h2>${title}</h2><div class="hlist">${keys.map(helpRow).join('')}</div>
     <div class="row"><button id="cOk" class="btn btn-play">${L`Ho capito!`}</button></div>`, { cOk: () => { hideCard(); res(); } }));
 }
+// ostacoli di ogni scenario (nomi delle voci della guida)
+const ZONE_OBS = [
+  { rock: 'rock', crate: 'crate', mud: 'mud' }, { rock: 'snowblock', crate: 'icecrate', mud: 'slush' }, { rock: 'marble', crate: 'cement', mud: 'greymud' },
+  { rock: 'dune', crate: 'spice', mud: 'redmud' }, { rock: 'barrel', crate: 'bottles', mud: 'beer' }, { rock: 'pumpkin', crate: 'coffin', mud: 'slime' },
+];
 const KIND = (p) => (p === 'mV' ? 'mH' : p);
 // tipi di ostacoli presenti in un livello
 function levelThings(lv) {
   const LYS = (lv.layout || []).join('');
   const out = [];
-  const hz = lvZone(lv.n) === 5, mz = lvZone(lv.n) === 3, oz = lvZone(lv.n) === 4;
-  if (/[mM]/.test(LYS)) out.push(mz ? 'redmud' : oz ? 'beer' : 'mud');
-  if (/[rR]/.test(LYS)) out.push(hz ? 'pumpkin' : mz ? 'dune' : oz ? 'barrel' : 'rock');
-  if (/[cC]/.test(LYS)) out.push(hz ? 'coffin' : mz ? 'spice' : oz ? 'bottles' : 'crate');
+  const ZO = ZONE_OBS[lvZone(lv.n)] || ZONE_OBS[0];
+  if (/[mM]/.test(LYS)) out.push(ZO.mud);
+  if (/[rR]/.test(LYS)) out.push(ZO.rock);
+  if (/[cC]/.test(LYS)) out.push(ZO.crate);
   if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand', 'garland', 'web'][lvZone(lv.n)]);
   if (/b/.test(LYS)) out.push('mug');
+  if (/x/.test(LYS)) out.push('gem');
   if (/v/.test(LYS)) out.push('velox');
   if (/g/.test(LYS)) out.push('gomme');
   if (lv.drops) out.push('drop');
@@ -2727,7 +2768,8 @@ function offerResume() {
 }
 
 async function startLevel(n, extras = [], resume = null, challenge = false) {
-  const lv = getLevel(n);
+  if (challenge && save.challenge && save.challenge.n === n && save.challenge.z != null) forceZone = save.challenge.z;
+  const lv = getLevel(n, lvZone());
   G.exhibit = challenge && n > save.level;   // sfida di un amico su un livello non ancora sbloccato: si gioca ma non fa avanzare
   G.level = lv;
   const dSeed = challenge && save.challenge && save.challenge.n === n && save.challenge.seed ? save.challenge.seed : 0;
@@ -2736,6 +2778,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   G.moves = lv.moves;
   G.goals = lv.goals.map((g) => ({ ...g, done: 0 }));
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
+  G.hl = null;
   G.ticketCleared = false; G.explainQ = new Set(); G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
   G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null; G.droneFix = null; G.helped = false; G.moveCount = 0;
   G.time = lv.time || 0; G.timeLeft = resume && resume.time != null ? resume.time : G.time;
@@ -2806,9 +2849,9 @@ function setZoneArt(zl) {
   FORESTALE_URI = I(ZONES[zl].boss);
   CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela'][zl]);
   MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : zl === 5 ? 'o_pozione' : 'o_multa');
-  ROCK_URI = zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile1'), I('o_barile')] : zl === 3 ? [null, I('o_duna1'), I('o_duna2')] : [null, I('o_sasso1'), I('o_sasso2')];
-  CRATE_URI = zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie1'), I('o_bottiglie')] : zl === 3 ? [null, I('o_spezie1'), I('o_spezie2')] : [null, I('o_cassa1'), I('o_cassa2')];
-  MUD_URI = zl === 3 ? [null, I('o_fango_m1'), I('o_fango_m2')] : zl === 4 ? [null, I('o_birra1'), I('o_birra2')] : [null, I('o_fango1'), I('o_fango2')];
+  ROCK_URI = zl === 1 ? [null, I('o_neve1'), I('o_neve2')] : zl === 2 ? [null, I('o_marmo1'), I('o_marmo2')] : zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile1'), I('o_barile')] : zl === 3 ? [null, I('o_duna1'), I('o_duna2')] : [null, I('o_sasso1'), I('o_sasso2')];
+  CRATE_URI = zl === 1 ? [null, I('o_ghiacciata1'), I('o_ghiacciata2')] : zl === 2 ? [null, I('o_cemento1'), I('o_cemento2')] : zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie1'), I('o_bottiglie')] : zl === 3 ? [null, I('o_spezie1'), I('o_spezie2')] : [null, I('o_cassa1'), I('o_cassa2')];
+  MUD_URI = zl === 1 ? [null, I('o_fango_n1'), I('o_fango_n2')] : zl === 2 ? [null, I('o_fango_c1'), I('o_fango_c2')] : zl === 5 ? [null, I('o_melma1'), I('o_melma2')] : zl === 3 ? [null, I('o_fango_m1'), I('o_fango_m2')] : zl === 4 ? [null, I('o_birra1'), I('o_birra2')] : [null, I('o_fango1'), I('o_fango2')];
 }
 async function openLevel(num) {
   const n = num || save.level;
@@ -2818,7 +2861,7 @@ async function openLevel(num) {
     return;
   }
   if (unlockedBuddies(save.level).some((b) => !(save.buddySeen || []).includes(b.id))) await announceBuddies();
-  const lv = getLevel(n);
+  const lv = getLevel(n, lvZone());
   setZoneArt(lvZone(n));
   const best = save.best[n] || 0;
   const goalsHTML = lv.goals.map((g) => `<div class="goal" style="background-image:${goalURI(g)}"><b>${g.n}</b></div>`).join('');
@@ -2884,8 +2927,18 @@ function homeTip(who, html, ms = 7000) {
   $('#btnBuild')?.classList.add('tutpulse');
   setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 400); $('#btnBuild')?.classList.remove('tutpulse'); }, ms);
 }
+// posizione in classifica EDT sul pulsante Classifica (aggiornata ogni 10 minuti al massimo)
+let rankCache = { t: 0, pos: 0 };
+async function rankBadge() {
+  const btn = $('#btnRank'); if (!btn) return;
+  const show = () => { let b = btn.querySelector('.wkpct'); if (!rankCache.pos) { b?.remove(); return; } if (!b) { b = document.createElement('b'); b.className = 'wkpct rkpos'; btn.appendChild(b); } b.textContent = rankCache.pos + '°'; btn.classList.toggle('podium', rankCache.pos <= 3); };
+  show();
+  const nick = RANK.getNick(); if (!nick || Date.now() - rankCache.t < 600000) return;
+  rankCache.t = Date.now();
+  try { const list = await RANK.top(); const i = list.findIndex((e) => e.name === nick); rankCache.pos = i >= 0 ? i + 1 : 0; show(); if (rankCache.pos && rankCache.pos <= 3 && !save.seen['rk' + rankCache.pos]) { save.seen['rk' + rankCache.pos] = 1; persist(); toast(L`Sei ${rankCache.pos}° nella classifica EDT! 🏆`, 2200); } } catch { /* offline */ }
+}
 function goHome(quiet = false) {
-  clearHint(); clearPreview();
+  clearHint(); clearPreview(); forceZone = null;
   showScreen('home');
   AU.playMusic(homeTrack());
   renderHome();
@@ -3020,13 +3073,19 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2', 'o_birra1', 'o_birra2', 'o_barile1', 'o_bottiglie1',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2', 'o_birra1', 'o_birra2', 'o_barile1', 'o_bottiglie1', 'o_neve1', 'o_neve2', 'o_ghiacciata1', 'o_ghiacciata2', 'o_fango_n1', 'o_fango_n2', 'o_marmo1', 'o_marmo2', 'o_cemento1', 'o_cemento2', 'o_fango_c1', 'o_fango_c2', 'o_melma1', 'o_melma2', 'o_tesoro', 'o_forziere',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 // caricamento leggero: prima solo quello che serve subito (tessere, ostacoli e la zona attuale), il resto dopo con calma
 const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); });
-const CORE = ASSETS.filter((n) => !/^(b_|map|c_|forestale)/.test(n)).concat((() => { const z = ZONES[Math.min(ZONES.length - 1, lvZone(Math.min(save.level, MAX_LEVEL)))]; return [z.bg, z.boss, 'c_gabbah', ...z.buildings.map((b) => 'b_' + b.id)]; })());
+// caricamento leggero: subito solo quello che serve nello scenario attuale; il resto dello scenario dopo, gli altri scenari quando li apri
+const zoneAssets = (z) => (z ? [z.bg, z.boss, ...z.buildings.map((b) => 'b_' + b.id)] : []);
+const CORE = ASSETS.filter((n) => !/^(b_|map|c_|forestale|st\d)/.test(n)).concat((() => { const z = ZONES[Math.min(ZONES.length - 1, lvZone())]; return [z.bg, z.boss, 'c_gabbah', ...z.buildings.map((b) => 'b_' + b.id)]; })());
 const preload = Promise.all(CORE.map(loadImg));
-preload.then(() => setTimeout(() => { const rest = ASSETS.filter((n) => !CORE.includes(n)); (function next() { const n = rest.shift(); if (n) loadImg(n).then(() => setTimeout(next, 30)); })(); }, 1500));
+preload.then(() => setTimeout(() => {
+  const zi = ZONES.indexOf(currentZone());
+  const rest = [...ASSETS.filter((n) => !CORE.includes(n) && !/^(b_|map|forestale|st\d)/.test(n)), ...zoneAssets(ZONES[zi + 1])].filter((n) => !CORE.includes(n));
+  (function next() { const n = rest.shift(); if (n) loadImg(n).then(() => setTimeout(next, 60)); })();
+}, 2500));
 document.addEventListener('visibilitychange', () => AU.pause(document.hidden));
 initInput();
 renderHome();
@@ -3046,4 +3105,4 @@ if (!save.welcomed) {
 }
 
 // per i test automatici
-window.__EDT = { V, loseLevel, surpriseHelper, makeGold, showStory, G, save, startLevel, trySwap, goHome, openLevel, winLevel, checkDaily, openLevelList, renderHome };
+window.__EDT = { setForceZone: (z) => { forceZone = z; }, V, loseLevel, surpriseHelper, makeGold, showStory, G, save, startLevel, trySwap, goHome, openLevel, winLevel, checkDaily, openLevelList, renderHome };

@@ -178,6 +178,26 @@ function hexA(hex, a) {
 export function dust(x, y, n = 3, color = 'rgba(196,150,96,.9)') {
   for (let i = 0; i < n; i++) add({ kind: 'puff', x: x + rnd(-6, 6), y: y + rnd(-6, 6), vx: rnd(-1, 1), vy: rnd(-1.4, -.2), drag: .96, size: rnd(6, 12), color, life: rnd(.5, .9) });
 }
+// particelle a tema dello scenario: foglie, neve, polvere di marmo, sabbia, schiuma di birra, scintille viola
+const THEME = [
+  { c: ['#7cc444', '#4f9a2a', '#b7e07a'], k: 'chunk', g: .12, up: 0 },
+  { c: ['#ffffff', '#e4f4ff', '#cfe9ff'], k: 'puff', g: .02, up: .6, s: [3, 6] },
+  { c: ['#e9e6e1', '#c9c4bd', '#ffffff'], k: 'puff', g: -.01, up: 1, s: [6, 11] },
+  { c: ['#e8bf7a', '#d9a35a', '#f3d9a0'], k: 'puff', g: .02, up: .4, s: [5, 9] },
+  { c: ['#ffffff', '#fff6dc', '#ffe9a8'], k: 'puff', g: -.06, up: 1.6, s: [4, 8] },
+  { c: ['#b76bff', '#7cff6a', '#ff9a2a'], k: 'spark', g: -.02, up: .8, s: [2.5, 4.5] },
+];
+export function theme(x, y, z = 0) {
+  if (reduce()) return;
+  const T = THEME[z] || THEME[0];
+  for (let i = 0; i < 4; i++) {
+    const a = rnd(0, Math.PI * 2), v = rnd(.8, 2.6);
+    const col = T.c[i % T.c.length], sz = T.s ? rnd(T.s[0], T.s[1]) : rnd(3, 6);
+    if (T.k === 'chunk') add({ kind: 'chunk', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, g: T.g, drag: .97, size: sz, color: col, shape: 2, spin: rnd(4, 9), rot: rnd(0, 6), vr: rnd(-.2, .2), life: rnd(.7, 1.1) });
+    else if (T.k === 'spark') add({ kind: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - T.up, drag: .95, size: sz, color: col, vr: rnd(-.1, .1), life: rnd(.5, .8) });
+    else add({ kind: 'puff', x: x + rnd(-8, 8), y: y + rnd(-8, 8), vx: Math.cos(a) * v * .6, vy: -T.up + rnd(-.4, .4), drag: .96, size: sz, color: col, life: rnd(.55, .95) });
+  }
+}
 export function bubble(x, y, R) { add({ kind: 'bubble', x, y, size: R, fade: false, life: .9 }); }
 export function ring(x, y, R, color = '#fff6a0', w = 10) { add({ kind: 'ring', x, y, size: R, color, w, life: .45 }); }
 export function glow(x, y, R, color = 'rgba(255,214,90,.8)') { add({ kind: 'glow', x, y, size: R, color, life: .5 }); }

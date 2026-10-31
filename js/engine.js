@@ -25,6 +25,7 @@ export class Board {
     this.mud = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
     this.hole = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
     this.ticket = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    this.gem = Array.from({ length: ROWS }, () => Array(COLS).fill(0));   // tesori sepolti sotto la terra
     const lay = level.layout || [];
     const chains = [];
     for (let r = 0; r < ROWS; r++) {
@@ -32,6 +33,7 @@ export class Board {
         const ch = (lay[r] || '')[c] || '.';
         if (ch === 'm') this.mud[r][c] = 1;
         if (ch === 'M') this.mud[r][c] = 2;
+        if (ch === 'x') { this.mud[r][c] = 1; this.gem[r][c] = 1; }
         if (ch === '#') this.hole[r][c] = true;
         if (ch === 't') this.ticket[r][c] = 1;
         if (ch === 'k') chains.push([r, c]);
@@ -407,6 +409,13 @@ export class Board {
     }
     return out;
   }
+  // tris sopra una casella con terra/fango: toglie uno strato; restituisce cosa si è guadagnato ('mud', 'gem' o null)
+  scrape(r, c) {
+    if (this.mud[r][c] <= 0) return null;
+    this.mud[r][c]--;
+    if (this.gem[r][c]) { if (this.mud[r][c] > 0) return null; this.gem[r][c] = 0; return 'gem'; }
+    return 'mud';
+  }
   dropCount() { return this.grid.flat().filter((t) => t && t.drop).length; }
   // dove rotola una pila di gomme colpita (casella vicina con una tessera normale)
   rollTarget(r, c) {
@@ -455,7 +464,7 @@ export class Board {
     let best = null, bestSc = -1;
     const open = goals.filter((g) => g.done < g.n);
     const wantTile = new Set(open.filter((g) => g.type === 'tile').map((g) => g.t));
-    const wantMud = open.some((g) => g.type === 'mud'), wantBlock = open.some((g) => ['rock', 'crate', 'boss', 'velox', 'gomme'].includes(g.type));
+    const wantMud = open.some((g) => g.type === 'mud' || g.type === 'gem'), wantBlock = open.some((g) => ['rock', 'crate', 'boss', 'velox', 'gomme'].includes(g.type));
     const wantChain = open.some((g) => g.type === 'chain'), wantMulta = open.some((g) => g.type === 'multa');
     const wantDrop = open.some((g) => g.type === 'drop');
     const PW = { grappa: 9, bomb: 6, mH: 5, mV: 5, drone: 4 };

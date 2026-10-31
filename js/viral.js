@@ -73,7 +73,7 @@ export async function shareImage(opts, text, url) {
 // vittoria di un livello: immagine + link-sfida
 export function shareWin(n, stars, bg, duel = null) {
   const nick = X.getNick() || L`Un amico`;
-  const url = gameURL({ sfida: n, s: stars, da: nick, ...(duel ? { seme: duel.seed, m: duel.left } : {}) });
+  const url = gameURL({ sfida: n, s: stars, da: nick, z: X.zone ? X.zone() : 0, ...(duel ? { seme: duel.seed, m: duel.left } : {}) });
   X.sfx.click();
   shareImage({ bg, title: L`LIVELLO ${n} SUPERATO!`, line1: L`${nick} ti sfida`, stars, who: R(['gabbah', 'miti', 'purcello', 'svetlana']), footer: L`MI BATTI? 🍺` },
     L`🏍️🍺 Ho fatto ${stars} ⭐ al livello ${n} di Enduro Drinking Kingdom! Mi batti?`, url);
@@ -88,6 +88,7 @@ export function readChallenge() {
       X.save.challenge = { n, s: Math.min(3, Math.max(1, parseInt(q.get('s'), 10) || 1)), da: String(q.get('da') || L`Un amico`).replace(/[<>"'`\\]/g, '').slice(0, 16) };
       const seed = parseInt(q.get('seme'), 10), m = parseInt(q.get('m'), 10);
       if (seed > 0) { X.save.challenge.seed = seed; X.save.challenge.m = m >= 0 ? m : 0; }
+      const z = parseInt(q.get('z'), 10); if (z >= 0 && z <= 5) X.save.challenge.z = z;
       X.persist();
       history.replaceState(null, '', location.pathname);
     }
@@ -458,6 +459,39 @@ export async function makeVideo(o) {
   const W = 720, H = 1280, c = document.createElement('canvas'); c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   const [bg, logo, star, face] = await Promise.all([loadImg(o.bg || 'map_bg'), loadImg('edt_title'), loadImg('u_stella'), loadImg(CHARS[o.who || 'gabbah'].img)]);
+  // clip della combo migliore: la griglia di quel momento che esplode a onda
+  const hl = o.hl && o.hl.grid ? o.hl : null, HLms = hl ? 3000 : 0;
+  const hlImgs = {};
+  if (hl) await Promise.all([...new Set(hl.grid.flat().filter(Boolean))].map((u) => new Promise((res) => { const im = new Image(); im.onload = () => { hlImgs[u] = im; res(); }; im.onerror = () => res(); im.src = u; })));
+  const hlCells = hl ? new Map(hl.cells.map((k) => { const r = Math.floor(k / 8), cc = k % 8; return [r * 100 + cc, Math.hypot(r - hl.r, cc - hl.c)]; })) : null;
+  const hlParts = [];
+  const drawHL = (k) => {
+    const cs = 82, bx = (W - cs * 8) / 2, by = 330;
+    const z = 1 + Math.max(0, k - 0.5) * 0.05;
+    ctx.drawImage(bg, -W * 0.1, 0, W * 1.2, H);
+    ctx.fillStyle = 'rgba(8,16,36,.55)'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.translate(W / 2, by + cs * 4.5); ctx.scale(z, z); ctx.translate(-W / 2, -(by + cs * 4.5));
+    if (k > 0.9 && k < 1.6) { const sh = (1.6 - k) * 18; ctx.translate((Math.random() - .5) * sh, (Math.random() - .5) * sh); }
+    ctx.fillStyle = '#ffd34d'; ctx.fillRect(bx - 12, by - 12, cs * 8 + 24, cs * 9 + 24);
+    ctx.fillStyle = '#1d3a73'; ctx.fillRect(bx - 6, by - 6, cs * 8 + 12, cs * 9 + 12);
+    for (let r = 0; r < 9; r++) for (let cc = 0; cc < 8; cc++) {
+      const x = bx + cc * cs, y = by + r * cs;
+      ctx.fillStyle = (r + cc) % 2 ? '#25488a' : '#2b5299'; ctx.fillRect(x + 2, y + 2, cs - 4, cs - 4);
+      const u = hl.grid[r] && hl.grid[r][cc]; const im = u && hlImgs[u]; if (!im) continue;
+      const d = hlCells.get(r * 100 + cc), tHit = d === undefined ? 99 : 0.9 + d * 0.07;
+      if (k < tHit) { const wob = k > tHit - 0.25 ? 1 + Math.sin(k * 60) * 0.06 : 1; const s3 = cs * 0.9 * wob; ctx.drawImage(im, x + (cs - s3) / 2, y + (cs - s3) / 2, s3, s3); }
+      else if (k < tHit + 0.05) { for (let i = 0; i < 6; i++) hlParts.push({ x: x + cs / 2, y: y + cs / 2, vx: (Math.random() - .5) * 22, vy: (Math.random() - .7) * 22, l: 1, c: ['#ffd34d', '#fff', '#ff8a2a'][i % 3] }); }
+      if (k >= tHit && k < tHit + 0.3) { ctx.globalAlpha = 1 - (k - tHit) / 0.3; ctx.fillStyle = '#fff6c8'; ctx.beginPath(); ctx.arc(x + cs / 2, y + cs / 2, cs * (0.4 + (k - tHit) * 2), 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+    }
+    for (const p of hlParts) { p.x += p.vx; p.y += p.vy; p.vy += .9; p.l -= 1 / 25; ctx.globalAlpha = Math.max(0, p.l); ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, 9, 9); }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    for (let i = hlParts.length - 1; i >= 0; i--) if (hlParts[i].l <= 0) hlParts.splice(i, 1);
+    contain(ctx, logo, 160, 40, 400, 180);
+    const ts = pop((k - 0.6) / 0.45);
+    if (ts > 0) { ctx.save(); ctx.translate(W / 2, 1150); ctx.scale(ts, ts); ctx.rotate(-0.05); outlined(ctx, String(hl.title).toUpperCase().slice(0, 22), 0, 0, 62, '#ffd34d'); ctx.restore(); }
+    if (k > 0.2) outlined(ctx, L`LIVELLO ${o.n || ''}`, W / 2, 280, 40, '#fff', '#0e1d3d', 'EDT Body');
+  };
   const stream = c.captureStream(30);
   // audio: fanfara di vittoria
   let actx = null;
@@ -472,12 +506,14 @@ export async function makeVideo(o) {
   const chunks = []; rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   const parts = [];
   const DUR = 6000, t0 = performance.now();
+  const ease0 = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
   const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
   const pop = (x) => { x = Math.min(1, Math.max(0, x)); return x < .6 ? ease(x / .6) * 1.15 : 1.15 - (x - .6) / .4 * .15; };
   rec.start(100);
   await new Promise((res) => {
     const frame = (now) => {
-      const t = now - t0, k = t / 1000;
+      if (hl && now - t0 < HLms) { drawHL((now - t0) / 1000); requestAnimationFrame(frame); return; }
+      const t = now - t0 - HLms, k = t / 1000;
       const z = 1.08 + k * 0.03;
       const bw = W * z, bh = bw * (bg ? bg.height / bg.width : 1);
       ctx.drawImage(bg, (W - bw) / 2, (H - Math.max(bh, H * z)) / 2, bw, Math.max(bh, H * z));
@@ -528,10 +564,10 @@ export async function makeVideo(o) {
   try { actx && actx.close(); } catch { /* */ }
   return new Blob(chunks, { type: mime.split(';')[0] });
 }
-export async function shareVideo(n, stars, bg) {
-  X.toast(L`Preparo il video… (6 secondi)`, 2500);
+export async function shareVideo(n, stars, bg, hl = null) {
+  X.toast(hl ? L`Preparo la clip della tua combo… (9 secondi)` : L`Preparo il video… (6 secondi)`, 2500);
   let blob;
-  try { blob = await makeVideo({ bg, title: L`LIVELLO ${n} SUPERATO!`, line1: L`${X.getNick() || 'Io'} ti sfida`, stars, who: me().who }); } catch { X.toast(L`Questo telefono non sa registrare il video: uso l'immagine`, 1800); shareWin(n, stars, bg); return; }
+  try { blob = await makeVideo({ bg, title: L`LIVELLO ${n} SUPERATO!`, line1: L`${X.getNick() || 'Io'} ti sfida`, stars, who: me().who, hl, n }); } catch { X.toast(L`Questo telefono non sa registrare il video: uso l'immagine`, 1800); shareWin(n, stars, bg); return; }
   const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
   const file = new File([blob], L`enduro-drinking-kingdom-livello-${n}.${ext}`, { type: blob.type });
   const url = gameURL({ sfida: n, s: stars, da: X.getNick() || L`Un amico` });

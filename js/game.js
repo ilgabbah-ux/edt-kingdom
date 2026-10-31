@@ -157,6 +157,8 @@ const RISE = [0, 0.3, 0.68, 1];
 const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, STEPS))]) * 100)}% 0 0 0)`;
 const homeTrack = () => ({ oktober: 'okt', hallo: 'hall' }[currentZone().id] || 'home');
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
+// il tema della partita (sfondo, ostacoli, musica, boss) segue la zona che stai costruendo sulla mappa
+function lvZone() { return Math.max(0, ZONES.indexOf(currentZone())); }
 
 // converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
 function mapPoint(map, x, y) {
@@ -1048,8 +1050,8 @@ function renderGoals(bumpIdx = -1) {
 function goalInfo(gl) {
   sfx.click();
   if (gl.type === 'tile') { tipBubble('t0_birra', L`Togli <b>${goalLeft(gl)}</b> di queste tessere facendo tris con loro.`, goalURI(gl)); return; }
-  const zl = zoneOfLevel(G.level.n);
-  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type === 'multa' && zl === 5 ? 'potion' : zl === 5 && gl.type === 'rock' ? 'pumpkin' : zl === 5 && gl.type === 'crate' ? 'coffin' : zl === 3 && gl.type === 'rock' ? 'dune' : zl === 3 && gl.type === 'crate' ? 'spice' : zl === 3 && gl.type === 'mud' ? 'redmud' : gl.type;
+  const zl = lvZone(G.level.n);
+  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type === 'multa' && zl === 5 ? 'potion' : zl === 5 && gl.type === 'rock' ? 'pumpkin' : zl === 5 && gl.type === 'crate' ? 'coffin' : zl === 3 && gl.type === 'rock' ? 'dune' : zl === 3 && gl.type === 'crate' ? 'spice' : zl === 3 && gl.type === 'mud' ? 'redmud' : zl === 4 && gl.type === 'rock' ? 'barrel' : zl === 4 && gl.type === 'crate' ? 'bottles' : zl === 4 && gl.type === 'mud' ? 'beer' : gl.type;
   const h = HELP[k]; if (h) tipBubble(h.img, `<b>${h.t}</b>: ${h.d}`);
 }
 function tipBubble(img, html, uri) {
@@ -2054,7 +2056,7 @@ async function winLevel() {
   const stars = ratio >= 0.35 ? 3 : ratio >= 0.15 ? 2 : 1;
   if (G.boss) {
     $('#bossFace').classList.add('beaten');
-    await say(ZONES[zoneOfLevel(n)].boss, pick([L`Va bene, passate. Ma ho preso la targa!`, L`Per oggi niente multa. Ma vi tengo d'occhio, eh.`, L`Il fischietto è scarico... Passate, va.`]), L`Arrivederci!`, 2);
+    await say(ZONES[lvZone(n)].boss, pick([L`Va bene, passate. Ma ho preso la targa!`, L`Per oggi niente multa. Ma vi tengo d'occhio, eh.`, L`Il fischietto è scarico... Passate, va.`]), L`Arrivederci!`, 2);
   } else { skipBtn(); FX.banner(L`Livello superato!`, '', '#ffd34d'); FX.flash(.3); await sleep(1100); }
   // bonus mosse avanzate: moto che partono a caso
   const b = G.board;
@@ -2084,7 +2086,7 @@ async function winLevel() {
       ${V.challengeResult(n, stars, true, left)}<p>Questo livello lo sblocchi davvero più avanti: intanto <b>+20 ${IC_C}</b>.</p>
       <button id="cShare" class="btn btn-share">📣 Rilancia la sfida</button>
       <div class="row"><button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg, { seed: G.seed, left }), cHome: () => { hideCard(); goHome(); } });
+    { cShare: () => V.shareWin(n, stars, ZONES[lvZone(n)].bg, { seed: G.seed, left }), cHome: () => { hideCard(); goHome(); } });
     fireworks(1500);
     return;
   }
@@ -2124,7 +2126,7 @@ async function winLevel() {
     ${sticker ? L`<p class="stkhint">📒 Hai trovato una figurina!</p>` : ''}
     <div class="row sharerow"><button id="cShare" class="btn btn-share">📣 Condividi e sfida</button><button id="cVid" class="btn btn-share vid">🎬 Video TikTok</button></div>
     <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
-    { cShare: () => V.shareWin(n, stars, ZONES[zoneOfLevel(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[zoneOfLevel(n)].bg),
+    { cShare: () => V.shareWin(n, stars, ZONES[lvZone(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[lvZone(n)].bg),
       cHome: async () => { hideCard(); await afterWin(); explain(['coins'], L`Hai guadagnato monete!`).then(goHome); },
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
   async function afterWin() { await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
@@ -2240,6 +2242,9 @@ const COACH = {
   dune: ['miti', L`I blocchi di sabbia si sgretolano facendo tris <b>accanto</b>. Quelli interi vanno colpiti due volte.`],
   spice: ['costa', L`Le ceste di spezie si aprono con i tris <b>accanto</b> o con un potenziamento.`],
   redmud: ['mirco', L`Il fango rosso del deserto si pulisce facendo tris <b>sopra</b>. Quello scuro va fatto due volte.`],
+  barrel: ['albertone', L`Le botti si aprono facendo tris <b>accanto</b>. Quelle intere vanno colpite due volte.`],
+  bottles: ['claudio', L`Le casse di bottiglie si rompono con i tris <b>accanto</b> o con un potenziamento.`],
+  beer: ['mirco', L`La birra rovesciata si asciuga facendo tris <b>sopra</b>. Quella con più schiuma va fatta due volte.`],
   coffin: ['luigi', L`Le bare si aprono con i tris <b>accanto</b> o con un potenziamento.`],
   bill: ['forestale5', L`Ogni turno che non paghi un conto, se ne aggiunge un altro. Pagate, pagate!`],
   tile: ['gabbah', L`Cerca le tessere dell'obiettivo in alto: fai tris con quelle, il resto viene da sé.`],
@@ -2389,6 +2394,9 @@ const HELP = {
   dune: { img: 'o_duna2', t: L`Blocco di sabbia`, d: L`Blocca la casella. Si sgretola facendo un tris <b>accanto</b> o con un potenziamento. Quelli interi vanno colpiti due volte.` },
   spice: { img: 'o_spezie2', t: L`Cesta di spezie`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
   redmud: { img: 'o_fango_m1', t: L`Fango rosso`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quello scuro va pulito due volte.` },
+  barrel: { img: 'o_barile', t: L`Botte di birra`, d: L`Blocca la casella. Si apre facendo un tris <b>accanto</b> o con un potenziamento. Le botti intere vanno colpite due volte.` },
+  bottles: { img: 'o_bottiglie', t: L`Cassa di bottiglie`, d: L`Blocca la casella come una cassa. Si rompe con i tris <b>accanto</b> o con un potenziamento.` },
+  beer: { img: 'o_birra2', t: L`Birra rovesciata`, d: L`Sta <b>sotto</b> le tessere. Si asciuga facendo un tris sopra la pozza. Quella con più schiuma va asciugata due volte.` },
   coffin: { img: 'o_bara', t: L`Bara`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
   bill: { img: 'o_conto', t: L`Conto da pagare`, d: L`Copre la casella e si paga con un tris sopra. Se in un turno <b>non ne paghi nessuno</b>, ne arriva un altro.` },
   // come si gioca
@@ -2440,7 +2448,7 @@ const HELP = {
 const GUIDE = [
   [L`Come si gioca`, ['swap', 'goals', 'stars', 'hint']],
   [L`Potenziamenti`, ['mH', 'bomb', 'drone', 'grappa', 'combo']],
-  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'web', 'multa', 'water', 'bill', 'potion', 'pumpkin', 'coffin', 'dune', 'spice', 'redmud', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
+  [L`Ostacoli`, ['mud', 'rock', 'crate', 'chain', 'ice', 'tape', 'sand', 'garland', 'web', 'multa', 'water', 'bill', 'potion', 'pumpkin', 'coffin', 'dune', 'spice', 'redmud', 'barrel', 'bottles', 'beer', 'velox', 'gomme', 'drop', 'mug', 'time', 'boss']],
   [L`Aiuti`, ['coins', 'hammer', 'shield', 'pre']],
   [L`Campo Base`, ['build', 'zones', 'daily', 'weekly', 'levels', 'rank']],
   [L`Extra`, ['album', 'chest', 'weekend', 'share', 'gold', 'helper']],
@@ -2495,17 +2503,17 @@ const KIND = (p) => (p === 'mV' ? 'mH' : p);
 function levelThings(lv) {
   const LYS = (lv.layout || []).join('');
   const out = [];
-  const hz = zoneOfLevel(lv.n) === 5, mz = zoneOfLevel(lv.n) === 3;
-  if (/[mM]/.test(LYS)) out.push(mz ? 'redmud' : 'mud');
-  if (/[rR]/.test(LYS)) out.push(hz ? 'pumpkin' : mz ? 'dune' : 'rock');
-  if (/[cC]/.test(LYS)) out.push(hz ? 'coffin' : mz ? 'spice' : 'crate');
-  if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zoneOfLevel(lv.n)]);
+  const hz = lvZone(lv.n) === 5, mz = lvZone(lv.n) === 3, oz = lvZone(lv.n) === 4;
+  if (/[mM]/.test(LYS)) out.push(mz ? 'redmud' : oz ? 'beer' : 'mud');
+  if (/[rR]/.test(LYS)) out.push(hz ? 'pumpkin' : mz ? 'dune' : oz ? 'barrel' : 'rock');
+  if (/[cC]/.test(LYS)) out.push(hz ? 'coffin' : mz ? 'spice' : oz ? 'bottles' : 'crate');
+  if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand', 'garland', 'web'][lvZone(lv.n)]);
   if (/b/.test(LYS)) out.push('mug');
   if (/v/.test(LYS)) out.push('velox');
   if (/g/.test(LYS)) out.push('gomme');
   if (lv.drops) out.push('drop');
   if (lv.time) out.push('time');
-  if (/t/.test(LYS)) out.push(zoneOfLevel(lv.n) === 3 ? 'water' : zoneOfLevel(lv.n) === 4 ? 'bill' : zoneOfLevel(lv.n) === 5 ? 'potion' : 'multa');
+  if (/t/.test(LYS)) out.push(lvZone(lv.n) === 3 ? 'water' : lvZone(lv.n) === 4 ? 'bill' : lvZone(lv.n) === 5 ? 'potion' : 'multa');
   if (lv.boss) out.push('boss');
   return out;
 }
@@ -2711,7 +2719,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   $('#game').classList.toggle('hardlv', !!lv.hard);
   $('#bossbar').classList.toggle('hidden', !G.boss);
   $('#bShield').style.display = G.boss ? '' : 'none';
-  const zl = zoneOfLevel(n);
+  const zl = lvZone(n);
   setZoneArt(zl);
   $('#board').classList.toggle('fest', zl === 4);
   $('#board').classList.toggle('hallo', zl === 5);
@@ -2727,7 +2735,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   bf.classList.remove('beaten', 'angry', 'hit');
   if (G.boss) bf.style.backgroundImage = FORESTALE_URI;
   showScreen('game');
-  AU.playMusic(lv.boss ? 'boss' : zoneOfLevel(n) === 4 ? 'okt' : zoneOfLevel(n) === 5 ? 'hall' : 'game');
+  AU.playMusic(lv.boss ? 'boss' : lvZone(n) === 4 ? 'okt' : lvZone(n) === 5 ? 'hall' : 'game');
   layout();
   { const pk = document.querySelector('#peek i'); if (pk) pk.style.backgroundImage = G.buddyObj ? I('c_' + G.buddyObj.id) : I(CHARS[V.me().who].img); $('#peek').classList.toggle('bud', !!G.buddyObj); }
   buildBoardDOM();
@@ -2753,9 +2761,9 @@ function setZoneArt(zl) {
   FORESTALE_URI = I(ZONES[zl].boss);
   CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela'][zl]);
   MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : zl === 5 ? 'o_pozione' : 'o_multa');
-  ROCK_URI = zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile'), I('o_barile')] : zl === 3 ? [null, I('o_duna1'), I('o_duna2')] : [null, I('o_sasso1'), I('o_sasso2')];
-  CRATE_URI = zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie'), I('o_bottiglie')] : zl === 3 ? [null, I('o_spezie1'), I('o_spezie2')] : [null, I('o_cassa1'), I('o_cassa2')];
-  MUD_URI = zl === 3 ? [null, I('o_fango_m1'), I('o_fango_m2')] : [null, I('o_fango1'), I('o_fango2')];
+  ROCK_URI = zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile1'), I('o_barile')] : zl === 3 ? [null, I('o_duna1'), I('o_duna2')] : [null, I('o_sasso1'), I('o_sasso2')];
+  CRATE_URI = zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie1'), I('o_bottiglie')] : zl === 3 ? [null, I('o_spezie1'), I('o_spezie2')] : [null, I('o_cassa1'), I('o_cassa2')];
+  MUD_URI = zl === 3 ? [null, I('o_fango_m1'), I('o_fango_m2')] : zl === 4 ? [null, I('o_birra1'), I('o_birra2')] : [null, I('o_fango1'), I('o_fango2')];
 }
 async function openLevel(num) {
   const n = num || save.level;
@@ -2766,7 +2774,7 @@ async function openLevel(num) {
   }
   if (unlockedBuddies(save.level).some((b) => !(save.buddySeen || []).includes(b.id))) await announceBuddies();
   const lv = getLevel(n);
-  setZoneArt(zoneOfLevel(n));
+  setZoneArt(lvZone(n));
   const best = save.best[n] || 0;
   const goalsHTML = lv.goals.map((g) => `<div class="goal" style="background-image:${goalURI(g)}"><b>${g.n}</b></div>`).join('');
   const TIPS = [
@@ -2877,7 +2885,7 @@ function bindToggles() {
     if (!b) return;
     b.onclick = () => { save[key] = !save[key]; persist(); apply(save[key]); b.classList.toggle('on', save[key]); sfx.click(); if (key === 'vibra' && save.vibra) { try { navigator.vibrate && navigator.vibrate(40); } catch { /* */ } } };
   };
-  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : G.level && zoneOfLevel(G.level.n) === 4 ? 'okt' : G.level && zoneOfLevel(G.level.n) === 5 ? 'hall' : 'game') : homeTrack()); });
+  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : G.level && lvZone(G.level.n) === 4 ? 'okt' : G.level && lvZone(G.level.n) === 5 ? 'hall' : 'game') : homeTrack()); });
   flip('tSfx', 'sfx', AU.setSfx);
   flip('tVib', 'vibra', FX.setVibra);
   flip('tVoice', 'voice', () => {});
@@ -2957,11 +2965,11 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2', 'o_birra1', 'o_birra2', 'o_barile1', 'o_bottiglie1',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 // caricamento leggero: prima solo quello che serve subito (tessere, ostacoli e la zona attuale), il resto dopo con calma
 const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); });
-const CORE = ASSETS.filter((n) => !/^(b_|map|c_|forestale)/.test(n)).concat((() => { const z = ZONES[Math.min(ZONES.length - 1, zoneOfLevel(Math.min(save.level, MAX_LEVEL)))]; return [z.bg, z.boss, 'c_gabbah', ...z.buildings.map((b) => 'b_' + b.id)]; })());
+const CORE = ASSETS.filter((n) => !/^(b_|map|c_|forestale)/.test(n)).concat((() => { const z = ZONES[Math.min(ZONES.length - 1, lvZone(Math.min(save.level, MAX_LEVEL)))]; return [z.bg, z.boss, 'c_gabbah', ...z.buildings.map((b) => 'b_' + b.id)]; })());
 const preload = Promise.all(CORE.map(loadImg));
 preload.then(() => setTimeout(() => { const rest = ASSETS.filter((n) => !CORE.includes(n)); (function next() { const n = rest.shift(); if (n) loadImg(n).then(() => setTimeout(next, 30)); })(); }, 1500));
 document.addEventListener('visibilitychange', () => AU.pause(document.hidden));

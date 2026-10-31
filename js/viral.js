@@ -150,8 +150,15 @@ export const ALBUM_PRIZE = 2000;
 export const albumCount = () => ALL.filter((s) => X.save.album[s.id]).length;
 export const albumTotal = () => ALL.length;
 // pesca una figurina (le d'oro sono rare); restituisce { s, dup }
+// pagine dell'album di ogni scenario: le figurine che vinci sono quelle dello scenario in cui giochi
+const ZONE_PAGES = [['piloti', 'giro1'], ['forestale', 'momenti'], ['giro2', 'momenti'], ['marocco'], ['okt'], ['hallo']];
+export const zonePage = () => Math.max(0, PAGES.findIndex((p) => p.id === (ZONE_PAGES[X.zone ? X.zone() : 0] || ['piloti'])[0]));
 export function drawSticker() {
-  const pool = ALL.flatMap((s) => Array(RAR[s.r][1]).fill(s));
+  const zp = ZONE_PAGES[X.zone ? X.zone() : 0] || ZONE_PAGES[0];
+  let src = ALL.filter((s) => zp.includes(s.page.id));
+  // se le hai già tutte, ogni tanto ne arriva una di un'altra pagina
+  if (src.every((s) => X.save.album[s.id]) && Math.random() < 0.5) src = ALL;
+  const pool = src.flatMap((s) => Array(RAR[s.r][1]).fill(s));
   const s = R(pool);
   const dup = !!X.save.album[s.id];
   X.save.album[s.id] = (X.save.album[s.id] || 0) + 1;

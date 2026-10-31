@@ -2507,7 +2507,7 @@ function openGuide(tab = 0) {
   document.querySelectorAll('.gtab').forEach((b) => { b.onclick = () => { sfx.click(); openGuide(+b.dataset.t); }; });
 }
 // ---------- condivisione, sfide, album, ruota, forziere, gara del weekend ----------
-V.initViral({ save, persist, showCard, hideCard, I, SRC, sfx, toast, FX, beep, getNick: RANK.getNick, coinsUI: () => { $('#hCoins').textContent = save.coins; }, startLevel: (...a) => startLevel(...a), fireworks, speakerHTML: (...a) => speakerHTML(...a), IC_S, MAX_LEVEL, getCode: RANK.getCode,
+V.initViral({ zone: () => lvZone(), save, persist, showCard, hideCard, I, SRC, sfx, toast, FX, beep, getNick: RANK.getNick, coinsUI: () => { $('#hCoins').textContent = save.coins; }, startLevel: (...a) => startLevel(...a), fireworks, speakerHTML: (...a) => speakerHTML(...a), IC_S, MAX_LEVEL, getCode: RANK.getCode,
   replaceSave: (sv, nick, code) => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); if (nick) RANK.setNick(nick); if (code) localStorage.setItem('edt-giro-easy-code', code); } catch { /* */ } location.reload(); } });
 V.readChallenge();
 // ---------- la storia ----------
@@ -2928,7 +2928,7 @@ function sideUI() {
 $('#btnSide').onclick = () => { sfx.click(); save.sideShut = !save.sideShut; persist(); sideUI(); const m = $('#map'); if (m) fitTags(m); };
 sideUI();
 $('#btnEvent').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openEvent(); };
-$('#btnAlbum').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openAlbum(); };
+$('#btnAlbum').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openAlbum(V.zonePage()); };
 // ---------- impostazioni ----------
 function togglesHTML() {
   const row = (id, label, on) => `<button class="tog${on ? ' on' : ''}" id="${id}"><span>${label}</span><i></i></button>`;

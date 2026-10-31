@@ -15,6 +15,17 @@ const $ = (s) => document.querySelector(s);
 const SPD = { f: 1 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms / SPD.f));
 function fastTip() { if (save.seen.fastTip || SPD.f > 1) return; save.seen.fastTip = 1; persist(); toast(L`Tocca la griglia per accelerare »`, 1800); }
+// "Salta »" a fine livello: niente scoppi finali, si va dritti al risultato
+function skipBtn(on = true) {
+  let b = document.getElementById('skipEnd');
+  if (!on) { if (b) b.remove(); return; }
+  if (b) return;
+  G.skipEnd = false;
+  b = document.createElement('button');
+  b.id = 'skipEnd'; b.className = 'btn skipend'; b.innerHTML = L`Salta »`;
+  b.onclick = (e) => { e.stopPropagation(); G.skipEnd = true; setFast(true); SPD.f = 40; b.remove(); };
+  $('#game').appendChild(b);
+}
 function setFast(on) { SPD.f = on ? 3 : 1; const g = document.getElementById('game'); if (g) g.classList.toggle('fast', !!on); }
 const app = $('#app');
 
@@ -132,13 +143,14 @@ const zoneDone = (z) => z.buildings.every(isBuilt);
 let pendingStar = 0;      // stelle in volo verso il contatore
 let viewZone = null;      // zona che si sta guardando
 
-function bldTop(b) { return b.ix != null ? bldXY(b)[1] : 14 + b.y * 0.72; }
+// mappa scorrevole: sopra l'immagine c'è una fascia in più (alta quanto l'intestazione), così si può scorrere e vedere anche gli edifici in alto
+const MAPG = { W: 400, H: 700, band: 0, Hc: 700 };
+function bldTop(b) { return b.ix != null ? bldXY(b)[1] : (MAPG.band + (14 + b.y * 0.72) / 100 * MAPG.H) / MAPG.Hc * 100; }
 function bldX(b) { return b.ix != null ? bldXY(b)[0] : b.x; }
 // edifici posizionati sulle radure dell'immagine (zona Marocco)
 function bldXY(b) {
-  const map = $('#map'); const W = map.clientWidth || 400, H = map.clientHeight || 700;
-  const [px, py] = mapPoint(map, b.ix * 12.8, b.iy * 12.8);
-  return [px / W * 100, py / H * 100 - 3];
+  const [px, py] = mapPoint(null, b.ix * 12.8, b.iy * 12.8);
+  return [px / MAPG.W * 100, py / MAPG.Hc * 100 - 3 * MAPG.H / MAPG.Hc];
 }
 // quanto dell'edificio è già su (dal basso): tappa 0 niente, 1 fondamenta, 2 metà, 3 finito
 const RISE = [0, 0.3, 0.68, 1];
@@ -148,21 +160,36 @@ function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZON
 
 // converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
 function mapPoint(map, x, y) {
-  const W = map.clientWidth, H = map.clientHeight, k = Math.max(W / 1280, H / 1280);
-  return [(W - 1280 * k) / 2 + x * k, (H - 1280 * k) / 2 + y * k];
+  const { W, H, band } = MAPG, k = Math.max(W / 1280, H / 1280);
+  return [(W - 1280 * k) / 2 + x * k, band + (H - 1280 * k) / 2 + y * k];
 }
 
 // le etichette degli edifici non devono finire sotto i pulsanti laterali né fuori dallo schermo
 function fitTags(map) {
   const side = document.querySelector('#home .sidebtns'), mr = map.getBoundingClientRect();
   const minX = side ? side.getBoundingClientRect().right + 4 : mr.left + 4, maxX = mr.right - 4;
+  const sr = null;
+  // niente etichette o barre nascoste sotto il cartello della zona: le spostiamo appena sotto
+  const under = (r) => sr && r.top < sr.bottom + 3 && r.bottom > sr.top && r.left < sr.right && r.right > sr.left ? sr.bottom + 4 - r.top : 0;
+  map.querySelectorAll('.bld .pbar').forEach((t) => { t.style.translate = ''; const dy = under(t.getBoundingClientRect()); if (dy) t.style.translate = `0 ${Math.round(dy)}px`; });
   map.querySelectorAll('.bld .tag').forEach((t) => {
     t.style.transform = '';
     const r = t.getBoundingClientRect();
     let dx = 0;
     if (r.left < minX) dx = minX - r.left; else if (r.right > maxX) dx = maxX - r.right;
-    if (dx) t.style.transform = `translateX(${Math.round(dx)}px)`;
+    const dy = under({ top: r.top, bottom: r.bottom, left: r.left + dx, right: r.right + dx });
+    if (dx || dy) t.style.transform = `translate(${Math.round(dx)}px, ${Math.round(dy)}px)`;
   });
+  // etichette che dopo lo spostamento si accavallano: quella più in basso scende sotto l'altra
+  const tags = [...map.querySelectorAll('.bld .tag')].map((t) => ({ t, r: t.getBoundingClientRect() })).sort((a, b) => a.r.top - b.r.top);
+  for (let i = 0; i < tags.length; i++) for (let j = i + 1; j < tags.length; j++) {
+    const A = tags[i].r, B = tags[j];
+    if (B.r.top < A.bottom + 2 && B.r.bottom > A.top && B.r.left < A.right && B.r.right > A.left) {
+      const dy = A.bottom + 3 - B.r.top, m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(B.t.style.transform) || [0, 0, 0];
+      B.t.style.transform = `translate(${+m[1]}px, ${Math.round(+m[2] + dy)}px)`;
+      B.r = B.t.getBoundingClientRect();
+    }
+  }
 }
 // la mappa finisce sopra il pannello in basso, così nessun edificio resta nascosto dietro "Prossimo lavoro"
 function fitMap() {
@@ -175,13 +202,29 @@ window.addEventListener('resize', () => { fitMap(); });
 // ---------------- edifici dorati e negozio ----------------
 // (giorno di oggi: dayKey, definita più sotto)
 const GOLD_COST = 600;
+const giftsReady = () => BUILDINGS.filter((b) => isBuilt(b) && save.gold[b.id] != null && save.gold[b.id] !== dayKey());
+function takeGift(b) {
+  save.gold[b.id] = dayKey();
+  const r = Math.random(), pw = r < .25 ? pick(['mH', 'bomb', 'hammer']) : null, coins = pw ? 0 : 30 + Math.floor(Math.random() * 4) * 10;
+  if (pw) save.inv[pw] = (save.inv[pw] || 0) + 1; else save.coins += coins;
+  return { pw, coins };
+}
+// tutti i regali degli edifici d'oro in un colpo solo
+function collectAll() {
+  const list = giftsReady(); if (!list.length) return;
+  let coins = 0; const pws = {};
+  list.forEach((b) => { const g = takeGift(b); coins += g.coins; if (g.pw) pws[g.pw] = (pws[g.pw] || 0) + 1; });
+  persist(); sfx.win(); fireworks(900); renderHome();
+  const names = { mH: L`Moto`, bomb: L`Tanica`, hammer: L`Martello` };
+  const parts = [coins ? `<b>+${coins} ${IC_C}</b>` : '', ...Object.entries(pws).map(([k, n]) => `<b>+${n} ${names[k]}</b>`)].filter(Boolean).join(' · ');
+  showCard(L`<h2>Regali raccolti!</h2><p>${list.length} edifici d'oro ti hanno fatto un regalo:</p><p>${parts}</p>
+    <div class="row"><button id="cOk" class="btn btn-play">Grazie!</button></div>`, { cOk: hideCard });
+}
 function openBuilt(b) {
   sfx.click();
   const gold = save.gold[b.id] != null;
   if (gold && save.gold[b.id] !== dayKey()) {   // regalo del giorno dell'edificio dorato
-    save.gold[b.id] = dayKey();
-    const r = Math.random(), pw = r < .25 ? pick(['mH', 'bomb', 'hammer']) : null, coins = pw ? 0 : 30 + Math.floor(Math.random() * 4) * 10;
-    if (pw) save.inv[pw] = (save.inv[pw] || 0) + 1; else save.coins += coins;
+    const { pw, coins } = takeGift(b);
     persist(); sfx.win(); renderHome();
     say(b.who, L`Ecco il regalo di oggi dal mio edificio d'oro: <b>${pw ? { mH: L`una Moto`, bomb: L`una Tanica`, hammer: L`un Martello` }[pw] : coins + ' ' + IC_C}</b>!`, L`Grazie!`);
     return;
@@ -260,10 +303,29 @@ function renderHome(popId = null) {
   $('#hStars').textContent = save.stars - pendingStar;
   $('#hCoins').textContent = save.coins;
   const zone = viewZone || currentZone();
-  const map = $('#map');
-  map.style.backgroundImage = I(zone.bg);
-  map.innerHTML = '';
-  map.dataset.zone = zone.id;
+  const box = $('#map');
+  const sameZone = box.dataset.zone === zone.id, prevTop = box.scrollTop;
+  box.innerHTML = '';
+  box.dataset.zone = zone.id; $('#home').dataset.zone = zone.id;
+  // cartello della zona (fisso, fuori dalla parte che scorre)
+  document.querySelector('#home > .zonesign')?.remove();
+  const zi = ZONES.indexOf(zone), cz = ZONES.indexOf(currentZone());
+  const sign = document.createElement('div');
+  sign.className = 'zonesign';
+  sign.innerHTML = `${zi > 0 ? '<button class="zarr" data-d="-1">◀</button>' : ''}<span>${zone.name}</span>${zi < cz ? '<button class="zarr" data-d="1">▶</button>' : ''}`;
+  sign.querySelectorAll('.zarr').forEach((bt) => { bt.onclick = (e) => { e.stopPropagation(); viewZone = ZONES[zi + +bt.dataset.d]; sfx.click(); renderHome(); }; });
+  $('#home').appendChild(sign);
+  { const W = box.clientWidth || 400, H = box.clientHeight || 700;
+    const band = Math.max(0, Math.round(sign.getBoundingClientRect().bottom - box.getBoundingClientRect().top + 6));
+    Object.assign(MAPG, { W, H, band, Hc: H + band }); }
+  const map = document.createElement('div');
+  map.className = 'mapin'; map.style.height = MAPG.Hc + 'px';
+  { const k = Math.max(MAPG.W / 1280, MAPG.H / 1280), ox = (MAPG.W - 1280 * k) / 2, oy = (MAPG.H - 1280 * k) / 2;
+    const bg = { backgroundImage: I(zone.bg), backgroundSize: `${1280 * k}px ${1280 * k}px`, backgroundPosition: `${ox}px ${oy}px` };
+    const img = document.createElement('div'); img.className = 'mapimg'; Object.assign(img.style, bg, { top: MAPG.band + 'px', height: MAPG.H + 'px' });
+    const fill = document.createElement('div'); fill.className = 'mapfill'; Object.assign(fill.style, bg, { height: MAPG.band + 'px', backgroundPosition: `${ox}px ${oy}px` });
+    map.append(fill, img); }
+  box.appendChild(map);
   [[3, 34, 46], [9, 24, 62], [1, 28, 38]].forEach(([top, w, dur], i) => {
     const cl = document.createElement('div');
     cl.className = 'cloud';
@@ -299,15 +361,16 @@ function renderHome(popId = null) {
     map.appendChild(a);
   }
   // la moto che gira sul sentiero (solo se c'è almeno un edificio costruito nella zona)
-  if (zone.trail && zone.buildings.some(isBuilt)) startTrailRider(map, zone.trail);
-  // cartello della zona e frecce per guardare le altre zone sbloccate
-  const zi = ZONES.indexOf(zone), cz = ZONES.indexOf(currentZone());
-  const sign = document.createElement('div');
-  sign.className = 'zonesign';
-  sign.innerHTML = `${zi > 0 ? '<button class="zarr" data-d="-1">◀</button>' : ''}<span>${zone.name}</span>${zi < cz ? '<button class="zarr" data-d="1">▶</button>' : ''}`;
-  sign.querySelectorAll('.zarr').forEach((bt) => { bt.onclick = (e) => { e.stopPropagation(); viewZone = ZONES[zi + +bt.dataset.d]; sfx.click(); renderHome(); }; });
-  map.appendChild(sign);
-  requestAnimationFrame(() => fitTags(map));
+  // moto sul sentiero tolta: non seguiva bene la strada
+  // posizione di partenza: come prima (fascia nascosta), ma se il prossimo lavoro è in alto lo mostriamo
+  { let top = sameZone ? prevTop : MAPG.band;
+    if (!sameZone && nb && zoneOf(nb) === zone) { const y = bldTop(nb) / 100 * MAPG.Hc; if (y - top < MAPG.band + 30) top = Math.max(0, y - MAPG.band - 40); }
+    box.scrollTop = top; }
+  requestAnimationFrame(() => fitTags(box));
+  // "Raccogli tutto" quando ci sono almeno 2 regali pronti
+  { let ga = document.getElementById('giftAll'); const gr = giftsReady().length;
+    if (gr >= 2) { if (!ga) { ga = document.createElement('button'); ga.id = 'giftAll'; ga.className = 'giftall'; ga.onclick = (e) => { e.stopPropagation(); collectAll(); }; $('#home').appendChild(ga); } ga.innerHTML = L`🎁 Raccogli tutto <b>${gr}</b>`; }
+    else if (ga) ga.remove(); }
 
   const btnB = $('#btnBuild');
   if (nb) {
@@ -466,8 +529,10 @@ async function tryBuild() {
   persist();
   const done = isBuilt(nb);
   const zoneFinished = done && zoneDone(zoneOf(nb));
-  const map = $('#map');
+  const map = $('#map .mapin') || $('#map');
+  const M = () => $('#map .mapin') || $('#map');
   const el0 = map.querySelector(`.bld[data-id="${nb.id}"]`);
+  { const box = $('#map'), y = bldTop(nb) / 100 * MAPG.Hc; if (y - box.scrollTop < MAPG.band + 30 || y - box.scrollTop > MAPG.H) box.scrollTop = Math.max(0, y - MAPG.band - 60); }
   map.style.transformOrigin = `${bldX(nb)}% ${bldTop(nb)}%`;
   map.style.transform = 'scale(1.45)';
   $('#hStars').textContent = save.stars;
@@ -528,8 +593,8 @@ async function tryBuild() {
   if (done) {
     sfx.build();
     renderHome(nb.id);
-    map.style.transform = 'scale(1.45)';
-    map.querySelector(`.bld[data-id="${nb.id}"]`)?.classList.add('rising');
+    M().style.transformOrigin = `${bldX(nb)}% ${bldTop(nb)}%`; M().style.transform = 'scale(1.45)';
+    M().querySelector(`.bld[data-id="${nb.id}"]`)?.classList.add('rising');
     const rays = document.createElement('div'); rays.className = 'bldrays';
     rays.style.left = cx + 'px'; rays.style.top = (cy - r.height * .1) + 'px'; app.appendChild(rays);
     setTimeout(() => rays.remove(), 2600);
@@ -559,12 +624,12 @@ async function tryBuild() {
   } else {
     beep(660, 0.12, 'triangle', 0.1);
     renderHome();
-    map.style.transform = 'scale(1.45)';
+    M().style.transformOrigin = `${bldX(nb)}% ${bldTop(nb)}%`; M().style.transform = 'scale(1.45)';
     FX.banner(L`Tappa ${stepsOf(nb)} di ${STEPS}`, nb.name, '#ffd34d');
   }
   await sleep(done ? 2600 : 1100);
   wk.classList.add('leave'); setTimeout(() => wk.remove(), 500);
-  map.style.transform = '';
+  M().style.transform = '';
   await sleep(500);
   G.building = false;
   if (done) {
@@ -1990,7 +2055,7 @@ async function winLevel() {
   if (G.boss) {
     $('#bossFace').classList.add('beaten');
     await say(ZONES[zoneOfLevel(n)].boss, pick([L`Va bene, passate. Ma ho preso la targa!`, L`Per oggi niente multa. Ma vi tengo d'occhio, eh.`, L`Il fischietto è scarico... Passate, va.`]), L`Arrivederci!`, 2);
-  } else { FX.banner(L`Livello superato!`, '', '#ffd34d'); FX.flash(.3); await sleep(1100); }
+  } else { skipBtn(); FX.banner(L`Livello superato!`, '', '#ffd34d'); FX.flash(.3); await sleep(1100); }
   // bonus mosse avanzate: moto che partono a caso
   const b = G.board;
   const shots = Math.min(left, 6);
@@ -1998,7 +2063,8 @@ async function winLevel() {
     FX.banner(L`Mosse avanzate!`, L`Partono le moto`, '#7ee06a');
     fastTip();
     const cells = new Set();
-    for (let i = 0; i < shots; i++) {
+    skipBtn();
+    for (let i = 0; i < shots && !G.skipEnd; i++) {
       const r = Math.floor(Math.random() * ROWS), c = Math.floor(Math.random() * COLS);
       const t = b.grid[r][c];
       if (!t || t.rock || t.power || t.chain) continue;
@@ -2008,8 +2074,9 @@ async function winLevel() {
       G.moves--; renderMoves();
       await sleep(120);
     }
-    await resolve({ pending: [{ cells }] });
+    if (!G.skipEnd) await resolve({ pending: [{ cells }] });
   }
+  skipBtn(false);
   if (G.exhibit) {   // sfida su un livello non ancora sbloccato
     save.coins += 20; persist(); sfx.win();
     showCard(L`<h2 class="wintitle">Sfida superata!</h2>

@@ -392,7 +392,7 @@ function renderHome(popId = null) {
     $('#buildLbl').textContent = L`Fatto`; $('#buildCost').textContent = L`Completo`;
   }
   $('#btnPlay').innerHTML = save.level > MAX_LEVEL ? L`Finito! 🏆` : L`Gioca <b>livello ${save.level}</b>`;
-  if (viewZone && save.level <= MAX_LEVEL) $('#btnPlay').innerHTML += `<small class="pzone">${zone.name}</small>`;
+  if (viewZone && viewZone !== currentZone()) $('#btnPlay').innerHTML = L`Rigioca ${zone.name}`;
 }
 
 let riderRAF = 0;
@@ -998,15 +998,20 @@ function claimPerfect(k) {
   save.coins += PERFECT_GIFT.coins; save.inv.bomb = (save.inv.bomb || 0) + PERFECT_GIFT.bomb; save.inv.grappa = (save.inv.grappa || 0) + PERFECT_GIFT.grappa;
   persist(); sfx.win(); fireworks(1200); renderHome();
 }
-function openLevelList() {
+// livelli di ogni scenario: 30 a testa (Halloween dal 151 in poi)
+const zoneRange = (i) => [i * 30 + 1, i >= ZONES.length - 1 ? MAX_LEVEL : (i + 1) * 30];
+function openLevelList(zf = null) {
   if (G.building || pendingStar) return;
   if (!save.perfect) save.perfect = {};
+  if (zf != null) { const z = ZONES[zf]; viewZone = z === currentZone() ? null : z; renderHome(); }
   const last = Math.min(save.level, MAX_LEVEL);
+  const zr = zf != null && zoneRange(zf)[0] <= last ? zoneRange(zf) : null;
   // scenari sbloccati: scegli dove rigiocare
   const cz = ZONES.indexOf(currentZone()), tz = lvZone();
   const chips = ZONES.slice(0, cz + 1).map((z, i) => `<button class="zchip${i === tz ? ' on' : ''}" data-z="${i}">${z.name}</button>`).join('');
   const blocks = [];
   for (let k = 1; (k - 1) * BLOCK + 1 <= last; k++) {
+    if (zr && (k * BLOCK < zr[0] || (k - 1) * BLOCK + 1 > zr[1])) continue;
     const a = (k - 1) * BLOCK + 1, b = Math.min(k * BLOCK, last);
     const cells = [];
     for (let n = a; n <= b; n++) {
@@ -1027,10 +1032,10 @@ function openLevelList() {
     <div class="lvlist">${blocks.join('')}</div>
     <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
   document.querySelectorAll('.lv').forEach((b) => { b.onclick = () => { sfx.click(); openLevel(+b.dataset.n); }; });
-  document.querySelectorAll('.zchip').forEach((b) => { b.onclick = () => { sfx.click(); const z = ZONES[+b.dataset.z]; viewZone = z === currentZone() ? null : z; renderHome(); openLevelList(); }; });
+  document.querySelectorAll('.zchip').forEach((b) => { b.onclick = () => { sfx.click(); const z = ZONES[+b.dataset.z]; openLevelList(+b.dataset.z); }; });
   document.querySelectorAll('.pgift.ready').forEach((b) => { b.onclick = () => { claimPerfect(+b.dataset.k); toast(L`Bonus: +${PERFECT_GIFT.coins} monete, Tanica e Grappa!`, 1600); openLevelList(); }; });
   // apri sul blocco del livello attuale
-  requestAnimationFrame(() => { const c = document.querySelector('.lv.cur') || [...document.querySelectorAll('.lv.todo')].pop(); if (c) c.scrollIntoView({ block: 'center' }); });
+  requestAnimationFrame(() => { const c = zr ? document.querySelector('.lv') : document.querySelector('.lv.cur') || [...document.querySelectorAll('.lv.todo')].pop(); if (c) c.scrollIntoView({ block: 'center' }); });
 }
 
 function showScreen(id) {
@@ -2888,7 +2893,7 @@ function shopTutorial() {
 }
 
 // ---------- pulsanti ----------
-$('#btnPlay').onclick = () => openLevel();
+$('#btnPlay').onclick = () => (viewZone && viewZone !== currentZone() ? openLevelList(ZONES.indexOf(viewZone)) : openLevel());
 $('#btnBuild').onclick = () => tryBuild();
 $('#btnLevels').onclick = () => { sfx.click(); openLevelList(); };
 $('#btnRank').onclick = () => { sfx.click(); openRanking(); };

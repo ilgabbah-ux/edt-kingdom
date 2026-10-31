@@ -50,6 +50,7 @@ export default {
 "Completo": "Complete",
 "Finito! 🏆": "Finished! 🏆",
 "Gioca <b>livello {0}</b>": "Play <b>level {0}</b>",
+"Rigioca {0}": "Replay {0}",
 "Sono io che faccio il giro del Campo Base per riprendere i lavori con la GoPro! Più edifici costruisci, più è bello il giro.": "It's me doing the Base Camp tour to film the work with the GoPro! The more buildings you build, the better the tour.",
 "Vai Miti!": "Go Miti!",
 "<b>{0}</b> arriva più avanti. Prima finiamo <b>{1}</b>: servono ancora <b>{2} {3}</b> prima di arrivarci.": "<b>{0}</b> comes later. First let's finish <b>{1}</b>: you still need <b>{2} {3}</b> to get there.",

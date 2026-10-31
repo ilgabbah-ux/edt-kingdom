@@ -10,6 +10,7 @@ for (const z of zones) {
   out[z] = {};
   for (let n = +from; n <= +to; n++) {
     if (z === natZone(n) && n <= 20) continue;   // livelli fatti a mano
+    if (process.env.ONLY_BOSS && n % 5) continue;
     const lv0 = getLevel(n, z);
     if (lv0.time) continue;
     let moves = lv0.moves, best = null;

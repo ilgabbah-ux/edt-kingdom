@@ -2038,7 +2038,7 @@ async function forestaleStrike() {
     const t = b.grid[r][c];
     if (r > 0 && t && !t.rock && !t.power && !t.chain) cand.push([r, c]);
   }
-  const n = 2 + Math.floor((G.level.n / 5 - 1) / 2);
+  const n = Math.min(6, 2 + Math.floor((G.level.n / 5 - 1) / 2));   // oltre una certa soglia i sassi lanciati non aumentano più
   for (let i = 0; i < n && cand.length; i++) {
     const [r, c] = cand.splice(Math.floor(Math.random() * cand.length), 1)[0];
     const t = b.grid[r][c];

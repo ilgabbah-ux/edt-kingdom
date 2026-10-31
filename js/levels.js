@@ -448,7 +448,7 @@ function baseLevel(n) {
 }
 function bossLevel(n, rng, tier, z) {
   const colors = 6;
-  const hp = 220 + (tier - 3) * 15;
+  const hp = Math.min(220 + (tier - 3) * 15, 430);   // oltre il livello ~110 la pazienza della Forestale non cresce più
   const layout = makeLayout(rng, tier, z >= 5 ? (rng() < 0.5 ? 'rock' : 'chain') : z === 4 ? (rng() < 0.5 ? 'crate' : 'chain') : z === 3 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
   const LINES = [BOSS_LINES, BOSS_LINES2, BOSS_LINES3, BOSS_LINES4, BOSS_LINES5, BOSS_LINES6][Math.min(z, 5)];
   return {

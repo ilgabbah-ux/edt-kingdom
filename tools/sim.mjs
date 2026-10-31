@@ -124,9 +124,10 @@ export function runLevel(n, skill = 1, z, movesOverride) {
   let turn = 0;
   const topUp = () => { const gl = st.goals.find((g) => g.type === 'drop'); if (!gl) return; const b = st.board; let need = gl.n - gl.done - b.dropCount(); for (let c = 0; c < COLS && need > 0 && b.dropCount() < 2; c++) { const cc = (c * 5 + turn) % COLS; let r = 0; while (r < ROWS && b.hole[r][cc]) r++; const t = b.grid[r] && b.grid[r][cc]; if (!t || t.rock || t.chain || t.power || t.drop) continue; t.drop = true; t.color = -1; need--; } };
   topUp();
+  let shuffles = 0;
   while (moves > 0) {
     const cands = candidates(st.board);
-    if (!cands.length) { st.board.shuffle(); continue; }
+    if (!cands.length) { if (++shuffles > 40) break; st.board.shuffle(); continue; }
     let best = null, bestScore = -1;
     const pool = skill >= 1 ? cands : cands.filter(() => Math.random() < skill);
     for (const [a, bc] of (pool.length ? pool : cands)) {
@@ -145,13 +146,13 @@ export function runLevel(n, skill = 1, z, movesOverride) {
       bossCount = lv.boss.every;
       const cand = [];
       for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { const t = st.board.grid[r][c]; if (t && !t.rock && !t.power) cand.push(t); }
-      const k = 2 + Math.floor((n / 5 - 1) / 2);
+      const k = Math.min(6, 2 + Math.floor((n / 5 - 1) / 2));
       for (let i = 0; i < k && cand.length; i++) { const t = cand.splice(Math.floor(Math.random() * cand.length), 1)[0]; t.rock = 1; t.color = -1; }
     }
     turn++;
     topUp();
     if (turn % 3 === 0) { const b = st.board; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { const t = b.grid[r][c]; if (t && t.kind === 'velox') { const cand = b.veloxTargets(r, c); if (cand.length) { const [vr, vc] = cand[Math.floor(Math.random() * cand.length)]; b.grid[vr][vc].chain = true; } } } }
-    if (!st.board.hasMoves()) st.board.shuffle();
+    if (!st.board.hasMoves()) { if (++shuffles > 40) break; st.board.shuffle(); }
   }
   return { win: false, left: 0, prog: progress(st.goals) / st.goals.length };
 }

@@ -2,7 +2,7 @@
 const parts = [];
 let cv, ctx, app, raf = 0, dpr = 1;
 
-export const TILE_COLORS = ['#ffc531', '#ff3b2f', '#3d8bff', '#4fd25f', '#b25cff', '#ff8a1c'];
+export const TILE_COLORS = ['#ffc531', '#ff3b2f', '#3d8bff', '#4fd25f', '#b25cff', '#f2f4f8'];
 
 export function initFX(canvas, root) {
   cv = canvas; app = root; ctx = cv.getContext('2d');

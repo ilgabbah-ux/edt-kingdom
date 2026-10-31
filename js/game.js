@@ -198,6 +198,7 @@ function fitMap() {
   const hb = document.querySelector('#home .homebar'), map = $('#map');
   if (!hb || !map || !hb.offsetHeight) return;
   const b = Math.max(0, hb.offsetHeight - 26) + 'px';
+  $('#home').style.setProperty('--hb', (hb.offsetHeight + 14) + 'px');
   if (map.style.bottom !== b) map.style.bottom = b;
 }
 window.addEventListener('resize', () => { fitMap(); });
@@ -694,7 +695,7 @@ function flyStarToCounter() {
           renderHome();
           if (!save.tutBuild && save.stars >= STEP_COST && nextBuilding()) {
             save.tutBuild = true; persist();
-            setTimeout(() => say('gabbah', L`Hai abbastanza <b>stelle</b>! Ogni pezzo del Campo Base costa ${STEP_COST} ${IC_S}: tocca <b>Costruisci</b> qui sotto, o il cantiere con la freccia.`, L`Ci provo`), 250);
+            setTimeout(() => homeTip('gabbah', L`Hai abbastanza <b>stelle</b>! Tocca <b>Costruisci</b> qui sotto per alzare un pezzo del Campo Base.`), 250);
           }
         }
       }, 950);
@@ -1409,11 +1410,16 @@ const WIN_LINES = [
   ['purcello', L`Visto? Non hai avuto bisogno della mia spinta. Stavolta.`],
   ['svetlana', L`Che classe. Quasi quasi ti presto il trono.`],
 ];
-const LOSE_LINES = [
+// frasi di Purcello quando perdi: una per scenario + una che va bene ovunque
+const LOSE_ZONE = [
   L`Sei rimasto piantato nel fango. Ti do una spinta io da dietro?`,
-  L`Mosse finite e sentiero ancora chiuso. Ci penso io: aggancio e tiro!`,
+  L`Piantato nella neve? Metto le catene e ti tiro fuori io.`,
+  L`Incastrato tra i blocchi di marmo? Ci penso io: aggancio e tiro!`,
   L`Ti sei insabbiato? Tranquillo, Purcello arriva sempre da dietro.`,
+  L`Troppa birra e poche mosse? Ti porto io fuori dal tendone.`,
+  L`Ti hanno spaventato i fantasmi? Purcello non ha paura di niente.`,
 ];
+const loseLine = () => pick([LOSE_ZONE[lvZone()] || LOSE_ZONE[0], L`Mosse finite e sentiero ancora chiuso. Ci penso io: aggancio e tiro!`]);
 const allDone = () => G.goals.every((gl) => gl.done >= gl.n);
 
 // ---------- risoluzione ----------
@@ -2068,7 +2074,8 @@ async function endTurn() {
   if (G.buddyObj && !G.nearSaid && !G.time && G.goals.reduce((a, g) => a + goalLeft(g), 0) <= 3) { G.nearSaid = true; budCheerT = 0; buddyCheer('near'); }
   if (G.buddyObj && G.buddyObj.perk.sprint && !G.sprinted && !G.time && G.moves <= 5 && G.moves > 0) { G.sprinted = true; placeStartPowers(['mH']); peekSay(L`Maggie: sprint finale, tieni una moto!`); }
   saveRun();
-  if (G.explainQ.size) { const ks = [...G.explainQ]; G.explainQ.clear(); await explain(ks, ks.length > 1 ? L`Nuovi potenziamenti!` : L`Nuovo potenziamento!`); }
+  // nuovo potenziamento: fumetto in basso che non ferma la partita (uno alla volta)
+  if (G.explainQ.size) { const k = [...G.explainQ].find((x) => HELP[x] && !save.seen[x]); G.explainQ.clear(); if (k) { save.seen[k] = 1; persist(); const h = HELP[k]; tipBubble(h.img, L`<b>Nuovo: ${h.t}!</b> ${h.d}`); } }
   G.busy = false;
   checkStuck();
   scheduleHint();
@@ -2165,7 +2172,7 @@ async function winLevel() {
     <div class="row sharerow"><button id="cShare" class="btn btn-share">📣 Condividi e sfida</button><button id="cVid" class="btn btn-share vid">🎬 Video TikTok</button></div>
     <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
     { cShare: () => V.shareWin(n, stars, ZONES[lvZone(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[lvZone(n)].bg),
-      cHome: async () => { hideCard(); await afterWin(); explain(['coins'], L`Hai guadagnato monete!`).then(goHome); },
+      cHome: async () => { hideCard(); await afterWin(); goHome(); },
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
   async function afterWin() { await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
@@ -2209,8 +2216,8 @@ async function loseLevel() {
   sfx.lose();
   const ownMoves = !G.time && save.inv.moves > 0;
   const canBuy = ownMoves || save.coins >= 200;
-  const left = G.goals.filter((g) => g.done < g.n).map((g) => `${goalLeft(g)}`).join(', ');
-  showCard(L`${speakerHTML('purcello', L`${pick(LOSE_LINES)}<br>Ti mancavano <b>${left}</b>. Con <b>200 ${IC_C}</b> hai <b>${G.time ? '20 secondi' : L`5 mosse`}</b> in più.`)}
+  const left = G.goals.filter((g) => g.done < g.n).map((g) => `<span class="lmiss"><i style="background-image:${goalURI(g)}"></i>${goalLeft(g)}</span>`).join(' ');
+  showCard(L`${speakerHTML('purcello', L`${loseLine()}<br>Ti mancavano: ${left}<br> Con <b>200 ${IC_C}</b> hai <b>${G.time ? '20 secondi' : L`5 mosse`}</b> in più.`)}
     <div class="row">
       <button id="cQuit" class="btn btn-gray">Mollo</button>
       <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>${G.time ? L`+20 secondi` : L`+5 mosse`}${ownMoves ? ` <small>(x${save.inv.moves})</small>` : ''}</button>
@@ -2231,9 +2238,9 @@ async function loseLevel() {
   });
 }
 function retryOrHome() {
-  showCard(L`<h2 class="red">Insabbiato!</h2><p>Questo sentiero è tosto. Si riparte?</p>
+  showCard(L`<h2 class="red">Mosse finite!</h2><p>Questo sentiero è tosto. Si riparte?</p>
     <div class="row"><button id="cH" class="btn btn-gray">Campo base</button><button id="cR" class="btn btn-play">Riprova</button></div>`,
-  { cH: () => { hideCard(); goHome(); }, cR: () => { hideCard(); startLevel(G.level.n); } });
+  { cH: () => { hideCard(); goHome(true); }, cR: () => { hideCard(); startLevel(G.level.n); } });
 }
 
 // ---------- suggerimenti ----------
@@ -2867,13 +2874,23 @@ async function openLevel(num) {
   });
 }
 
-function goHome() {
+// consiglio sulla mappa che non blocca: fumetto sopra il pannello in basso, sparisce da solo o toccandolo
+function homeTip(who, html, ms = 7000) {
+  document.getElementById('homeTip')?.remove();
+  const d = document.createElement('div'); d.id = 'homeTip'; d.className = 'hometip';
+  d.innerHTML = `<i style="background-image:${I(CHARS[who].img)}"></i><p>${html}</p>`;
+  d.onclick = () => d.remove();
+  $('#home').appendChild(d);
+  $('#btnBuild')?.classList.add('tutpulse');
+  setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 400); $('#btnBuild')?.classList.remove('tutpulse'); }, ms);
+}
+function goHome(quiet = false) {
   clearHint(); clearPreview();
   showScreen('home');
   AU.playMusic(homeTrack());
   renderHome();
   if (pendingStar) setTimeout(flyStarToCounter, 350);
-  else setTimeout(shopTutorial, 900);
+  else if (!quiet) setTimeout(shopTutorial, 900);
 }
 // primo acquisto guidato: quando hai monete e non hai mai aperto il Negozio, Gabbah te lo mostra e ti regala una Moto
 function shopTutorial() {
@@ -2962,7 +2979,7 @@ $('#btnBack').onclick = () => {
     <div class="row"><button id="cG" class="btn btn-gray">? Guida</button></div>
     <div class="row"><button id="cL" class="btn btn-red">Esci dal livello</button><button id="cS" class="btn btn-play">Riprendi</button></div>
     <p class="small">Se esci adesso perdi questo giro e la serie di vittorie.</p>`,
-  { cS: hideCard, cG: () => openGuide(), cL: () => { hideCard(); G.over = true; save.streak = 0; clearRun(); goHome(); } });
+  { cS: hideCard, cG: () => openGuide(), cL: () => { hideCard(); G.over = true; save.streak = 0; clearRun(); goHome(true); } });
   bindToggles();
 };
 $('#bossbar').onclick = () => { if (G.boss) goalInfo({ type: 'boss' }); };

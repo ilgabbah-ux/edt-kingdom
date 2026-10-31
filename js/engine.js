@@ -472,8 +472,9 @@ export class Board {
       let sc = 0;
       for (const g of groups) {
         sc += g.cells.length;
-        if (g.power) sc += PW[g.power] * 2;
-        if (wantTile.has(g.color)) sc += g.cells.length * 1.5;
+        // con un obiettivo di tessere, il consiglio deve togliere quelle (non creare potenziamenti a caso)
+        if (g.power) sc += PW[g.power] * (wantTile.size && !wantTile.has(g.color) ? 0.8 : 2);
+        if (wantTile.has(g.color)) sc += g.cells.length * 3;
         for (const k of g.cells) {
           const [r, c] = unkey(k);
           if (wantMud && this.mud[r][c]) sc += 2;

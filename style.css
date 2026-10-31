@@ -1067,7 +1067,7 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .ci-txt em { display: block; margin-top: 8px; font: 800 13px var(--fb); font-style: normal; color: #fff; text-shadow: 0 2px 0 #0e1d3d; transform: rotate(-6deg); transform-origin: 0 50%; }
 #game .skipend { position: absolute; right: 12px; left: auto; top: auto; width: auto; height: auto; min-width: 0; max-width: none; margin: 0; flex: none; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 60; padding: 10px 22px; font: 400 22px var(--fd); color: #fff; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; background: linear-gradient(180deg, #ffb238, #e8761a); border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); animation: skipIn .3s ease-out; }
 @keyframes skipIn { from { opacity: 0; translate: 0 20px; } }
-.giftall { position: absolute; right: 10px; z-index: 6; top: calc(150px + env(safe-area-inset-top)); padding: 8px 14px; font: 400 17px var(--fd); color: #fff; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; background: linear-gradient(180deg, #ffd34d, #e9a21c); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 4px 0 var(--ink); animation: giftAllBob 1.4s ease-in-out infinite; }
+.giftall { position: absolute; right: 10px; z-index: 6; bottom: var(--hb, 190px); padding: 8px 14px; font: 400 17px var(--fd); color: #fff; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; background: linear-gradient(180deg, #ffd34d, #e9a21c); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 4px 0 var(--ink); animation: giftAllBob 1.4s ease-in-out infinite; }
 @keyframes giftAllBob { 50% { transform: translateY(-4px) scale(1.05); } }
 .giftall b { font: inherit; }
 #map { overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
@@ -1089,3 +1089,14 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .pgift.got { background: #c9f2b8; opacity: 1; }
 .lv.todo { outline: 3px dashed #ff8a2a; outline-offset: -6px; }
 .pzone { display: block; font: 800 12px var(--fb); -webkit-text-stroke: 0; opacity: .9; margin-top: -4px; }
+#card .buddy .btx p b, #card .buddy .btx q b, .buddy .btx p b { display: inline !important; font-size: inherit !important; }
+.lmiss { display: inline-flex; align-items: center; gap: 3px; margin: 2px 6px 2px 0; font: 800 16px var(--fb); vertical-align: middle; }
+.lmiss i { width: 30px; height: 30px; background: center/contain no-repeat; display: inline-block; }
+.hometip { position: absolute; left: 10px; right: 10px; bottom: calc(var(--hb, 190px)); z-index: 7; display: flex; align-items: center; gap: 8px; background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 8px 10px; box-shadow: 0 4px 0 var(--ink); animation: tipIn .35s cubic-bezier(.2,1.5,.4,1); transition: opacity .35s, transform .35s; }
+.hometip.out { opacity: 0; transform: translateY(10px); }
+.hometip i { flex: 0 0 46px; height: 46px; border-radius: 50%; background: #cde6ff center/cover; border: 2px solid var(--ink); }
+.hometip p { margin: 0; font: 600 14px/1.25 var(--fb); }
+.hometip::after { content: ''; position: absolute; right: 70px; bottom: -12px; border: 10px solid transparent; border-top-color: var(--ink); border-bottom: 0; }
+@keyframes tipIn { from { opacity: 0; transform: translateY(20px) scale(.9); } }
+.tutpulse { animation: tutPulse .9s ease-in-out infinite; }
+@keyframes tutPulse { 50% { transform: scale(1.08); filter: brightness(1.15); } }

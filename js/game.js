@@ -1334,6 +1334,41 @@ setInterval(() => {
   setTimeout(() => el.classList.remove('shine'), 900);
 }, 700);
 const POWER_SHOUT = { mH: L`Moto!`, mV: L`Moto!`, bomb: L`Tanica!`, drone: L`Drone!`, grappa: L`San Braulio!` };
+const PW_NAME = { mH: L`moto`, mV: L`moto`, bomb: L`taniche`, drone: L`droni` };
+function comboDesc(k) {
+  if (k === 'grappa+grappa') return L`Via tutta la griglia!`;
+  if (k.includes('grappa')) { const o = k.split('+').find((x) => x !== 'grappa'); return L`Un colore intero diventa ${PW_NAME[o] || L`potenziamenti`}`; }
+  if (k === 'bomb+bomb') return L`Esplosione gigante 7×7`;
+  if (k === 'drone+drone') return L`Croce + 3 droni sugli obiettivi`;
+  if (k === 'bomb+drone') return L`Il drone porta una tanica sull'obiettivo`;
+  if (k.includes('drone')) return L`Il drone porta una moto sull'obiettivo`;
+  if (k.includes('bomb')) return L`3 righe e 3 colonne`;
+  return L`Una riga e una colonna intere`;
+}
+// prima dello scoppio: le caselle colpite si accendono a onda partendo dal centro
+async function showZone(cells, r, c, ms = 520) {
+  const fx = $('#fx'); const made = [];
+  let far = 0;
+  for (const k of cells) {
+    const [rr, cc] = unkey(k); if (!inside(rr, cc)) continue;
+    const d = Math.max(Math.abs(rr - r), Math.abs(cc - c)); far = Math.max(far, d);
+    const z = document.createElement('div'); z.className = 'zonehit'; z.style.transform = pos(rr, cc); z.style.animationDelay = d * 45 + 'ms';
+    fx.appendChild(z); made.push(z);
+  }
+  await sleep(ms + far * 45);
+  return () => made.forEach((z) => { z.classList.add('go'); setTimeout(() => z.remove(), 260); });
+}
+// le tessere colpite scoppiano a onda dal centro, non tutte insieme
+async function popWave(cells, r, c) {
+  let far = 0;
+  for (const k of cells) {
+    const [rr, cc] = unkey(k); const t = G.board.grid[rr] && G.board.grid[rr][cc]; if (!t) continue;
+    const e = G.els.get(t.id); if (!e) continue;
+    const d = Math.max(Math.abs(rr - r), Math.abs(cc - c)); far = Math.max(far, d);
+    e.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(2.2) drop-shadow(0 0 8px #fff)', offset: .5 }, { filter: 'brightness(1.6)' }], { duration: 220, delay: d * 40, fill: 'forwards' });
+  }
+  await sleep(120 + far * 40);
+}
 const COMBO_NAMES = {
   'mH+mH': L`Doppia sgasata!`, 'mH+mV': L`Doppia sgasata!`, 'mV+mV': L`Doppia sgasata!`,
   'bomb+mH': L`Moto in fiamme!`, 'bomb+mV': L`Moto in fiamme!`, 'bomb+bomb': L`Mega tanica!`,
@@ -1704,15 +1739,15 @@ async function fuseIntro(ta, tb, at, from) {
   app.classList.remove('fusing');
 }
 // il personaggio entra in grande di lato con il nome della combo
-function cutIn(who, title) {
+function cutIn(who, title, desc = '') {
   const c = CHARS[who]; if (!c) return;
   document.querySelectorAll('.cutin').forEach((e) => e.remove());
   const d = document.createElement('div');
   d.className = 'cutin';
-  d.innerHTML = `<div class="ci-band"></div><div class="ci-face" style="background-image:${I(c.img)}"></div><div class="ci-txt"><small>SUPER COMBO</small><b>${title}</b></div>`;
+  d.innerHTML = `<div class="ci-band"></div><div class="ci-face" style="background-image:${I(c.img)}"></div><div class="ci-txt"><small>SUPER COMBO</small><b>${title}</b>${desc ? `<em>${desc}</em>` : ''}</div>`;
   app.appendChild(d);
-  setTimeout(() => d.classList.add('out'), 1250);
-  setTimeout(() => d.remove(), 1650);
+  setTimeout(() => d.classList.add('out'), 1900);
+  setTimeout(() => d.remove(), 2300);
 }
 function flyer(uri, cls = '') { const d = document.createElement('div'); d.className = 'rider ' + cls; d.style.backgroundImage = uri; app.appendChild(d); return d; }
 // squadriglia: 3 droni decollano, girano sopra la griglia e picchiano
@@ -1748,10 +1783,12 @@ async function comboPowers(ta, tb, at, ka, kb) {
   await fuseIntro(ta, tb, at, unkey(kb));
   const res = b.comboBlast(ta.power, tb.power, r, c, G.goals);
   const who = COMBO_WHO(keyName);
-  cutIn(who, nm);
+  cutIn(who, nm, comboDesc(keyName));
   voice(who, 2, 5000);
   const [cx, cy] = cellCenter(r, c);
-  FX.flash(.8); FX.shake(14, .55); FX.glow(cx, cy, G.S * 3.5); FX.ring(cx, cy, G.S * 4.5, '#ffffff', 16);
+  const droneCarry = res.cells.droneTarget !== undefined && keyName !== 'drone+drone';   // drone+moto/tanica: la zona si vede dopo il volo
+  const endZone = await showZone(res.convert ? res.convert.cells : droneCarry ? [key(r, c)] : res.cells, r, c);
+  FX.flash(.3); FX.shake(14, .55); FX.glow(cx, cy, G.S * 3.5); FX.ring(cx, cy, G.S * 4.5, '#ffffff', 16);
   if (keyName.includes('grappa')) grappaBottle(cx, cy, keyName === 'grappa+grappa');
   if (res.convert) {
     sfx.power(); FX.rays(cx, cy, G.S * 5);
@@ -1766,12 +1803,19 @@ async function comboPowers(ta, tb, at, ka, kb) {
       refreshArt(t);
       const [tx, ty] = cellCenter(rr, cc);
       FX.streak(cx, cy, tx, ty, '#fff3a8', 4); FX.ring(tx, ty, G.S * .8, '#fff', 5);
+      beep(600 + Math.random() * 300, .05, 'triangle', .05, 300);
+      await sleep(45);
     }
-    await sleep(500);
+    endZone();
+    await sleep(450);
     await resolve({ pending: [{ cells: new Set([ka, kb, ...res.convert.cells]), pre: [ka, kb] }] });
     return;
   }
-  if (res.cells.droneTarget !== undefined) await flyDrone(ka, res.cells.droneTarget);
+  endZone();
+  if (res.cells.droneTarget !== undefined) {
+    await flyDrone(ka, res.cells.droneTarget);
+    if (droneCarry) { const [tr, tc] = unkey(res.cells.droneTarget); const e2 = await showZone(res.cells, tr, tc, 300); e2(); }
+  }
   // effetto grande
   const S = G.S;
   const br = $('#board').getBoundingClientRect(), ar = app.getBoundingClientRect();
@@ -1813,6 +1857,7 @@ async function comboPowers(ta, tb, at, ka, kb) {
   }
   sfx.boom();
   res.cells.add(ka); res.cells.add(kb);
+  await popWave(res.cells, r, c);
   await resolve({ pending: [{ cells: res.cells, pre: [ka, kb] }] });
 }
 

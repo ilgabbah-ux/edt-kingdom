@@ -1039,3 +1039,18 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 #board.hallo .tile.chained::after { background-image: url('img/o_ragnatela.webp') !important; inset: 0 !important; opacity: .82 !important; }
 #board.hallo .ticket { background-image: url('img/o_pozione.webp'); background-size: 86%; background-position: center; background-repeat: no-repeat; }
 #game.hallo #goals .goal[data-t="chain"] { background-color: #e6dcff !important; }
+/* tocca per accelerare */
+#game.fast .tile { transition-duration: .06s !important; }
+#game.fast .tile.dying { transition-duration: .08s !important; }
+#game.fast #board::after { content: '»» x3'; position: absolute; right: 6px; top: 6px; background: #ffd34d; color: var(--ink); border: 2px solid var(--ink); border-radius: 10px; padding: 1px 8px; font: 400 14px var(--fd); z-index: 9; pointer-events: none; animation: fastpulse .5s ease-in-out infinite alternate; }
+@keyframes fastpulse { to { transform: scale(1.08); } }
+/* aiuto dopo tante sconfitte */
+.failhelp { margin: 6px 0; padding: 4px; border: 2px dashed #ff8a1c; border-radius: 14px; background: #fff3e0; }
+/* telefoni lunghi: tutto più grande */
+#game.roomy .goal { width: 70px !important; height: 70px !important; }
+#game.roomy .goal b { font-size: 18px !important; }
+#game.roomy .moves { width: 86px !important; height: 86px; }
+#game.roomy .moves b { font-size: 36px !important; }
+#game.roomy .booster { width: 72px !important; }
+#game.roomy .booster .bi { width: 64px !important; height: 64px !important; }
+#game.roomy .shelf { gap: 10px; padding: 14px 10px 12px; }

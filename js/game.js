@@ -11,7 +11,11 @@ import { initStory, playStory, STORY, STORY_ORDER } from './story.js';
 import * as V from './viral.js';
 
 const $ = (s) => document.querySelector(s);
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// tocca la griglia durante cascate e bonus finale: tutto va 3 volte più veloce
+const SPD = { f: 1 };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms / SPD.f));
+function fastTip() { if (save.seen.fastTip || SPD.f > 1) return; save.seen.fastTip = 1; persist(); toast(L`Tocca la griglia per accelerare »`, 1800); }
+function setFast(on) { SPD.f = on ? 3 : 1; const g = document.getElementById('game'); if (g) g.classList.toggle('fast', !!on); }
 const app = $('#app');
 
 // ---------- grafica in cache ----------
@@ -49,6 +53,7 @@ document.addEventListener('pointerdown', () => AU.unlock(), { capture: true });
 
 // ---------- overlay / toast ----------
 function showCard(html, binds = {}) {
+  setFast(false);
   $('#card').innerHTML = html;
   $('#card').classList.toggle('precard', html.includes('class="prebox"'));
   $('#card').scrollTop = 0;
@@ -325,7 +330,27 @@ function renderHome(popId = null) {
 }
 
 let riderRAF = 0;
-// Miti che fa il giro del Campo Base: sale sul sentiero e poi torna giù, con sobbalzi e polvere
+// Miti che fa il giro del Campo Base: sentiero curvo, frena in curva, si piega, in cima fa inversione; ogni tanto salta o impenna
+function smoothTrail(trail, stepLen = 3) {
+  const P = [];
+  const g = (i) => trail[Math.max(0, Math.min(trail.length - 1, i))];
+  for (let i = 0; i < trail.length - 1; i++) {
+    const p0 = g(i - 1), p1 = g(i), p2 = g(i + 1), p3 = g(i + 2);
+    const n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / stepLen));
+    for (let k = 0; k < n; k++) {
+      const t = k / n, t2 = t * t, t3 = t2 * t;
+      const f = (a0, a1, a2, a3) => 0.5 * (2 * a1 + (-a0 + a2) * t + (2 * a0 - 5 * a1 + 4 * a2 - a3) * t2 + (-a0 + 3 * a1 - 3 * a2 + a3) * t3);
+      P.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+    }
+  }
+  P.push(trail[trail.length - 1].slice());
+  const D = [0], H = [];
+  for (let i = 1; i < P.length; i++) D.push(D[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  for (let i = 0; i < P.length; i++) { const a2 = P[Math.max(0, i - 2)], b2 = P[Math.min(P.length - 1, i + 2)]; H.push(Math.atan2(b2[1] - a2[1], b2[0] - a2[0])); }
+  // curvatura (cambio di direzione per unità di strada), un po' ammorbidita
+  const K = H.map((h, i) => { const j = Math.min(H.length - 1, i + 4), d = D[j] - D[i] || 1; let dh = H[j] - h; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; return Math.abs(dh) / d; });
+  return { P, D, H, K, tot: D[D.length - 1] };
+}
 function startTrailRider(map, trail) {
   cancelAnimationFrame(riderRAF);
   const el = document.createElement('div');
@@ -334,39 +359,84 @@ function startTrailRider(map, trail) {
   const spr = el.firstChild;
   el.onclick = (e) => { e.stopPropagation(); sfx.moto(); say('miti', L`Sono io che faccio il giro del Campo Base per riprendere i lavori con la GoPro! Più edifici costruisci, più è bello il giro.`, L`Vai Miti!`); };
   map.appendChild(el);
-  const segs = []; let tot = 0;
-  for (let i = 1; i < trail.length; i++) { const d = Math.hypot(trail[i][0] - trail[i - 1][0], trail[i][1] - trail[i - 1][1]); segs.push(d); tot += d; }
-  const leg = 30000, t0 = performance.now();   // 30 s in salita, 30 s in discesa
-  let lastDust = 0, lastUp = null;
+  const T = smoothTrail(trail);
+  const idx = (d) => { let lo = 0, hi = T.D.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (T.D[m] <= d) lo = m; else hi = m; } return lo; };
+  const at = (d) => { d = Math.max(0, Math.min(T.tot, d)); const i = idx(d), j = Math.min(i + 1, T.P.length - 1), seg = T.D[j] - T.D[i] || 1, f = (d - T.D[i]) / seg; return [T.P[i][0] + (T.P[j][0] - T.P[i][0]) * f, T.P[i][1] + (T.P[j][1] - T.P[i][1]) * f]; };
+  const curveAhead = (d, dir, len) => { let m = 0; for (let x = 0; x <= len; x += 6) { const k = T.K[idx(Math.max(0, Math.min(T.tot, d + dir * x)))]; if (k > m) m = k; } return m; };
+  const VMAX = 70, VMIN = 24;
+  let s = 0, dir = 1, v = 0, mode = 'ride', modeT = 0;
+  let sx = 1, faceX = 1, away = true, lean = 0, lastH = null;
+  let trick = null, lastDust = 0, last = performance.now(), nextTrick = 4 + Math.random() * 5;
   const home = $('#home');
-  const at = (dist) => {
-    let i = 0;
-    while (i < segs.length - 1 && dist > segs[i]) { dist -= segs[i]; i++; }
-    const f = Math.min(1, dist / segs[i]);
-    return [trail[i][0] + (trail[i + 1][0] - trail[i][0]) * f, trail[i][1] + (trail[i + 1][1] - trail[i][1]) * f];
+  spr.style.backgroundImage = RIDER_UP;
+  const dust = (px, py, sc, n = 1, spread = 6) => {
+    for (let k = 0; k < n; k++) {
+      const p = document.createElement('b'); p.className = 'tdust';
+      p.style.transform = `translate(${px - spread / 2 + Math.random() * spread}px, ${py - 6 + Math.random() * 3}px) scale(${sc * (0.7 + Math.random() * 0.6)})`;
+      map.appendChild(p); setTimeout(() => p.remove(), 900);
+    }
   };
   const step = (now) => {
-    // fuori dal Campo Base il giro si ferma (riparte con renderHome quando si torna)
     if (!el.isConnected || !home.classList.contains('active')) { riderRAF = 0; return; }
-    const ph = ((now - t0) % (leg * 2)) / leg;   // 0..2
-    const up = ph < 1;
-    // velocità che rallenta un po' nelle curve: si usa una piccola ondulazione
-    const k = up ? ph : 2 - ph;
-    const dist = k * tot;
-    const [x, y] = at(dist);
-    const [x2, y2] = at(Math.min(tot, Math.max(0, dist + (up ? 14 : -14))));
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    modeT += dt;
+    if (mode === 'ride') {
+      const vt = trick && trick.kind === 'wheelie' ? VMAX * 0.8 : VMAX - (VMAX - VMIN) * Math.min(1, curveAhead(s, dir, 70) / 0.028);
+      v += (vt > v ? 38 : -95) * dt; v = Math.max(VMIN * 0.4, Math.min(v, VMAX));
+      s += dir * v * dt;
+      if (s <= 0 || s >= T.tot) { s = Math.max(0, Math.min(T.tot, s)); mode = 'stop'; modeT = 0; trick = null; }
+    } else if (mode === 'stop') {
+      v = 0;
+      if (modeT > 0.9) { mode = 'turn'; modeT = 0; }
+    } else if (mode === 'turn') {
+      if (modeT > 0.75) { mode = 'ride'; modeT = 0; dir = -dir; v = 4; lastH = null; }
+    }
+    const [x, y] = at(s);
+    const [x2, y2] = at(s + dir * 10);
+    let hx = x2 - x, hy = y2 - y; const hl = Math.hypot(hx, hy) || 1; hx /= hl; hy /= hl;
+    // durante l'inversione guarda già verso la nuova direzione a metà manovra
+    if (mode === 'turn' && modeT > 0.37) { hx = -hx; hy = -hy; }
+    if (mode !== 'stop') {
+      if (hy < -0.3) away = true; else if (hy > 0.3) away = false;
+      if (hx > 0.18) faceX = 1; else if (hx < -0.18) faceX = -1;
+    }
+    sx += (faceX - sx) * Math.min(1, dt * (mode === 'turn' ? 7 : 9));
+    const img = away ? RIDER_UP : RIDER_DOWN;
+    const want = away ? 'u' : 'd';
+    if (spr.dataset.img !== want && (mode !== 'turn' || Math.abs(sx) < 0.6)) { spr.dataset.img = want; spr.style.backgroundImage = img; }
+    // piega in curva: velocità di rotazione della direzione
+    const h = Math.atan2(hy, hx);
+    let om = 0;
+    if (lastH !== null && mode === 'ride') { om = h - lastH; while (om > Math.PI) om -= 2 * Math.PI; while (om < -Math.PI) om += 2 * Math.PI; om /= dt || 1; }
+    lastH = h;
+    lean += (Math.max(-15, Math.min(15, om * 9)) - lean) * Math.min(1, dt * 6);
+    // salti e impennate sul dritto
+    nextTrick -= dt;
+    if (!trick && mode === 'ride' && nextTrick <= 0 && v > VMAX * 0.75 && curveAhead(s, dir, 90) < 0.008) {
+      trick = Math.random() < 0.55 ? { kind: 'jump', t: 0, dur: 0.6 } : { kind: 'wheelie', t: 0, dur: 1.3 };
+      nextTrick = 6 + Math.random() * 7;
+    } else if (!trick && nextTrick <= 0) nextTrick = 1;
+    let hop = 0, pitch = 0;
+    if (trick) {
+      trick.t += dt; const u = Math.min(1, trick.t / trick.dur);
+      if (trick.kind === 'jump') { hop = Math.sin(Math.PI * u) * 26; pitch = (u < 0.5 ? -10 : -10 + (u - 0.5) * 36); }
+      else { const e = u < 0.2 ? u / 0.2 : u > 0.8 ? (1 - u) / 0.2 : 1; pitch = -16 * e; }
+      if (u >= 1) { if (trick.kind === 'jump') trick.landed = true; const was = trick; trick = null; if (was.kind === 'jump') { const [lx, ly] = mapPoint(map, x, y); dust(lx, ly, 0.55 + (y / 1280) * 0.55, 6, 22); } }
+    }
+    if (mode === 'turn') { const u = modeT / 0.75; hop = Math.sin(Math.PI * u) * 6; pitch = -8 * Math.sin(Math.PI * u); }
     const [px, py] = mapPoint(map, x, y);
-    const dirX = x2 >= x ? 1 : -1;
-    const sc = 0.55 + (y / 1280) * 0.55;   // più piccolo in lontananza
-    const bob = Math.abs(Math.sin(now / 90)) * 2.2;
-    if (up !== lastUp) { lastUp = up; spr.style.backgroundImage = up ? RIDER_UP : RIDER_DOWN; }
+    const sc = 0.55 + (y / 1280) * 0.55;
+    const bob = mode === 'stop' ? Math.abs(Math.sin(now / 160)) * 0.8 : Math.abs(Math.sin(now / 85)) * (0.8 + 1.8 * v / VMAX);
     el.style.transform = `translate(${px}px, ${py}px) scale(${sc})`;
-    spr.style.transform = `translate(-50%, ${-88 - bob}%) scaleX(${dirX})`;
-    if (now - lastDust > 140) {
+    // il sprite guarda a destra: l'impennata alza la ruota davanti (verso faceX)
+    const rot = lean + pitch * Math.sign(sx || 1);
+    spr.style.transform = `translate(-50%, ${-88 - bob}%) translateY(${-hop}px) rotate(${rot}deg) scaleX(${Math.max(0.12, Math.abs(sx)) * Math.sign(sx || 1)})`;
+    // polvere dalla ruota dietro, più fitta quando va forte; niente in volo
+    const rate = mode === 'ride' ? 220 - 140 * (v / VMAX) : mode === 'turn' ? 70 : 9999;
+    if (hop < 3 && now - lastDust > rate) {
       lastDust = now;
-      const p = document.createElement('b'); p.className = 'tdust';
-      p.style.transform = `translate(${px - 6 + Math.random() * 6}px, ${py - 6}px) scale(${sc})`;
-      map.appendChild(p); setTimeout(() => p.remove(), 900);
+      const k = (12 + 8 * (v / VMAX)) * sc;
+      dust(px - hx * k, py - hy * k * 0.6, sc, trick && trick.kind === 'wheelie' ? 2 : 1);
     }
     riderRAF = requestAnimationFrame(step);
   };
@@ -948,9 +1018,11 @@ function renderMoves() {
 
 function layout() {
   const appR = app.getBoundingClientRect();
+  // telefoni lunghi: barra in alto e mensola più grandi, come nei match-3 veri
+  $('#game').classList.toggle('roomy', appR.width < 600 && appR.height / appR.width > 1.8);
   const top = $('.gamebar').getBoundingClientRect().height + (G.boss ? 64 : 0);
   const bottom = $('.boosters').getBoundingClientRect().height || 80;
-  const availW = appR.width - 34;
+  const availW = appR.width - 18;
   const availH = appR.height - top - bottom - 20;
   G.S = Math.floor(Math.min(availW / COLS, availH / ROWS, 92));
   document.documentElement.style.setProperty('--cell', G.S + 'px');
@@ -1501,6 +1573,7 @@ async function resolve({ pending = [], swapCells = [] } = {}) {
       sfx.combo(step);
       if (step >= 2) { if (G.buddyObj) { budCheerT = 0; buddyCheer('combo'); } else peekSay(PEEK_LINES[Math.min(step - 2, PEEK_LINES.length - 1)]); }
       if (step >= 2) FX.shake(2 + step * 1.5, .3);
+      if (step >= 3) fastTip();
     }
     await applyGravity();
     while (await collectDrops()) await applyGravity();
@@ -1565,6 +1638,7 @@ function useMove() {
 }
 
 async function trySwap(a, bCell) {
+  setFast(false);
   if (G.busy || G.over || !inside(...bCell)) return;
   clearPreview();
   const b = G.board;
@@ -1877,6 +1951,7 @@ async function winLevel() {
   const shots = Math.min(left, 6);
   if (shots > 0) {
     FX.banner(L`Mosse avanzate!`, L`Partono le moto`, '#7ee06a');
+    fastTip();
     const cells = new Set();
     for (let i = 0; i < shots; i++) {
       const r = Math.floor(Math.random() * ROWS), c = Math.floor(Math.random() * COLS);
@@ -1908,6 +1983,7 @@ async function winLevel() {
   const prev = save.best[n] || 0;
   const gain = Math.max(0, stars - prev);
   save.best[n] = Math.max(prev, stars);
+  if (save.fail && save.fail.n === n) save.fail = null;
   const coins = Math.round((first ? 30 + left * 6 : 10 + left * 2) * (1 + ((G.buddyObj && G.buddyObj.perk.coins) || 0) / 100) * (lv.hard ? 2 : 1));
   save.stars += gain;
   pendingStar += gain;
@@ -1987,7 +2063,7 @@ async function loseLevel() {
       <button id="cQuit" class="btn btn-gray">Mollo</button>
       <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>${G.time ? L`+20 secondi` : L`+5 mosse`}${ownMoves ? ` <small>(x${save.inv.moves})</small>` : ''}</button>
     </div>`, {
-    cQuit: () => { hideCard(); if (G.buddyObj && G.buddyObj.perk.streak && save.streak) toast(L`Sergio ti salva la serie di vittorie!`, 1400); else save.streak = 0; persist(); clearRun(); retryOrHome(); },
+    cQuit: () => { hideCard(); if (!G.exhibit) { const f = save.fail && save.fail.n === G.level.n ? save.fail.c : 0; save.fail = { n: G.level.n, c: f + 1 }; } if (G.buddyObj && G.buddyObj.perk.streak && save.streak) toast(L`Sergio ti salva la serie di vittorie!`, 1400); else save.streak = 0; persist(); clearRun(); retryOrHome(); },
     cMore: () => {
       if (!canBuy) return;
       if (ownMoves) save.inv.moves--; else save.coins -= 200;
@@ -2115,7 +2191,7 @@ function initInput() {
   const el = $('#board');
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    if (G.busy || G.over) return;
+    if (G.busy || G.over) { if (G.board && $('#overlay').classList.contains('hidden')) setFast(true); return; }
     const cell = cellFromEvent(e);
     if (!cell) return;
     drag = { cell, x: e.clientX, y: e.clientY, moved: false };
@@ -2524,12 +2600,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   $('#bossbar').classList.toggle('hidden', !G.boss);
   $('#bShield').style.display = G.boss ? '' : 'none';
   const zl = zoneOfLevel(n);
-  FORESTALE_URI = I(ZONES[zl].boss);
-  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela'][zl]);
-  MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : zl === 5 ? 'o_pozione' : 'o_multa');
-  ROCK_URI = zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile'), I('o_barile')] : zl === 3 ? [null, I('o_duna1'), I('o_duna2')] : [null, I('o_sasso1'), I('o_sasso2')];
-  CRATE_URI = zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie'), I('o_bottiglie')] : zl === 3 ? [null, I('o_spezie1'), I('o_spezie2')] : [null, I('o_cassa1'), I('o_cassa2')];
-  MUD_URI = zl === 3 ? [null, I('o_fango_m1'), I('o_fango_m2')] : [null, I('o_fango1'), I('o_fango2')];
+  setZoneArt(zl);
   $('#board').classList.toggle('fest', zl === 4);
   $('#board').classList.toggle('hallo', zl === 5);
   $('#game').classList.toggle('hallo', zl === 5);
@@ -2566,6 +2637,14 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   }, extras.length ? 1400 : 500);
 }
 
+function setZoneArt(zl) {
+  FORESTALE_URI = I(ZONES[zl].boss);
+  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela'][zl]);
+  MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : zl === 5 ? 'o_pozione' : 'o_multa');
+  ROCK_URI = zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile'), I('o_barile')] : zl === 3 ? [null, I('o_duna1'), I('o_duna2')] : [null, I('o_sasso1'), I('o_sasso2')];
+  CRATE_URI = zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie'), I('o_bottiglie')] : zl === 3 ? [null, I('o_spezie1'), I('o_spezie2')] : [null, I('o_cassa1'), I('o_cassa2')];
+  MUD_URI = zl === 3 ? [null, I('o_fango_m1'), I('o_fango_m2')] : [null, I('o_fango1'), I('o_fango2')];
+}
 async function openLevel(num) {
   const n = num || save.level;
   if (G.building || pendingStar) return;
@@ -2575,6 +2654,7 @@ async function openLevel(num) {
   }
   if (unlockedBuddies(save.level).some((b) => !(save.buddySeen || []).includes(b.id))) await announceBuddies();
   const lv = getLevel(n);
+  setZoneArt(zoneOfLevel(n));
   const best = save.best[n] || 0;
   const goalsHTML = lv.goals.map((g) => `<div class="goal" style="background-image:${goalURI(g)}"><b>${g.n}</b></div>`).join('');
   const TIPS = [
@@ -2592,6 +2672,9 @@ async function openLevel(num) {
   const news = levelThings(lv).filter((k) => !save.seen[k]);
   const newsHTML = news.length ? L`<div class="newsbox"><div class="prehead">Novità in questo livello</div><div class="hlist">${news.map(helpRow).join('')}</div></div>` : '';
   const gifts = streakGifts();
+  const fails = save.fail && save.fail.n === n ? save.fail.c : 0;
+  const help = fails >= 5 ? ['bomb', 'mH'] : fails >= 3 ? ['bomb'] : [];
+  const helpHTML = help.length ? `<div class="failhelp">${speakerHTML('purcello', fails >= 5 ? L`Questo livello ti sta facendo dannare. Parti con una <b>Tanica</b> e una <b>Moto</b> gratis, offro io.` : L`Ci hai già provato ${fails} volte: ti regalo una <b>Tanica</b> in griglia per partire meglio.`)}</div>` : '';
   const chosen = new Set();
   const preHTML = PRE.map((p) => {
     const gift = gifts.includes(p.id);
@@ -2603,7 +2686,7 @@ async function openLevel(num) {
   const streak = save.streak || 0;
   const bestHTML = n < save.level ? `<div class="bestrow">${[1, 2, 3].map((k) => `<i class="ic ic-star${k <= best ? '' : ' off'}"></i>`).join('')}<span>${best >= 3 ? L`già perfetto` : L`record: prova a fare meglio`}</span></div>` : '';
   showCard(L`<h2${lv.hard ? ' class="red"' : ''}>${lv.boss ? L`Arriva la Forestale!` : lv.hard ? L`Livello ${lv.n} 💀` : L`Livello ${lv.n}`}</h2>${lv.hard ? L`<p class="hardnote">Livello difficile: se lo vinci, <b>monete doppie</b>.</p>` : ''}${bestHTML}${intro}
-    ${newsHTML}<div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? L`. Svuota la sua pazienza prima che ti riempia di sassi!` : ''}</p>
+    ${newsHTML + helpHTML}<div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? L`. Svuota la sua pazienza prima che ti riempia di sassi!` : ''}</p>
     <div class="prebox"><div class="prehead">${streak ? L`🔥 Serie di vittorie: <b>${streak}</b>` : L`Parti con un aiuto?`}<span>${streak ? L`regali già in griglia` : L`vinci di fila per averli gratis`}</span></div>
     <div class="prerow">${preHTML}</div><div class="prehelp"><b>Moto</b> pulisce una riga · <b>Tanica</b> esplode intorno · <b>Grappa</b> via un colore</div></div>
     <div class="row"><button id="cBack" class="btn btn-gray">Indietro</button><button id="cPlay" class="btn btn-play">Gioca!</button></div>`,
@@ -2612,7 +2695,7 @@ async function openLevel(num) {
     chosen.forEach((id) => { if (save.inv[id] > 0) save.inv[id]--; else cost += PRE.find((p) => p.id === id).cost; });
     save.coins -= cost; persist();
     news.forEach((k) => { save.seen[k] = 1; }); persist();
-    hideCard(); startLevel(lv.n, [...gifts, ...chosen]);
+    hideCard(); startLevel(lv.n, [...gifts, ...help, ...chosen]);
   } });
   const total = () => [...chosen].reduce((sum, id) => sum + (save.inv[id] > 0 ? 0 : PRE.find((p) => p.id === id).cost), 0);
   document.querySelectorAll('.pre:not(.gift)').forEach((btn) => {

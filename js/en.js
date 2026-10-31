@@ -1,5 +1,6 @@
 // English dictionary (auto-generated)
 export default {
+"Tocca la griglia per accelerare »": "Tap the board to speed up »",
 "una Moto": "a Bike",
 "una Tanica": "a Jerrycan",
 "un Martello": "a Hammer",
@@ -375,6 +376,8 @@ export default {
 "Io faccio il tifo da qui. Seduto. Campa giù!": "I'm cheering from here. Sitting down. Send it!",
 "Se una tessera non si sposta, c'è il mio martello. Costa poco, giuro.": "If a tile won't budge, there's my hammer. It's cheap, I swear.",
 "<div class=\"newsbox\"><div class=\"prehead\">Novità in questo livello</div><div class=\"hlist\">{0}</div></div>": "<div class=\"newsbox\"><div class=\"prehead\">New in this level</div><div class=\"hlist\">{0}</div></div>",
+"Questo livello ti sta facendo dannare. Parti con una <b>Tanica</b> e una <b>Moto</b> gratis, offro io.": "This level is driving you crazy. Start with a free <b>Jerrycan</b> and a <b>Bike</b>, my treat.",
+"Ci hai già provato {0} volte: ti regalo una <b>Tanica</b> in griglia per partire meglio.": "You've tried {0} times already: here's a free <b>Jerrycan</b> on the board for a better start.",
 "Regalo": "Gift",
 "Ne hai {0}": "You have {0}",
 "già perfetto": "already perfect",

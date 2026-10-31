@@ -158,7 +158,7 @@ const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, 
 const homeTrack = () => ({ oktober: 'okt', hallo: 'hall' }[currentZone().id] || 'home');
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 // il tema della partita (sfondo, ostacoli, musica, boss) segue la zona che stai costruendo sulla mappa
-function lvZone() { return Math.max(0, ZONES.indexOf(currentZone())); }
+function lvZone() { return Math.max(0, ZONES.indexOf(viewZone || currentZone())); }
 
 // converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
 function mapPoint(map, x, y) {
@@ -392,6 +392,7 @@ function renderHome(popId = null) {
     $('#buildLbl').textContent = L`Fatto`; $('#buildCost').textContent = L`Completo`;
   }
   $('#btnPlay').innerHTML = save.level > MAX_LEVEL ? L`Finito! 🏆` : L`Gioca <b>livello ${save.level}</b>`;
+  if (viewZone && save.level <= MAX_LEVEL) $('#btnPlay').innerHTML += `<small class="pzone">${zone.name}</small>`;
 }
 
 let riderRAF = 0;
@@ -985,20 +986,51 @@ async function openWeekend() {
 }
 
 // ---------------- elenco livelli (per rigiocarli e prendere 3 stelle) ----------------
+// bonus "tutto a 3 stelle": ogni blocco di 10 livelli
+const BLOCK = 10, PERFECT_GIFT = { coins: 300, bomb: 1, grappa: 1 };
+const blockOf = (n) => Math.ceil(n / BLOCK);
+const blockStars = (k) => { let t = 0; for (let n = (k - 1) * BLOCK + 1; n <= k * BLOCK; n++) t += save.best[n] || 0; return t; };
+const blockPerfect = (k) => blockStars(k) >= BLOCK * 3;
+function claimPerfect(k) {
+  if (!save.perfect) save.perfect = {};
+  if (save.perfect[k] || !blockPerfect(k)) return;
+  save.perfect[k] = 1;
+  save.coins += PERFECT_GIFT.coins; save.inv.bomb = (save.inv.bomb || 0) + PERFECT_GIFT.bomb; save.inv.grappa = (save.inv.grappa || 0) + PERFECT_GIFT.grappa;
+  persist(); sfx.win(); fireworks(1200); renderHome();
+}
 function openLevelList() {
   if (G.building || pendingStar) return;
+  if (!save.perfect) save.perfect = {};
   const last = Math.min(save.level, MAX_LEVEL);
-  const cells = [];
-  for (let n = 1; n <= last; n++) {
-    const st = save.best[n] || 0;
-    const boss = n % 5 === 0;
-    cells.push(`<button class="lv${n === last && n === save.level ? ' cur' : ''}${boss ? ' boss' : ''}${isHard(n) ? ' hard' : ''}" data-n="${n}"><b>${n}</b><span>${[1, 2, 3].map((k) => `<i class="${k <= st ? 'on' : ''}"></i>`).join('')}</span></button>`);
+  // scenari sbloccati: scegli dove rigiocare
+  const cz = ZONES.indexOf(currentZone()), tz = lvZone();
+  const chips = ZONES.slice(0, cz + 1).map((z, i) => `<button class="zchip${i === tz ? ' on' : ''}" data-z="${i}">${z.name}</button>`).join('');
+  const blocks = [];
+  for (let k = 1; (k - 1) * BLOCK + 1 <= last; k++) {
+    const a = (k - 1) * BLOCK + 1, b = Math.min(k * BLOCK, last);
+    const cells = [];
+    for (let n = a; n <= b; n++) {
+      const st = save.best[n] || 0;
+      const done = n < save.level;
+      cells.push(`<button class="lv${n === last && n === save.level ? ' cur' : ''}${n % 5 === 0 ? ' boss' : ''}${isHard(n) ? ' hard' : ''}${done && st < 3 ? ' todo' : ''}" data-n="${n}"><b>${n}</b><span>${[1, 2, 3].map((q) => `<i class="${q <= st ? 'on' : ''}"></i>`).join('')}</span></button>`);
+    }
+    const bs = blockStars(k), full = b === k * BLOCK;
+    const gift = save.perfect[k] ? `<span class="pgift got">✔ ${L`Bonus preso`}</span>`
+      : full && blockPerfect(k) ? `<button class="pgift ready" data-k="${k}">🎁 ${L`Ritira bonus`}</button>`
+      : full ? `<span class="pgift">🎁 ${L`Tutto a 3 stelle`}</span>` : '';
+    blocks.push(`<div class="lvblock"><div class="lvhead"><b>${a}–${k * BLOCK}</b><small><i class="ic ic-star"></i> ${bs}/${BLOCK * 3}</small>${gift}</div><div class="lvgrid">${cells.join('')}</div></div>`);
   }
-  const tot = Object.values(save.best).reduce((a, b) => a + b, 0);
-  showCard(L`<h2>I tuoi livelli</h2><p>Stelle prese: <b>${tot}</b> su <b>${(last - (save.level > last ? 0 : 1)) * 3}</b>. Rigioca un livello per prendere le stelle che mancano.</p>
-    <div class="lvgrid">${cells.join('')}</div>
+  const tot = Object.values(save.best).reduce((x, y) => x + y, 0);
+  showCard(L`<h2>I tuoi livelli</h2>
+    <div class="zchips">${chips}</div>
+    <p class="small">Stelle prese: <b>${tot}</b>. Rigioca i livelli con meno di 3 stelle per migliorarli. Tutto il blocco a 3 stelle = <b>${PERFECT_GIFT.coins} ${IC_C}</b> + Tanica + Grappa.</p>
+    <div class="lvlist">${blocks.join('')}</div>
     <div class="row"><button id="cClose" class="btn btn-play">Chiudi</button></div>`, { cClose: hideCard });
   document.querySelectorAll('.lv').forEach((b) => { b.onclick = () => { sfx.click(); openLevel(+b.dataset.n); }; });
+  document.querySelectorAll('.zchip').forEach((b) => { b.onclick = () => { sfx.click(); const z = ZONES[+b.dataset.z]; viewZone = z === currentZone() ? null : z; renderHome(); openLevelList(); }; });
+  document.querySelectorAll('.pgift.ready').forEach((b) => { b.onclick = () => { claimPerfect(+b.dataset.k); toast(L`Bonus: +${PERFECT_GIFT.coins} monete, Tanica e Grappa!`, 1600); openLevelList(); }; });
+  // apri sul blocco del livello attuale
+  requestAnimationFrame(() => { const c = document.querySelector('.lv.cur') || [...document.querySelectorAll('.lv.todo')].pop(); if (c) c.scrollIntoView({ block: 'center' }); });
 }
 
 function showScreen(id) {
@@ -2098,6 +2130,7 @@ async function winLevel() {
   const gain = Math.max(0, stars - prev);
   save.best[n] = Math.max(prev, stars);
   if (save.fail && save.fail.n === n) save.fail = null;
+  if (gain && blockPerfect(blockOf(n)) && !(save.perfect || {})[blockOf(n)]) setTimeout(() => toast(L`Blocco tutto a 3 stelle! Ritira il bonus in Livelli 🎁`, 2600), 1500);
   const coins = Math.round((first ? 30 + left * 6 : 10 + left * 2) * (1 + ((G.buddyObj && G.buddyObj.perk.coins) || 0) / 100) * (lv.hard ? 2 : 1));
   save.stars += gain;
   pendingStar += gain;

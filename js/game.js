@@ -286,7 +286,7 @@ function openShop(tab = 0) {
   showCard(`<h2>${L`Negozio`}</h2><p class="shcoins">${IC_C} <b>${save.coins}</b></p>${tabs}<div class="shbody">${body}</div>
     <div class="row"><button id="cClose" class="btn btn-play">${L`Chiudi`}</button></div>`, { cClose: () => { shopTab = -1; hideCard(); renderHome(); }, cPil: () => V.openPilot(() => openShop(2)) });
   document.querySelectorAll('.gtab[data-sh]').forEach((b) => { b.onclick = () => openShop(+b.dataset.sh); });
-  const pay = (cost) => { if (save.coins < cost) { toast(L`Servono ${cost} monete`, 1200); return false; } save.coins -= cost; persist(); sfx.win(); return true; };
+  const pay = (cost) => { if (save.coins < cost) { toast(L`Servono ${cost} monete`, 1200); return false; } save.coins -= cost; persist(); sfx.coin(); return true; };   // suono breve: comprando di fila non si accavallano le fanfare
   document.querySelectorAll('[data-pw]').forEach((b) => { b.onclick = () => { const p = SHOP_PW.find((x) => x.k === b.dataset.pw); if (pay(p.cost)) { save.inv[p.k] = (save.inv[p.k] || 0) + 1; persist(); toast(L`${p.name} nello zaino!`, 900); openShop(0); } }; });
   document.querySelectorAll('[data-pk]').forEach((b) => { b.onclick = () => { const p = SHOP_PACKS.find((x) => x.id === b.dataset.pk); if (pay(p.cost)) { for (const [k, n] of Object.entries(p.give)) save.inv[k] = (save.inv[k] || 0) + n; persist(); fireworks(700); openShop(0); } }; });
   document.querySelectorAll('[data-st]').forEach((b) => { b.onclick = async () => {

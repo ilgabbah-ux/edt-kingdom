@@ -180,9 +180,11 @@ function startTrack(name) {
   cur = TRACKS[name] || TRACKS.home; step = 0; nextT = ctx.currentTime + 0.1;
   timer = setInterval(schedule, 25);
 }
+let jingleNode = null;
 export function winJingle() {
   if (!ensure() || !state.sfx || !bufs.j_win) return false;
-  const n = ctx.createBufferSource(); n.buffer = bufs.j_win;
+  try { jingleNode && jingleNode.stop(); } catch { /* già finita */ }   // una fanfara alla volta, mai sovrapposte
+  const n = ctx.createBufferSource(); n.buffer = bufs.j_win; jingleNode = n;
   const g = ctx.createGain(); g.gain.value = 0.9;
   n.connect(g).connect(sfxBus); n.start();
   duck(bufs.j_win.duration);

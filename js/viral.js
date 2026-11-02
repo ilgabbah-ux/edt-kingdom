@@ -15,6 +15,13 @@ export function gameURL(params = null) {
   return params ? base + '?' + new URLSearchParams(params).toString() : base;
 }
 
+// ---------------- condividi il gioco con gli amici ----------------
+export function shareGame() {
+  X.sfx.click();
+  const lv = Math.max(1, (X.save.level || 1) - 1);
+  shareImage({ bg: 'map_bg', title: L`GIOCACI CON ME!`, line1: L`Il match-3 dell'Enduro Drinking Team`, stars: 3, who: me().who, footer: L`GIOCA GRATIS 🍺` },
+    L`🏍️🍺 Sto giocando a Enduro Drinking Kingdom, il gioco dell'Enduro Drinking Team: sono al livello ${lv}! Gioca gratis dal telefono:`, gameURL());
+}
 // ---------------- immagine da condividere ----------------
 function loadImg(n) { return new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = X.SRC(n); }); }
 function cover(ctx, im, W, H) { if (!im) return; const k = Math.max(W / im.width, H / im.height); const w = im.width * k, h = im.height * k; ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h); }

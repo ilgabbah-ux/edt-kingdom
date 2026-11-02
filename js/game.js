@@ -2978,6 +2978,8 @@ $('#hCoins').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Monete<
 $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Stelle</h2><div class="hlist">${helpRow('stars')}${helpRow('build')}</div><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); };
 $('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
+$('#btnShareGame').onclick = () => V.shareGame();
+$('#btnShareGame').title = L`Condividi`;
 // pulsanti laterali richiudibili (sugli schermi piccoli coprono la mappa)
 function sideUI() {
   const sb = $('#home .sidebtns'); if (!sb) return;

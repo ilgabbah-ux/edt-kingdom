@@ -253,9 +253,15 @@ const SHOP_PACKS = [
   { id: 'kit', name: L`Kit del pilota`, desc: L`2 Moto, 1 Tanica, 1 Martello`, cost: 380, give: { mH: 2, bomb: 1, hammer: 1 } },
   { id: 'boss', name: L`Kit anti-Forestale`, desc: L`2 Tanica, 1 Grappa, 2 +5 mosse`, cost: 780, give: { bomb: 2, grappa: 1, moves: 2 } },
 ];
+let shopTab = -1;
 function openShop(tab = 0) {
   if (G.building || pendingStar) return;
   sfx.click();
+  // dopo un acquisto il negozio si ridisegna: resta dove eri (prima tornava in cima)
+  const ov = $('#overlay');
+  const keep = shopTab === tab && ov && !ov.classList.contains('hidden') ? [ov, ...ov.querySelectorAll('*')].filter((e) => e.scrollTop > 0).map((e) => [e.id ? '#' + e.id : e.className ? '.' + String(e.className).trim().split(/\s+/).join('.') : null, e.scrollTop]).filter(([sel]) => sel) : [];
+  shopTab = tab;
+  setTimeout(() => keep.forEach(([sel, top]) => { const e = sel === '#overlay' ? ov : ov.querySelector(sel); if (e) e.scrollTop = top; }), 0);
   const TABS = [L`Aiuti`, L`Figurine`, L`Stile`, L`Campo Base`];
   const tabs = `<div class="gtabs">${TABS.map((t, i) => `<button class="gtab${i === tab ? ' on' : ''}" data-sh="${i}">${t}</button>`).join('')}</div>`;
   let body = '';
@@ -278,7 +284,7 @@ function openShop(tab = 0) {
       <div class="shgrid">${built.map((b) => { const g = save.gold[b.id] != null; return `<button class="shit${g ? ' own' : ''}" data-gb="${b.id}"><span class="pi" style="background-image:${I('b_' + b.id)}"></span><b>${b.name}</b><i>${g ? L`D'oro ✔` : GOLD_COST + ' ' + IC_C}</i></button>`; }).join('') || `<p>${L`Costruisci il primo edificio!`}</p>`}</div>`;
   }
   showCard(`<h2>${L`Negozio`}</h2><p class="shcoins">${IC_C} <b>${save.coins}</b></p>${tabs}<div class="shbody">${body}</div>
-    <div class="row"><button id="cClose" class="btn btn-play">${L`Chiudi`}</button></div>`, { cClose: () => { hideCard(); renderHome(); }, cPil: () => V.openPilot(() => openShop(2)) });
+    <div class="row"><button id="cClose" class="btn btn-play">${L`Chiudi`}</button></div>`, { cClose: () => { shopTab = -1; hideCard(); renderHome(); }, cPil: () => V.openPilot(() => openShop(2)) });
   document.querySelectorAll('.gtab[data-sh]').forEach((b) => { b.onclick = () => openShop(+b.dataset.sh); });
   const pay = (cost) => { if (save.coins < cost) { toast(L`Servono ${cost} monete`, 1200); return false; } save.coins -= cost; persist(); sfx.win(); return true; };
   document.querySelectorAll('[data-pw]').forEach((b) => { b.onclick = () => { const p = SHOP_PW.find((x) => x.k === b.dataset.pw); if (pay(p.cost)) { save.inv[p.k] = (save.inv[p.k] || 0) + 1; persist(); toast(L`${p.name} nello zaino!`, 900); openShop(0); } }; });

@@ -16,11 +16,13 @@ export function gameURL(params = null) {
 }
 
 // ---------------- condividi il gioco con gli amici ----------------
-export function shareGame() {
+export async function shareGame() {
   X.sfx.click();
+  // si condivide il LINK (l'anteprima con l'immagine la crea WhatsApp/Telegram da sola), non un file jpg
   const lv = Math.max(1, (X.save.level || 1) - 1);
-  shareImage({ bg: 'map_bg', title: L`GIOCACI CON ME!`, line1: L`Il match-3 dell'Enduro Drinking Team`, stars: 3, who: me().who, footer: L`GIOCA GRATIS 🍺` },
-    L`🏍️🍺 Sto giocando a Enduro Drinking Kingdom, il gioco dell'Enduro Drinking Team: sono al livello ${lv}! Gioca gratis dal telefono:`, gameURL());
+  const url = gameURL(), text = L`🏍️🍺 Sto giocando a Enduro Drinking Kingdom, il gioco dell'Enduro Drinking Team: sono al livello ${lv}! Gioca gratis dal telefono:`;
+  try { if (navigator.share) { await navigator.share({ title: 'Enduro Drinking Kingdom', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(`${text} ${url}`); X.toast(L`Link copiato! Incollalo dove vuoi`, 1800); } catch { prompt(L`Copia questo link:`, url); }
 }
 // ---------------- immagine da condividere ----------------
 function loadImg(n) { return new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = X.SRC(n); }); }

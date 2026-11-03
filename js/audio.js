@@ -171,7 +171,7 @@ function startTrack(name) {
   let f = FILES[name];
   if (name === 'game') { gameFlip = !gameFlip; f = gameFlip ? 'm_game_a' : 'm_game_b'; if (!bufs[f]) f = bufs.m_game_a ? 'm_game_a' : f; }
   if (f && bufs[f]) {
-    srcNode = ctx.createBufferSource(); srcNode.buffer = bufs[f]; srcNode.loop = true;
+    srcNode = ctx.createBufferSource(); srcNode.buffer = bufs[f]; srcNode.loop = true; tenseOn = false;
     srcGain = ctx.createGain(); srcGain.gain.setValueAtTime(0, ctx.currentTime); srcGain.gain.linearRampToValueAtTime(0.75, ctx.currentTime + 0.6);
     srcNode.connect(srcGain).connect(musicBus); srcNode.start();
     return;
@@ -198,6 +198,12 @@ export function playMusic(name) {
   setTimeout(() => { startTrack(name); if (ctx && state.music) musicBus.gain.setTargetAtTime(0.32, ctx.currentTime, 0.3); }, 180);
 }
 export function stopMusic() { wantTrack = null; stopTimer(); stopSrc(); }
+// ultime mosse: la musica accelera un po' (e torna normale a fine livello)
+let tenseOn = false;
+export function tense(on) {
+  on = !!on; if (on === tenseOn) return; tenseOn = on;
+  if (srcNode && ctx) try { srcNode.playbackRate.setTargetAtTime(on ? 1.09 : 1, ctx.currentTime, 0.25); } catch { /* */ }
+}
 
 function mtone(f, t, d, vol, type, lp = 2400, a = 0.008) {
   const o = ctx.createOscillator(); o.type = type; o.frequency.value = f;

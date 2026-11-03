@@ -879,11 +879,14 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 #game.desert #goals .goal[data-t="chain"] { background-color: #e9c27a !important; }
 #game.quarry #goals .goal[data-t="chain"] { background-color: #ffe9a8 !important; }
 /* livelli difficili */
-.lv.hard { background: linear-gradient(#8a4fff, #5b2bc4) !important; color: #fff !important; border-color: #3a1a85 !important; }
+.lv.hard { background: linear-gradient(#ff5a3c, #c4261b) !important; color: #fff !important; border-color: #7d120d !important; }
+.lv.hard.super { background: linear-gradient(#a66bff, #5b2bc4) !important; border-color: #3a1a85 !important; }
 .lv.hard b { color: #fff !important; }
 .hardnote { margin: -4px 0 6px; font-size: 13px; color: #6b2bd6; }
-#game.hardlv .ribbon { background: linear-gradient(#a66bff, #6a2fd6) !important; }
-#game.hardlv .ribbon::after { content: ' 💀'; }
+#game.hardlv .ribbon { background: linear-gradient(#ff5a3c, #c4261b) !important; }
+#game.hardlv .ribbon::after { content: ' 🔥'; }
+#game.superlv .ribbon { background: linear-gradient(#a66bff, #6a2fd6) !important; }
+#game.superlv .ribbon::after { content: ' 💀'; }
 
 .card { max-height: calc(100dvh - 28px); overflow-y: auto; overscroll-behavior: contain; }
 .card .buddy p { font-size: 12.5px; margin: 2px 0 0; }
@@ -1148,3 +1151,44 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .diploma .dhint { font-size: 13px; font-weight: 800; color: #2f5fa8; }
 .sidebtn[hidden] { display: none !important; }
 #board.xmas .ticket { filter: drop-shadow(0 0 3px rgba(255,255,255,.9)); }
+
+/* v58: difficoltà a onde */
+.hardtag { display: block; width: fit-content; position: relative; z-index: 2; margin: 0 auto 8px; padding: 4px 14px 3px; border-radius: 999px; font: 400 17px var(--fd); color: #fff; letter-spacing: .5px; background: linear-gradient(#ff5a3c, #c4261b); border: 2px solid #fff; box-shadow: 0 3px 0 #7d120d; animation: hardPulse 1.2s ease-in-out infinite; }
+.hardtag.sup { background: linear-gradient(#a66bff, #5b2bc4); box-shadow: 0 3px 0 #2e1470; }
+.card h2.purple { color: #7a3df0; }
+.hardnote { color: #c4261b; } .hardnote.sup { color: #6b2bd6; }
+@keyframes hardPulse { 50% { transform: scale(1.07); } }
+#game.hardlv::after, #game.superlv::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1; box-shadow: inset 0 0 60px 10px rgba(255,70,40,.45); animation: hardGlow 2.4s ease-in-out infinite; }
+#game.superlv::after { box-shadow: inset 0 0 70px 14px rgba(150,80,255,.55); }
+@keyframes hardGlow { 50% { opacity: .45; } }
+#btnPlay { position: relative; }
+#btnPlay.hardp { background: linear-gradient(#ff6a4a, #c4261b); }
+#btnPlay.superp { background: linear-gradient(#a66bff, #5b2bc4); }
+#btnPlay .ptag { position: absolute; left: 50%; top: -13px; transform: translateX(-50%); font: 400 13px var(--fd); font-style: normal; white-space: nowrap; padding: 2px 10px; border-radius: 999px; background: #fff; color: #c4261b; box-shadow: 0 2px 0 rgba(0,0,0,.3); }
+#btnPlay .ptag.sup { color: #6b2bd6; }
+#btnPlay .pflame { position: absolute; right: -6px; top: -14px; width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(#ffcf4d, #ff7a1c); border: 3px solid #fff; box-shadow: 0 3px 0 rgba(0,0,0,.3); font-size: 20px; line-height: 38px; text-align: center; animation: hardPulse 1.4s ease-in-out infinite; }
+#btnPlay .pflame b { position: absolute; right: -4px; bottom: -6px; font: 400 15px var(--fd); color: #fff; background: #c4261b; border-radius: 999px; padding: 0 6px; line-height: 20px; }
+.hbonus { color: #c4261b; }
+.coinpop { position: absolute; z-index: 60; pointer-events: none; transform: translate(-50%, -50%); font: 400 20px var(--fd); color: #ffd34d; -webkit-text-stroke: 4px #0e1d3d; paint-order: stroke fill; white-space: nowrap; animation: coinUp .9s ease-out forwards; }
+.coinpop .ic { width: 18px; height: 18px; vertical-align: -3px; }
+@keyframes coinUp { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.6); } 20% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -190%) scale(1); } }
+.losswarn { margin: 6px 0 2px; font-weight: 800; color: #c4261b; animation: hardPulse 1.3s ease-in-out infinite; }
+.nearh { margin-bottom: 2px; animation: hardPulse 1s ease-in-out infinite; }
+.lmiss { animation: missBlink 1s ease-in-out infinite; }
+@keyframes missBlink { 50% { filter: drop-shadow(0 0 6px #ff5a3c) brightness(1.15); transform: scale(1.08); } }
+.lmiss { display: inline-block; }
+.stkstrip { margin: 6px auto 4px; padding: 6px 10px 6px; border-radius: 14px; background: linear-gradient(#fff4d6, #ffe2a8); border: 2px solid #f0b54a; max-width: 330px; }
+.stkh { font: 400 16px var(--fd); color: #c4521b; }
+.stkrow { display: flex; align-items: center; justify-content: center; gap: 4px; margin: 3px 0; }
+.stkrow em { font-style: normal; color: #d29a3a; font-weight: 900; }
+.stks { position: relative; width: 46px; height: 46px; border-radius: 12px; background: #e9d9b8; filter: grayscale(1); opacity: .55; display: inline-block; }
+.stks i { position: absolute; inset: 4px; background: center/contain no-repeat; }
+.stks small { position: absolute; right: -4px; bottom: -4px; background: #9a8a6a; color: #fff; border-radius: 999px; font: 800 11px var(--fb); padding: 0 5px; }
+.stks.on { filter: none; opacity: 1; background: radial-gradient(#ffe27a, #ff9a2a); box-shadow: 0 0 10px #ffb24a; }
+.stks.on small { background: #c4261b; }
+.stks.new { animation: stkNew .9s .5s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes stkNew { 0% { transform: scale(.3) rotate(-20deg); filter: grayscale(1); } 100% { transform: scale(1); } }
+.stkstrip > small { display: block; font-size: 12.5px; line-height: 1.25; color: #6a4a1a; }
+.jobleft { font: 700 11.5px/1.2 var(--fb); color: #5a4a2a; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jobleft .ic { width: 13px; height: 13px; vertical-align: -2px; }
+.jobleft .ok { color: #2a8a37; }

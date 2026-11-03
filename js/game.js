@@ -2,7 +2,7 @@
 import { L, LANG, setLang } from './i18n.js';
 import { BUDDIES, BUDDY, unlockedBuddies } from './piloti.js';
 import { Board, ROWS, COLS, key, unkey, inside, newTile } from './engine.js';
-import { getLevel, MAX_LEVEL, isHard } from './levels.js';
+import { getLevel, MAX_LEVEL, isHard, isSuper } from './levels.js';
 import { BUILDINGS, CHARS, ZONES, zoneOfLevel } from './kingdom.js';
 import * as FX from './fx.js';
 import * as AU from './audio.js';
@@ -400,14 +400,20 @@ function renderHome(popId = null) {
     btnB.classList.toggle('ready', ok); btnB.classList.toggle('wait', !ok);
     $('#buildLbl').textContent = L`Costruisci`;
     $('#buildCost').innerHTML = (ok ? L`usa` : L`serve`) + ' ' + IC_S + ' ' + STEP_COST;
+    { const zb = zoneOf(nb).buildings, nDone = zb.filter(isBuilt).length, miss = STEP_COST - save.stars;
+      $('#jobLeft').innerHTML = (ok ? `<b class="ok">${L`Pronto!`}</b>` : L`ancora <b>${miss}</b> ${IC_S}`) + ` · ${L`regno`} <b>${nDone}/${zb.length}</b>`; }
   } else {
     $('#jobImg').style.backgroundImage = I('b_palazzo');
     $('#jobName').textContent = L`Campo Base completo!`;
-    $('#jobSteps').innerHTML = '';
+    $('#jobSteps').innerHTML = ''; $('#jobLeft').innerHTML = '';
     btnB.classList.remove('ready'); btnB.classList.add('wait');
     $('#buildLbl').textContent = L`Fatto`; $('#buildCost').textContent = L`Completo`;
   }
-  $('#btnPlay').innerHTML = save.level > MAX_LEVEL ? L`Finito! 🏆` : L`Gioca <b>livello ${save.level}</b>`;
+  { const nl = save.level, hk = nl <= MAX_LEVEL ? (isSuper(nl) ? 2 : isHard(nl) ? 1 : 0) : 0, stk = save.streak || 0;
+    $('#btnPlay').innerHTML = (nl > MAX_LEVEL ? L`Finito! 🏆` : L`Gioca <b>livello ${nl}</b>`)
+      + (hk ? `<em class="ptag${hk === 2 ? ' sup' : ''}">${hk === 2 ? L`💀 SUPER DIFFICILE` : L`🔥 DIFFICILE`}</em>` : '')
+      + (stk && nl <= MAX_LEVEL ? `<span class="pflame" title="${L`Serie di vittorie`}">🔥<b>${stk}</b></span>` : '');
+    $('#btnPlay').classList.toggle('hardp', hk === 1); $('#btnPlay').classList.toggle('superp', hk === 2); }
   if (viewZone && viewZone !== currentZone()) $('#btnPlay').innerHTML = L`Rigioca ${zone.name}`;
 }
 
@@ -646,7 +652,7 @@ async function tryBuild() {
     M().style.transformOrigin = `${bldX(nb)}% ${bldTop(nb)}%`; M().style.transform = 'scale(1.45)';
     FX.banner(L`Tappa ${stepsOf(nb)} di ${STEPS}`, nb.name, '#ffd34d');
   }
-  await sleep(done ? 2600 : 1100);
+  await sleep(done ? 2200 : 800);
   wk.classList.add('leave'); setTimeout(() => wk.remove(), 500);
   M().style.transform = '';
   await sleep(500);
@@ -714,6 +720,7 @@ function flyStarToCounter() {
         sfx.star();
         if (!pendingStar) {
           renderHome();
+          if (G.autoBuild) { G.autoBuild = false; if (save.stars >= STEP_COST && nextBuilding()) { save.tutBuild = true; persist(); setTimeout(() => tryBuild(), 350); return; } }
           if (!save.tutBuild && save.stars >= STEP_COST && nextBuilding()) {
             save.tutBuild = true; persist();
             setTimeout(() => homeTip('gabbah', L`Hai abbastanza <b>stelle</b>! Tocca <b>Costruisci</b> qui sotto per alzare un pezzo del Campo Base.`), 250);
@@ -1039,7 +1046,7 @@ function openLevelList(zf = null) {
     for (let n = a; n <= b; n++) {
       const st = save.best[n] || 0;
       const done = n < save.level;
-      cells.push(`<button class="lv${n === last && n === save.level ? ' cur' : ''}${n % 5 === 0 ? ' boss' : ''}${isHard(n) ? ' hard' : ''}${done && st < 3 ? ' todo' : ''}" data-n="${n}"><b>${n}</b><span>${[1, 2, 3].map((q) => `<i class="${q <= st ? 'on' : ''}"></i>`).join('')}</span></button>`);
+      cells.push(`<button class="lv${n === last && n === save.level ? ' cur' : ''}${n % 5 === 0 ? ' boss' : ''}${isSuper(n) ? ' hard super' : isHard(n) ? ' hard' : ''}${done && st < 3 ? ' todo' : ''}" data-n="${n}"><b>${n}</b><span>${[1, 2, 3].map((q) => `<i class="${q <= st ? 'on' : ''}"></i>`).join('')}</span></button>`);
     }
     const bs = blockStars(k), full = b === k * BLOCK;
     const gift = save.perfect[k] ? `<span class="pgift got">✔ ${L`Bonus preso`}</span>`
@@ -1136,6 +1143,12 @@ function renderMoves() {
     $('.moves small').textContent = L`MOSSE`;
     $('.moves').classList.remove('timed');
     $('.moves').classList.toggle('low', G.moves <= 5);
+  }
+  // ultime mosse: musica più veloce, avviso una volta e battito del cuore
+  { const low = !G.over && !G.exhibit && G.board && (G.time ? G.timeLeft <= 15 && G.timeLeft > 0 : G.moves <= 5 && G.moves > 0);
+    AU.tense(low);
+    if (low && !G.lastCall && (G.moveCount || 0) > 0) { G.lastCall = true; FX.banner(G.time ? L`Ultimi 15 secondi!` : L`Ultime ${G.moves} mosse!`, L`dai che ce la fai`, '#ff5a3c'); }
+    if (low && !G.time && G.moves <= 3 && G.lastBeat !== G.moves) { G.lastBeat = G.moves; beep(70, .12, 'sine', .18); setTimeout(() => beep(60, .14, 'sine', .14), 170); }
   }
   $('#bHammer').classList.toggle('active', G.hammer);
   { const hb = $('#bHammer b'), fr = G.freeHammer > 0, own = save.inv.hammer || 0, key2 = fr + '|' + own; if (hb && hb.dataset.fr !== key2) { hb.dataset.fr = key2; hb.innerHTML = fr ? L`GRATIS` : own ? `x${own}` : '100 <i class="ic ic-coin"></i>'; } $('#bHammer').classList.toggle('free', fr || own > 0); }
@@ -2132,7 +2145,7 @@ setInterval(() => {
 }, 250);
 // ---------- vittoria / sconfitta ----------
 async function winLevel() {
-  G.over = true;
+  G.over = true; AU.tense(false);
   clearRun();
   clearHint();
   const lv = G.level, n = lv.n;
@@ -2145,9 +2158,9 @@ async function winLevel() {
   } else { skipBtn(); FX.banner(L`Livello superato!`, '', '#ffd34d'); FX.flash(.3); await sleep(1100); }
   // bonus mosse avanzate: moto che partono a caso
   const b = G.board;
-  const shots = Math.min(left, 6);
+  const shots = Math.min(left, 12), perMove = !G.exhibit && n >= save.level ? 6 : 2;
   if (shots > 0) {
-    FX.banner(L`Mosse avanzate!`, L`Partono le moto`, '#7ee06a');
+    FX.banner(left >= 8 ? L`Giro Easy finale!` : L`Mosse avanzate!`, L`ogni mossa avanzata = una moto e +${perMove} monete`, '#7ee06a');
     fastTip();
     const cells = new Set();
     skipBtn();
@@ -2159,7 +2172,9 @@ async function winLevel() {
       refreshArt(t);
       cells.add(key(r, c));
       G.moves--; renderMoves();
-      await sleep(120);
+      { const [cx, cy] = cellCenter(r, c), cp = document.createElement('div'); cp.className = 'coinpop'; cp.innerHTML = `+${perMove} ${IC_C}`;
+        cp.style.left = cx + 'px'; cp.style.top = cy + 'px'; app.appendChild(cp); setTimeout(() => cp.remove(), 900); beep(880 + i * 40, .05, 'triangle', .06); }
+      await sleep(i < 3 ? 120 : 75);
     }
     if (!G.skipEnd) await resolve({ pending: [{ cells }] });
   }
@@ -2184,9 +2199,10 @@ async function winLevel() {
   save.best[n] = Math.max(prev, stars);
   if (save.fail && save.fail.n === n) save.fail = null;
   if (gain && blockPerfect(blockOf(n)) && !(save.perfect || {})[blockOf(n)]) setTimeout(() => toast(L`Blocco tutto a 3 stelle! Ritira il bonus in Livelli 🎁`, 2600), 1500);
-  const coins = Math.round((first ? 30 + left * 6 : 10 + left * 2) * (1 + ((G.buddyObj && G.buddyObj.perk.coins) || 0) / 100) * (lv.hard ? 2 : 1));
-  save.stars += gain;
-  pendingStar += gain;
+  const coins = Math.round((first ? 30 + left * 6 : 10 + left * 2) * (1 + ((G.buddyObj && G.buddyObj.perk.coins) || 0) / 100) * (lv.superHard ? 3 : lv.hard ? 2 : 1));
+  const hardBonus = first && lv.hard ? (lv.superHard ? 2 : 1) : 0;
+  save.stars += gain + hardBonus;
+  pendingStar += gain + hardBonus;
   if (first) save.streak = Math.min(3, (save.streak || 0) + 1);
   save.coins += coins;
   save.level = Math.max(save.level, n + 1);
@@ -2200,20 +2216,23 @@ async function winLevel() {
   const chRes = V.challengeResult(n, stars, true, left);
   sfx.win();
   const nb = nextBuilding();
+  const canBuildNow = !!nb && save.stars >= STEP_COST;
   const [who, line] = pick(WIN_LINES);
   setTimeout(() => voice(who, 2), 900);
-  const gainTxt = gain ? `<b>+${gain} ${gain > 1 ? L`stelle` : L`stella`}</b>` : (first ? '' : L`Nessuna stella nuova`);
+  const gainTxt = (gain ? `<b>+${gain} ${gain > 1 ? L`stelle` : L`stella`}</b>` : (first ? '' : L`Nessuna stella nuova`)) + (hardBonus ? ` <b class="hbonus">+${hardBonus} ${IC_S} ${L`bonus difficile`}</b>` : '');
   showCard(L`<h2 class="wintitle">${pick(WIN_TITLES)}</h2>
     <div class="stars3 fill">${[1, 2, 3].map((k) => `<i class="ic ic-star slot" data-k="${k}"></i>`).join('')}</div>
     <p class="winsub">${stars === 3 ? L`Perfetto! Tre stelle piene.` : L`Con meno mosse usate prendi ${stars === 1 ? L`fino a 3` : L`la terza`} ${IC_S}`}</p>
     <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? L`<br>Con ${STEP_COST} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
-    ${chRes}
-    <div class="cheer">${speakerHTML(who, line)}</div>
+    ${first ? streakStrip() : ''}${chRes}
+    ${first ? '' : `<div class="cheer">${speakerHTML(who, line)}</div>`}
     ${sticker ? L`<p class="stkhint">📒 Hai trovato una figurina!</p>` : ''}
     <div class="row sharerow"><button id="cShare" class="btn btn-share">📣 Condividi e sfida</button><button id="cVid" class="btn btn-share vid">🎬 Video TikTok</button></div>
-    <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}<button id="cHome" class="btn btn-play">Campo base</button></div>`,
+    <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}${canBuildNow ? L`<button id="cHome" class="btn btn-gray">Campo base</button><button id="cBuildNow" class="btn btn-play">Costruisci 🔨</button>` : save.level <= MAX_LEVEL ? L`<button id="cHome" class="btn btn-gray">Campo base</button><button id="cNext" class="btn btn-play">Livello ${save.level} ▶</button>` : L`<button id="cHome" class="btn btn-play">Campo base</button>`}</div>`,
     { cShare: () => V.shareWin(n, stars, ZONES[lvZone(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[lvZone(n)].bg, G.hl),
       cHome: async () => { hideCard(); await afterWin(); goHome(); },
+      cBuildNow: async () => { hideCard(); await afterWin(); G.autoBuild = true; goHome(true); },
+      cNext: async () => { hideCard(); await afterWin(); goHome(true); const go = () => (pendingStar || G.building || !$('#overlay').classList.contains('hidden') ? setTimeout(go, 200) : openLevel()); setTimeout(go, 500); },
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
   async function afterWin() { await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
@@ -2242,12 +2261,13 @@ async function loseLevel() {
     renderMoves(); saveRun(); scheduleHint();
     return;
   }
-  G.over = true;
+  G.over = true; AU.tense(false);
   clearRun();
   V.chestTick(false);
   if (!G.exhibit && !G.duel && G.level && G.level.n <= MAX_LEVEL) { save.lost = save.lost || {}; save.lost[G.level.n] = (save.lost[G.level.n] || 0) + 1; persist(); }
   const leftN = G.goals.reduce((a, g) => a + goalLeft(g), 0), totN = G.goals.reduce((a, g) => a + g.n, 0);
-  if (leftN <= Math.max(3, totN * 0.08)) {   // perso per un soffio
+  const near = leftN <= Math.max(3, totN * 0.08);
+  if (near) {   // perso per un soffio
     FX.shake(10, .4); FX.flash(.3);
     const q = document.createElement('div'); q.className = 'quasi'; q.innerHTML = L`<b>QUASI!</b><small>ti mancava${leftN === 1 ? '' : L`no`} solo ${leftN}</small>`;
     app.appendChild(q); setTimeout(() => q.remove(), 1900);
@@ -2256,21 +2276,26 @@ async function loseLevel() {
   }
   sfx.lose();
   const ownMoves = !G.time && save.inv.moves > 0;
-  const canBuy = ownMoves || save.coins >= 200;
+  const price = near && !G.boughtMore ? 100 : 200;   // per un soffio: la prima spinta costa la metà
+  const canBuy = ownMoves || save.coins >= price;
+  const stk = save.streak || 0, sergio = G.buddyObj && G.buddyObj.perk.streak;
+  const lossList = [stk && !sergio ? L`la serie 🔥<b>${stk}</b> e i suoi regali` : '', G.level.hard && G.level.n >= save.level ? L`il bonus del livello difficile` : ''].filter(Boolean);
+  const lossHTML = lossList.length && !G.exhibit ? `<p class="losswarn">${L`Se molli perdi`} ${lossList.join(L` e `)}!</p>` : '';
   const left = G.goals.filter((g) => g.done < g.n).map((g) => `<span class="lmiss"><i style="background-image:${goalURI(g)}"></i>${goalLeft(g)}</span>`).join(' ');
-  showCard(L`${speakerHTML('purcello', L`${loseLine()}<br>Ti mancavano: ${left}<br> Con <b>200 ${IC_C}</b> hai <b>${G.time ? '20 secondi' : L`5 mosse`}</b> in più.`)}
-    <div class="row">
+  showCard(L`${near ? `<h2 class="red nearh">${L`Ti manca${leftN === 1 ? '' : L`no`} solo ${leftN}!`}</h2>` : ''}${speakerHTML('purcello', L`${near ? L`Eri a un passo!` : loseLine()}<br>Ti mancano: ${left}<br> ${ownMoves ? L`Usa una delle tue <b>+5 mosse</b>.` : price < 200 ? L`Per un soffio: <b>${G.time ? L`+20 secondi` : L`+5 mosse`}</b> a metà prezzo, solo <b>${price} ${IC_C}</b>!` : L`Con <b>${price} ${IC_C}</b> hai <b>${G.time ? L`20 secondi` : L`5 mosse`}</b> in più.`}`)}
+    ${lossHTML}<div class="row">
       <button id="cQuit" class="btn btn-gray">Mollo</button>
       <button id="cMore" class="btn btn-play" ${canBuy ? '' : 'disabled style="filter:grayscale(1)"'}>${G.time ? L`+20 secondi` : L`+5 mosse`}${ownMoves ? ` <small>(x${save.inv.moves})</small>` : ''}</button>
     </div>`, {
-    cQuit: () => { hideCard(); if (!G.exhibit) { const f = save.fail && save.fail.n === G.level.n ? save.fail.c : 0; save.fail = { n: G.level.n, c: f + 1 }; } if (G.buddyObj && G.buddyObj.perk.streak && save.streak) toast(L`Sergio ti salva la serie di vittorie!`, 1400); else save.streak = 0; persist(); clearRun(); retryOrHome(); },
+    cQuit: () => { hideCard(); AU.tense && AU.tense(false); if (!G.exhibit) { const f = save.fail && save.fail.n === G.level.n ? save.fail.c : 0; save.fail = { n: G.level.n, c: f + 1 }; } if (G.buddyObj && G.buddyObj.perk.streak && save.streak) toast(L`Sergio ti salva la serie di vittorie!`, 1400); else save.streak = 0; persist(); clearRun(); retryOrHome(); },
     cMore: () => {
       if (!canBuy) return;
-      if (ownMoves) save.inv.moves--; else save.coins -= 200;
+      if (ownMoves) save.inv.moves--; else save.coins -= price;
+      G.boughtMore = true;
       persist();
       hideCard();
       if (G.time) G.timeLeft += 20; else G.moves += 5;
-      G.over = false; G.busy = false;
+      G.over = false; G.busy = false; G.lastCall = false;
       saveRun();
       renderMoves();
       FX.banner(L`Spinta di Purcello!`, G.time ? L`+20 secondi` : L`+5 mosse`, '#ff8a1c');
@@ -2770,6 +2795,12 @@ const PRE = [
   { id: 'bomb', name: L`Tanica`, cost: 150, img: 'p_tanica' },
   { id: 'grappa', name: L`Grappa`, cost: 220, img: 'p_grappa' },
 ];
+// striscia della serie di vittorie nella scheda di vittoria: 3 caselle (Moto, Tanica, Grappa) che si accendono
+function streakStrip() {
+  const k = Math.min(save.streak || 0, 3);
+  return `<div class="stkstrip"><div class="stkh">🔥 ${L`Serie di vittorie`} <b>${save.streak || 0}</b></div><div class="stkrow">${PRE.map((p, i) => `<span class="stks${i < k ? ' on' : ''}${i === k - 1 ? ' new' : ''}"><i style="background-image:${I(p.img)}"></i><small>${i + 1}</small></span>`).join('<em>›</em>')}</div>
+    <small>${k >= 3 ? L`Massimo! Al prossimo livello parti con <b>Moto, Tanica e Grappa</b> in griglia.` : L`Al prossimo livello parti con ${PRE.slice(0, k).map((p) => `<b>${p.name}</b>`).join(' + ')} in griglia. Vinci ancora per la ${PRE[k].name}!`}</small></div>`;
+}
 const streakGifts = () => PRE.slice(0, Math.min(save.streak || 0, 3)).map((p) => p.id);
 
 function placeStartPowers(list) {
@@ -2837,7 +2868,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   G.boss = lv.boss ? { ...lv.boss, count: lv.boss.every } : null;
   G.hl = null;
   G.ticketCleared = false; G.explainQ = new Set(); G.coached = new Set(); G.lastProg = 0; G.idleMoves = 0;
-  G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null; G.droneFix = null; G.helped = false; G.moveCount = 0;
+  G.over = false; G.busy = false; G.hammer = false; G.shield = false; G.sel = null; G.droneFix = null; G.helped = false; G.moveCount = 0; G.lastCall = false; G.lastBeat = 0; G.boughtMore = false;
   G.time = lv.time || 0; G.timeLeft = resume && resume.time != null ? resume.time : G.time;
   G.buddyObj = resume ? (resume.buddy ? BUDDY[resume.buddy] : null) : challenge ? null : curBuddy(); G.freeHammer = 0; G.buddySaved = !!(resume && resume.bsaved); G.sprinted = !!(resume && resume.sprint); G.nearSaid = false;
   clearPreview(); clearHint();
@@ -2861,7 +2892,8 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   }
   $('#goals').innerHTML = '';
   $('#gLevel').textContent = n;
-  $('#game').classList.toggle('hardlv', !!lv.hard);
+  $('#game').classList.toggle('hardlv', !!lv.hard && !lv.superHard);
+  $('#game').classList.toggle('superlv', !!lv.superHard);
   $('#bossbar').classList.toggle('hidden', !G.boss);
   $('#bShield').style.display = G.boss ? '' : 'none';
   const zl = lvZone(n);
@@ -2953,7 +2985,7 @@ async function openLevel(num) {
   }).join('');
   const streak = save.streak || 0;
   const bestHTML = n < save.level ? `<div class="bestrow">${[1, 2, 3].map((k) => `<i class="ic ic-star${k <= best ? '' : ' off'}"></i>`).join('')}<span>${best >= 3 ? L`già perfetto` : L`record: prova a fare meglio`}</span></div>` : '';
-  showCard(L`<h2${lv.hard ? ' class="red"' : ''}>${lv.boss ? L`Arriva la Forestale!` : lv.hard ? L`Livello ${lv.n} 💀` : L`Livello ${lv.n}`}</h2>${lv.hard ? L`<p class="hardnote">Livello difficile: se lo vinci, <b>monete doppie</b>.</p>` : ''}${bestHTML}${intro}
+  showCard(L`${lv.hard ? `<div class="hardtag${lv.superHard ? ' sup' : ''}">${lv.superHard ? L`💀 SUPER DIFFICILE` : L`🔥 DIFFICILE`}</div>` : ''}<h2${lv.hard ? ` class="${lv.superHard ? 'purple' : 'red'}"` : ''}>${lv.boss ? L`Arriva la Forestale!` : L`Livello ${lv.n}`}</h2>${lv.hard ? `<p class="hardnote${lv.superHard ? ' sup' : ''}">${lv.superHard ? L`Poche mosse e tanta strada. Se lo vinci: <b>monete triple</b> e <b>+2 ${IC_S} bonus</b>.` : L`Meno mosse del solito. Se lo vinci: <b>monete doppie</b> e <b>+1 ${IC_S} bonus</b>.`}</p>` : ''}${bestHTML}${intro}
     ${newsHTML + helpHTML}<div class="goalrow">${goalsHTML}</div><p>Hai <b>${lv.moves} mosse</b>${lv.boss ? L`. Svuota la sua pazienza prima che ti riempia di sassi!` : ''}</p>
     <div class="prebox"><div class="prehead">${streak ? L`🔥 Serie di vittorie: <b>${streak}</b>` : L`Parti con un aiuto?`}<span>${streak ? L`regali già in griglia` : L`vinci di fila per averli gratis`}</span></div>
     <div class="prerow">${preHTML}</div><div class="prehelp"><b>Moto</b> pulisce una riga · <b>Tanica</b> esplode intorno · <b>Grappa</b> via un colore</div></div>
@@ -2998,11 +3030,12 @@ async function rankBadge() {
   try { const list = await RANK.top(); const i = list.findIndex((e) => e.name === nick); rankCache.pos = i >= 0 ? i + 1 : 0; show(); if (rankCache.pos && rankCache.pos <= 3 && !save.seen['rk' + rankCache.pos]) { save.seen['rk' + rankCache.pos] = 1; persist(); toast(L`Sei ${rankCache.pos}° nella classifica EDT! 🏆`, 2200); } } catch { /* offline */ }
 }
 function goHome(quiet = false) {
-  clearHint(); clearPreview(); forceZone = null;
+  AU.tense(false); clearHint(); clearPreview(); forceZone = null;
   showScreen('home');
   AU.playMusic(homeTrack());
   renderHome();
   if (pendingStar) setTimeout(flyStarToCounter, 350);
+  else if (G.autoBuild) { G.autoBuild = false; if (save.stars >= STEP_COST && nextBuilding()) setTimeout(() => tryBuild(), 450); }
   else if (!quiet) setTimeout(shopTutorial, 900);
 }
 // primo acquisto guidato: quando hai monete e non hai mai aperto il Negozio, Gabbah te lo mostra e ti regala una Moto

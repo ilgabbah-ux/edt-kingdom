@@ -1,7 +1,7 @@
 // EDT Kingdom — livelli
 import { L } from './i18n.js';
 import { makeRng, ROWS, COLS } from './engine.js';
-import { TUNED as TUNED0 } from './tuned.js';
+import { TUNED as TUNED0, HTUNED as HT0 } from './tuned.js';
 
 // Layout (9 righe x 8 colonne):
 // '.' normale   '#' casella vuota (fuori griglia)
@@ -247,9 +247,14 @@ function goalsFrom(layout = [], tiles = []) {
   return goals;
 }
 
-// livelli difficili (come in Royal Match): uno ogni 10, segnati in rosso e pagati il doppio
-const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 98, 107, 117, 127, 137, 147, 157, 168, 177]);
-export const isHard = (n) => HARD.has(n);
+// difficoltà a onde (come in Royal Match): un livello "Difficile" ogni 10 e un "Super difficile" per regno,
+// con meno mosse e premi più grossi; i 2 livelli dopo sono più facili per rifiatare
+const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 98, 108, 117, 127, 137, 147, 157, 168, 177, 187, 198, 207, 217, 229, 237, 247, 257, 267]);
+const SUPER = new Set([43, 73, 103, 133, 163, 193, 223, 253]);
+export const isHard = (n) => HARD.has(n) || SUPER.has(n);
+export const isSuper = (n) => SUPER.has(n);
+export const hardKind = (n) => (SUPER.has(n) ? 2 : HARD.has(n) ? 1 : 0);
+export const isBreather = (n) => !hardKind(n) && n % 5 !== 0 && (hardKind(n - 1) > 0 || hardKind(n - 2) > 0);
 // scenario "naturale" di un livello (1-30 Valle, 31-60 Passo, ...)
 export const natZone = (n) => (n > 240 ? 8 : n > 210 ? 7 : n > 180 ? 6 : n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
 // z = scenario in cui si gioca: se è diverso da quello naturale il livello viene costruito con gli ostacoli di quello scenario,
@@ -261,7 +266,12 @@ export function getLevel(n, z = natZone(n)) {
   else { lv0 = themedLevel(n, z); if (!lv0.time) lv0.moves = Math.round(lv0.moves * 1.2) + 2; }   // non ancora tarato: un po' di margine
   addTreasure(lv0, n, z);
   if (!lv0.time && TUNED[z] && TUNED[z][n]) lv0.moves = TUNED[z][n];   // mosse tarate col simulatore
-  lv0.hard = isHard(n);
+  const hk = hardKind(n);
+  if (!lv0.time && !lv0.boss) {
+    if (hk) lv0.moves = (HTUNED[z] && HTUNED[z][n]) || Math.max(12, Math.round(lv0.moves * (hk === 2 ? 0.78 : 0.87)));
+    else if (isBreather(n)) lv0.moves = Math.min(60, Math.ceil(lv0.moves * 1.15) + 1);
+  }
+  lv0.hard = hk > 0; lv0.superHard = hk === 2; lv0.breather = isBreather(n);
   lv0.zone = z;
   return lv0;
 }
@@ -290,6 +300,7 @@ function addTreasure(lv, n, z) {
   lv.moves += 3;
 }
 let TUNED = TUNED0 || {};
+let HTUNED = HT0 || {};
 export function setTuned(t) { TUNED = t || {}; }
 function themedLevel(n, z) {
   const rng = makeRng(n * 7919 + 13 + z * 104729);

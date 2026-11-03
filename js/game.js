@@ -48,7 +48,7 @@ let MULTA_URI = I('o_multa');
 const CHAIN_K = ['chain', 'ice', 'tape', 'sand', 'garland', 'web', 'lights', 'streamers', 'straps'];
 const MULTA_K = ['multa', 'multa', 'multa', 'water', 'bill', 'potion', 'coal', 'ticket', 'sandstorm'];
 // musica di partita per scenario
-const zoneTrack = (z) => ({ 4: 'okt', 5: 'hall', 7: 'okt' }[z] || 'game');
+const zoneTrack = (z) => ({ 4: 'okt', 5: 'hall', 6: 'xmas', 7: 'nye', 8: 'dakar' }[z] || 'game');
 const VELOX_URI = I('o_autovelox'), GOMME_URI = I('o_gomme'), DROP_URI = I('o_fusto');
 
 // ---------- salvataggio ----------
@@ -161,7 +161,7 @@ function bldXY(b) {
 // quanto dell'edificio è già su (dal basso): tappa 0 niente, 1 fondamenta, 2 metà, 3 finito
 const RISE = [0, 0.3, 0.68, 1];
 const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, STEPS))]) * 100)}% 0 0 0)`;
-const homeTrack = () => ({ oktober: 'okt', hallo: 'hall', capodanno: 'okt' }[currentZone().id] || 'home');
+const homeTrack = () => ({ oktober: 'okt', hallo: 'hall', natale: 'xmas', capodanno: 'nye', dakar: 'dakar' }[currentZone().id] || 'home');
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 // il tema della partita (sfondo, ostacoli, musica, boss) segue la zona che stai costruendo sulla mappa
 let forceZone = null;   // sfida di un amico: si gioca nello scenario del suo link

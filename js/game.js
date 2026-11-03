@@ -44,6 +44,11 @@ let CRATE_URI = [null, I('o_cassa1'), I('o_cassa2')];
 const MUG_URI = [I('o_boccale3'), I('o_boccale2'), I('o_boccale1'), I('o_boccale0')];   // per colpi rimasti: 0 pieno … 3 vuoto
 let CHAIN_URI = I('o_catena');
 let MULTA_URI = I('o_multa');
+// nomi (voci della guida) della catena e della multa che si allarga, per ogni scenario
+const CHAIN_K = ['chain', 'ice', 'tape', 'sand', 'garland', 'web', 'lights', 'streamers', 'straps'];
+const MULTA_K = ['multa', 'multa', 'multa', 'water', 'bill', 'potion', 'coal', 'ticket', 'sandstorm'];
+// musica di partita per scenario
+const zoneTrack = (z) => ({ 4: 'okt', 5: 'hall', 7: 'okt' }[z] || 'game');
 const VELOX_URI = I('o_autovelox'), GOMME_URI = I('o_gomme'), DROP_URI = I('o_fusto');
 
 // ---------- salvataggio ----------
@@ -156,7 +161,7 @@ function bldXY(b) {
 // quanto dell'edificio è già su (dal basso): tappa 0 niente, 1 fondamenta, 2 metà, 3 finito
 const RISE = [0, 0.3, 0.68, 1];
 const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, STEPS))]) * 100)}% 0 0 0)`;
-const homeTrack = () => ({ oktober: 'okt', hallo: 'hall' }[currentZone().id] || 'home');
+const homeTrack = () => ({ oktober: 'okt', hallo: 'hall', capodanno: 'okt' }[currentZone().id] || 'home');
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 // il tema della partita (sfondo, ostacoli, musica, boss) segue la zona che stai costruendo sulla mappa
 let forceZone = null;   // sfida di un amico: si gioca nello scenario del suo link
@@ -309,6 +314,7 @@ function renderHome(popId = null) {
   fitMap(); setTimeout(sideUI, 0);
   renderWeekBadge();
   $('#albPct').textContent = `${V.albumCount()}/${V.albumTotal()}`;
+  { const bd = $('#btnDiploma'); if (bd) bd.hidden = !save.story.dakarfine; }
   { const ep = V.eventProgress(), be = $('#btnEvent');
     if (be) { be.hidden = !ep; if (ep) { be.querySelector('span').style.backgroundImage = I(ep.ev.img); $('#evPct').textContent = ep.st.n; } } }
   $('#hStars').textContent = save.stars - pendingStar;
@@ -655,17 +661,23 @@ async function tryBuild() {
         if (nz.id === 'marocco') await showStory('finale');
         if (nz.id === 'oktober') await showStory('fine');
         if (nz.id === 'hallo') await showStory('oktofine');
+        if (PRE_STORY[nz.id]) await showStory(PRE_STORY[nz.id]);
         await showStory(nz.id);
         viewZone = null; renderHome();
         FX.banner(nz.name, L`Nuova zona sbloccata!`, '#bdf0ff');
       } else {
-        await showStory('hallofine');
+        await showStory('dakarfine');
         fireworks(2600);
+        await sleep(1200);
+        renderHome();
+        V.openDiploma(true);
       }
     }
   }
 }
 
+// il finale del capitolo prima, da mostrare quando si apre la zona dopo
+const PRE_STORY = { natale: 'hallofine', capodanno: 'natalefine', dakar: 'capofine' };
 function fireworks(ms = 2000) {
   const ar = app.getBoundingClientRect();
   const cols = ['#ffd34d', '#ff5a3c', '#3d8bff', '#4fd25f', '#ff4fa3', '#bdf0ff'];
@@ -1099,7 +1111,7 @@ function goalInfo(gl) {
   sfx.click();
   if (gl.type === 'tile') { tipBubble('t0_birra', L`Togli <b>${goalLeft(gl)}</b> di queste tessere facendo tris con loro.`, goalURI(gl)); return; }
   const zl = lvZone(G.level.n);
-  const k = gl.type === 'chain' && zl ? ['chain', 'ice', 'tape', 'sand', 'garland', 'web'][zl] : gl.type === 'multa' && zl === 3 ? 'water' : gl.type === 'multa' && zl === 4 ? 'bill' : gl.type === 'multa' && zl === 5 ? 'potion' : (ZONE_OBS[zl] && ZONE_OBS[zl][gl.type]) || gl.type;
+  const k = gl.type === 'chain' && zl ? CHAIN_K[zl] : gl.type === 'multa' ? MULTA_K[zl] || 'multa' : (ZONE_OBS[zl] && ZONE_OBS[zl][gl.type]) || gl.type;
   const h = HELP[k]; if (h) tipBubble(h.img, `<b>${h.t}</b>: ${h.d}`);
 }
 function tipBubble(img, html, uri) {
@@ -1429,6 +1441,9 @@ const LOSE_ZONE = [
   L`Ti sei insabbiato? Tranquillo, Purcello arriva sempre da dietro.`,
   L`Troppa birra e poche mosse? Ti porto io fuori dal tendone.`,
   L`Ti hanno spaventato i fantasmi? Purcello non ha paura di niente.`,
+  L`Piantato nella neve fresca? Attacco la corda alla slitta e ti tiro fuori io.`,
+  L`Troppo spumante e poche mosse? Ti riporto a casa io, prima di mezzanotte.`,
+  L`Insabbiato in mezzo alle dune? Il camion scopa sono io: aggancio e tiro!`,
 ];
 const loseLine = () => pick([LOSE_ZONE[lvZone()] || LOSE_ZONE[0], L`Mosse finite e sentiero ancora chiuso. Ci penso io: aggancio e tiro!`]);
 const allDone = () => G.goals.every((gl) => gl.done >= gl.n);
@@ -2320,6 +2335,21 @@ const COACH = {
   marble: ['purcello', L`Il marmo si spacca con i tris <b>accanto</b>. I blocchi interi vanno colpiti due volte.`],
   cement: ['gabbah', L`I sacchi di cemento si rompono con i tris <b>accanto</b> o con un potenziamento.`],
   greymud: ['mirco', L`Il fango di cava si pulisce facendo tris <b>sopra</b>. Quello scuro va fatto due volte.`],
+  lights: ['erika', L`Le luci di Natale legano le tessere: fai un tris con quelle tessere per liberarle.`],
+  coal: ['forestale7', L`Se in un turno non togli nessun carbone, ne porto un altro io. Ho ho ho!`],
+  snowman: ['costa', L`I pupazzi di neve si sciolgono con i tris <b>accanto</b>. Quelli interi vanno colpiti due volte.`],
+  gift: ['erika', L`I pacchi regalo si aprono con i tris <b>accanto</b> o con un potenziamento.`],
+  cocoa: ['mirco', L`La cioccolata versata si pulisce facendo tris <b>sopra</b>. Quella densa va fatta due volte.`],
+  streamers: ['svetlana', L`Le stelle filanti legano le tessere: mettile in un tris per liberarle.`],
+  ticket: ['forestale8', L`Se in un turno non togli nessun verbale, ne scrivo un altro. Prrrr!`],
+  fireworks: ['purcello', L`Le batterie di fuochi si fanno saltare con i tris <b>accanto</b>. Quelle piene vanno colpite due volte.`],
+  bubbly: ['claudio', L`Le casse di spumante si aprono con i tris <b>accanto</b> o con un potenziamento.`],
+  confetti: ['luigi', L`I coriandoli si spazzano facendo tris <b>sopra</b>. I mucchi alti vanno fatti due volte.`],
+  straps: ['renard', L`Le cinghie legano le tessere: fai un tris con quelle tessere per sganciarle.`],
+  sandstorm: ['forestale9', L`Se in un turno non togli nessuna tempesta, ne arriva un'altra. Buona navigazione!`],
+  desertrock: ['miti', L`Le rocce del deserto si spaccano con i tris <b>accanto</b>. Quelle grandi vanno colpite due volte.`],
+  jerrycan: ['purcello', L`Le taniche si liberano con i tris <b>accanto</b> o con un potenziamento.`],
+  fesh: ['mirco', L`Il fesh-fesh è polvere finissima: si pulisce facendo tris <b>sopra</b>. Quello alto va fatto due volte.`],
   slime: ['svetlana', L`La melma stregata si pulisce facendo tris <b>sopra</b>. Quella che bolle va fatta due volte.`],
   barrel: ['albertone', L`Le botti si aprono facendo tris <b>accanto</b>. Quelle intere vanno colpite due volte.`],
   bottles: ['claudio', L`Le casse di bottiglie si rompono con i tris <b>accanto</b> o con un potenziamento.`],
@@ -2480,6 +2510,21 @@ const HELP = {
   marble: { img: 'o_marmo2', t: L`Blocco di marmo`, d: L`Blocca la casella. Si spacca facendo un tris <b>accanto</b> o con un potenziamento. Quelli interi vanno colpiti due volte.` },
   cement: { img: 'o_cemento2', t: L`Sacchi di cemento`, d: L`Bloccano la casella come una cassa. Si rompono con i tris <b>accanto</b> o con un potenziamento.` },
   greymud: { img: 'o_fango_c1', t: L`Fango di cava`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quello scuro va pulito due volte.` },
+  lights: { img: 'o_luci', t: L`Luci di Natale`, d: L`In baita le luci di Natale legano le tessere: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.` },
+  coal: { img: 'o_carbone', t: L`Carbone`, d: L`Copre la casella e si toglie con un tris sopra. Se in un turno <b>non ne togli nessuno</b>, la Forestale Babbo Natale ne porta un altro.` },
+  snowman: { img: 'o_pupazzo2', t: L`Pupazzo di neve`, d: L`Blocca la casella. Si scioglie facendo un tris <b>accanto</b> o con un potenziamento. I pupazzi interi vanno colpiti due volte.` },
+  gift: { img: 'o_pacco2', t: L`Pacco regalo`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
+  cocoa: { img: 'o_cioccolata1', t: L`Cioccolata versata`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quella densa va pulita due volte.` },
+  streamers: { img: 'o_stelle', t: L`Stelle filanti`, d: L`A Capodanno le stelle filanti legano le tessere: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.` },
+  ticket: { img: 'o_verbale', t: L`Verbale del vigile`, d: L`Copre la casella e si toglie con un tris sopra. Se in un turno <b>non ne togli nessuno</b>, la Forestale vigile ne scrive un altro.` },
+  fireworks: { img: 'o_botti2', t: L`Batteria di fuochi`, d: L`Blocca la casella. Salta facendo un tris <b>accanto</b> o con un potenziamento. Quelle piene vanno colpite due volte.` },
+  bubbly: { img: 'o_spumante2', t: L`Cassa di spumante`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
+  confetti: { img: 'o_coriandoli1', t: L`Coriandoli`, d: L`Stanno <b>sotto</b> le tessere. Si spazzano facendo un tris sopra. I mucchi alti vanno puliti due volte.` },
+  straps: { img: 'o_cinghie', t: L`Cinghie`, d: L`Alla Dakar le cinghie legano le tessere: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.` },
+  sandstorm: { img: 'o_tempesta', t: L`Tempesta di sabbia`, d: L`Copre la casella e si toglie con un tris sopra. Se in un turno <b>non ne togli nessuna</b>, se ne alza un'altra.` },
+  desertrock: { img: 'o_roccia2', t: L`Roccia del deserto`, d: L`Blocca la casella. Si spacca facendo un tris <b>accanto</b> o con un potenziamento. Le rocce grandi vanno colpite due volte.` },
+  jerrycan: { img: 'o_taniche2', t: L`Taniche`, d: L`Bloccano la casella come una cassa. Si liberano con i tris <b>accanto</b> o con un potenziamento.` },
+  fesh: { img: 'o_polvere1', t: L`Fesh-fesh`, d: L`Polvere finissima che sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra. Quella alta va pulita due volte.` },
   slime: { img: 'o_melma1', t: L`Melma stregata`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quella che bolle va pulita due volte.` },
   barrel: { img: 'o_barile', t: L`Botte di birra`, d: L`Blocca la casella. Si apre facendo un tris <b>accanto</b> o con un potenziamento. Le botti intere vanno colpite due volte.` },
   bottles: { img: 'o_bottiglie', t: L`Cassa di bottiglie`, d: L`Blocca la casella come una cassa. Si rompe con i tris <b>accanto</b> o con un potenziamento.` },
@@ -2566,6 +2611,10 @@ function storyUnlocked(id) {
   if (id === 'finale') return save.level > 90 || !!save.story.marocco;
   if (id === 'fine') return save.level > 120 || !!save.story.oktober;
   if (id === 'oktofine') return save.level > 150 || !!save.story.hallo || !!save.story.oktofine;
+  if (id === 'hallofine') return save.level > 180 || !!save.story.natale;
+  if (id === 'natalefine') return save.level > 210 || !!save.story.capodanno;
+  if (id === 'capofine') return save.level > 240 || !!save.story.dakar;
+  if (id === 'dakarfine') return false;
   const z = ZONES.find((zz) => zz.id === id);
   return z ? save.level >= z.from : false;
 }
@@ -2589,6 +2638,7 @@ function explain(keys, title = L`Novità!`) {
 const ZONE_OBS = [
   { rock: 'rock', crate: 'crate', mud: 'mud' }, { rock: 'snowblock', crate: 'icecrate', mud: 'slush' }, { rock: 'marble', crate: 'cement', mud: 'greymud' },
   { rock: 'dune', crate: 'spice', mud: 'redmud' }, { rock: 'barrel', crate: 'bottles', mud: 'beer' }, { rock: 'pumpkin', crate: 'coffin', mud: 'slime' },
+  { rock: 'snowman', crate: 'gift', mud: 'cocoa' }, { rock: 'fireworks', crate: 'bubbly', mud: 'confetti' }, { rock: 'desertrock', crate: 'jerrycan', mud: 'fesh' },
 ];
 const KIND = (p) => (p === 'mV' ? 'mH' : p);
 // tipi di ostacoli presenti in un livello
@@ -2599,14 +2649,14 @@ function levelThings(lv) {
   if (/[mM]/.test(LYS)) out.push(ZO.mud);
   if (/[rR]/.test(LYS)) out.push(ZO.rock);
   if (/[cC]/.test(LYS)) out.push(ZO.crate);
-  if (/k/.test(LYS)) out.push(['chain', 'ice', 'tape', 'sand', 'garland', 'web'][lvZone(lv.n)]);
+  if (/k/.test(LYS)) out.push(CHAIN_K[lvZone(lv.n)] || 'chain');
   if (/b/.test(LYS)) out.push('mug');
   if (/x/.test(LYS)) out.push('gem');
   if (/v/.test(LYS)) out.push('velox');
   if (/g/.test(LYS)) out.push('gomme');
   if (lv.drops) out.push('drop');
   if (lv.time) out.push('time');
-  if (/t/.test(LYS)) out.push(lvZone(lv.n) === 3 ? 'water' : lvZone(lv.n) === 4 ? 'bill' : lvZone(lv.n) === 5 ? 'potion' : 'multa');
+  if (/t/.test(LYS)) out.push(MULTA_K[lvZone(lv.n)] || 'multa');
   if (lv.boss) out.push('boss');
   return out;
 }
@@ -2826,11 +2876,12 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   $('#board').classList.toggle('tape', zl === 2);
   $('#game').classList.toggle('winter', zl === 1);
   $('#game').classList.toggle('quarry', zl === 2);
+  for (const [cl, zz] of [['xmas', 6], ['nye', 7], ['dakar', 8]]) { $('#board').classList.toggle(cl, zl === zz); $('#game').classList.toggle(cl, zl === zz); }
   const bf = $('#bossFace');
   bf.classList.remove('beaten', 'angry', 'hit');
   if (G.boss) bf.style.backgroundImage = FORESTALE_URI;
   showScreen('game');
-  AU.playMusic(lv.boss ? 'boss' : lvZone(n) === 4 ? 'okt' : lvZone(n) === 5 ? 'hall' : 'game');
+  AU.playMusic(lv.boss ? 'boss' : zoneTrack(lvZone(n)));
   layout();
   { const pk = document.querySelector('#peek i'); if (pk) pk.style.backgroundImage = G.buddyObj ? I('c_' + G.buddyObj.id) : I(CHARS[V.me().who].img); $('#peek').classList.toggle('bud', !!G.buddyObj); }
   buildBoardDOM();
@@ -2854,17 +2905,19 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
 
 function setZoneArt(zl) {
   FORESTALE_URI = I(ZONES[zl].boss);
-  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela'][zl]);
-  MULTA_URI = I(zl === 3 ? 'o_acqua' : zl === 4 ? 'o_conto' : zl === 5 ? 'o_pozione' : 'o_multa');
-  ROCK_URI = zl === 1 ? [null, I('o_neve1'), I('o_neve2')] : zl === 2 ? [null, I('o_marmo1'), I('o_marmo2')] : zl === 5 ? [null, I('o_zucca'), I('o_zucca2')] : zl === 4 ? [null, I('o_barile1'), I('o_barile')] : zl === 3 ? [null, I('o_duna1'), I('o_duna2')] : [null, I('o_sasso1'), I('o_sasso2')];
-  CRATE_URI = zl === 1 ? [null, I('o_ghiacciata1'), I('o_ghiacciata2')] : zl === 2 ? [null, I('o_cemento1'), I('o_cemento2')] : zl === 5 ? [null, I('o_bara'), I('o_bara2')] : zl === 4 ? [null, I('o_bottiglie1'), I('o_bottiglie')] : zl === 3 ? [null, I('o_spezie1'), I('o_spezie2')] : [null, I('o_cassa1'), I('o_cassa2')];
-  MUD_URI = zl === 1 ? [null, I('o_fango_n1'), I('o_fango_n2')] : zl === 2 ? [null, I('o_fango_c1'), I('o_fango_c2')] : zl === 5 ? [null, I('o_melma1'), I('o_melma2')] : zl === 3 ? [null, I('o_fango_m1'), I('o_fango_m2')] : zl === 4 ? [null, I('o_birra1'), I('o_birra2')] : [null, I('o_fango1'), I('o_fango2')];
+  const A = (a, b) => [null, I(a), I(b)];
+  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela', 'o_luci', 'o_stelle', 'o_cinghie'][zl] || 'o_catena');
+  MULTA_URI = I(['o_multa', 'o_multa', 'o_multa', 'o_acqua', 'o_conto', 'o_pozione', 'o_carbone', 'o_verbale', 'o_tempesta'][zl] || 'o_multa');
+  ROCK_URI = [A('o_sasso1', 'o_sasso2'), A('o_neve1', 'o_neve2'), A('o_marmo1', 'o_marmo2'), A('o_duna1', 'o_duna2'), A('o_barile1', 'o_barile'), A('o_zucca', 'o_zucca2'), A('o_pupazzo1', 'o_pupazzo2'), A('o_botti1', 'o_botti2'), A('o_roccia1', 'o_roccia2')][zl] || A('o_sasso1', 'o_sasso2');
+  CRATE_URI = [A('o_cassa1', 'o_cassa2'), A('o_ghiacciata1', 'o_ghiacciata2'), A('o_cemento1', 'o_cemento2'), A('o_spezie1', 'o_spezie2'), A('o_bottiglie1', 'o_bottiglie'), A('o_bara', 'o_bara2'), A('o_pacco1', 'o_pacco2'), A('o_spumante1', 'o_spumante2'), A('o_tanica1', 'o_taniche2')][zl] || A('o_cassa1', 'o_cassa2');
+  MUD_URI = [A('o_fango1', 'o_fango2'), A('o_fango_n1', 'o_fango_n2'), A('o_fango_c1', 'o_fango_c2'), A('o_fango_m1', 'o_fango_m2'), A('o_birra1', 'o_birra2'), A('o_melma1', 'o_melma2'), A('o_cioccolata1', 'o_cioccolata2'), A('o_coriandoli1', 'o_coriandoli2'), A('o_polvere1', 'o_polvere2')][zl] || A('o_fango1', 'o_fango2');
 }
 async function openLevel(num) {
   const n = num || save.level;
   if (G.building || pendingStar) return;
   if (n > MAX_LEVEL) {
-    await say('gabbah', L`Hai finito tutti i sentieri! Nuove zone (e nuove multe) arrivano coi prossimi aggiornamenti.`);
+    await say('gabbah', L`Hai finito tutti i sentieri, fino a Dakar! Rigioca gli scenari dalla mappa per fare 3 stelle ovunque. Nuove zone arrivano coi prossimi aggiornamenti.`);
+    V.openDiploma();
     return;
   }
   if (unlockedBuddies(save.level).some((b) => !(save.buddySeen || []).includes(b.id))) await announceBuddies();
@@ -2979,7 +3032,9 @@ $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Stelle<
 $('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
 $('#btnShareGame').onclick = () => V.shareGame();
+$('#btnDiploma').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openDiploma(); };
 $('#btnShareGame').title = L`Condividi`;
+$('#btnDiploma').title = L`Attestato`;
 // pulsanti laterali richiudibili (sugli schermi piccoli coprono la mappa)
 function sideUI() {
   const sb = $('#home .sidebtns'); if (!sb) return;
@@ -3002,7 +3057,7 @@ function bindToggles() {
     if (!b) return;
     b.onclick = () => { save[key] = !save[key]; persist(); apply(save[key]); b.classList.toggle('on', save[key]); sfx.click(); if (key === 'vibra' && save.vibra) { try { navigator.vibrate && navigator.vibrate(40); } catch { /* */ } } };
   };
-  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : G.level && lvZone(G.level.n) === 4 ? 'okt' : G.level && lvZone(G.level.n) === 5 ? 'hall' : 'game') : homeTrack()); });
+  flip('tMusic', 'music', (v) => { AU.setMusic(v); if (v) AU.playMusic($('#game').classList.contains('active') ? (G.boss ? 'boss' : G.level ? zoneTrack(lvZone(G.level.n)) : 'game') : homeTrack()); });
   flip('tSfx', 'sfx', AU.setSfx);
   flip('tVib', 'vibra', FX.setVibra);
   flip('tVoice', 'voice', () => {});
@@ -3082,7 +3137,7 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2', 'o_birra1', 'o_birra2', 'o_barile1', 'o_bottiglie1', 'o_neve1', 'o_neve2', 'o_ghiacciata1', 'o_ghiacciata2', 'o_fango_n1', 'o_fango_n2', 'o_marmo1', 'o_marmo2', 'o_cemento1', 'o_cemento2', 'o_fango_c1', 'o_fango_c2', 'o_melma1', 'o_melma2', 'o_tesoro', 'o_forziere',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'map7_bg', 'map8_bg', 'map9_bg', 'o_luci', 'o_carbone', 'o_pupazzo1', 'o_pupazzo2', 'o_pacco1', 'o_pacco2', 'o_cioccolata1', 'o_cioccolata2', 'o_stelle', 'o_verbale', 'o_botti1', 'o_botti2', 'o_spumante1', 'o_spumante2', 'o_coriandoli1', 'o_coriandoli2', 'o_cinghie', 'o_tempesta', 'o_roccia1', 'o_roccia2', 'o_tanica1', 'o_taniche2', 'o_polvere1', 'o_polvere2', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2', 'o_birra1', 'o_birra2', 'o_barile1', 'o_bottiglie1', 'o_neve1', 'o_neve2', 'o_ghiacciata1', 'o_ghiacciata2', 'o_fango_n1', 'o_fango_n2', 'o_marmo1', 'o_marmo2', 'o_cemento1', 'o_cemento2', 'o_fango_c1', 'o_fango_c2', 'o_melma1', 'o_melma2', 'o_tesoro', 'o_forziere',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 // caricamento leggero: prima solo quello che serve subito (tessere, ostacoli e la zona attuale), il resto dopo con calma
 const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); });
@@ -3103,7 +3158,8 @@ preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); 
 const firstStory = !save.story.intro;
 const offerEvent = () => { const ep = V.eventProgress(); if (!ep || save.evSeen === ep.st.id) return false; save.evSeen = ep.st.id; persist(); V.openEvent(); return true; };
 const startup = async () => { if (/[?&]stats\b/.test(location.search)) { openStats(); return; } if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); }
-  if (currentZone().id === 'hallo' && !save.story.hallo && save.story.oktober) { if (!save.story.oktofine) await showStory('oktofine'); await showStory('hallo'); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
+  if (currentZone().id === 'hallo' && !save.story.hallo && save.story.oktober) { if (!save.story.oktofine) await showStory('oktofine'); await showStory('hallo'); viewZone = null; renderHome(); }
+  for (const [zid, prev, pre] of [['natale', 'hallo', 'hallofine'], ['capodanno', 'natale', 'natalefine'], ['dakar', 'capodanno', 'capofine']]) if (currentZone().id === zid && !save.story[zid] && save.story[prev]) { if (!save.story[pre]) await showStory(pre); await showStory(zid); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
 if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
 else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {

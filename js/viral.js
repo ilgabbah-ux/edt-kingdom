@@ -79,6 +79,33 @@ export async function shareImage(opts, text, url) {
   try { await navigator.clipboard.writeText(full); X.toast(L`Immagine scaricata e link copiato!`, 1500); } catch { X.toast(L`Immagine scaricata!`, 1200); }
 }
 
+// ---------------- attestato di fine gioco ----------------
+const diplomaStats = () => {
+  const b = X.save.best || {}, lv = Object.keys(b).length, st = Object.values(b).reduce((x, y) => x + y, 0), tre = Object.values(b).filter((v) => v >= 3).length;
+  return { lv, st, tre, max: X.MAX_LEVEL * 3 };
+};
+export function shareDiploma() {
+  const nick = X.getNick() || L`Un pilota EDT`, d = diplomaStats();
+  X.sfx.click();
+  shareImage({ bg: 'st10_5', title: L`REGNO EDT CONQUISTATO!`, line1: L`${nick}: ${d.lv} livelli, ${d.st} ⭐`, stars: 3, who: 'gabbah', img: 'forestale_ko', footer: L`CHI MI BATTE? 🍺` },
+    L`🏆 Ho conquistato tutto il regno di Enduro Drinking Kingdom: ${d.lv} livelli, dalla Valle fino alla Dakar, con ${d.st} ⭐! Chi mi batte?`, gameURL());
+}
+export function openDiploma(first = false) {
+  const nick = X.getNick() || L`Pilota EDT`, d = diplomaStats();
+  X.showCard(`<div class="diploma">
+      <div class="dpic" style="background-image:${X.I('st10_5')}"><span style="background-image:${X.I('forestale_ko')}"></span></div>
+      <small>${L`ATTESTATO UFFICIALE EDT`}</small>
+      <h2>${L`Regno conquistato!`}</h2>
+      <p>${L`<b>${esc(nick)}</b> ha liberato la Valle, il Passo, la Cava, il Marocco, l'Oktoberfest, il bosco di Halloween, la baita di Natale, la piazza di Capodanno e la Dakar. La Forestale si arrende!`}</p>
+      <div class="dstats"><div><b>${d.lv}</b><span>${L`livelli`}</span></div><div><b>${d.st}</b><span>⭐</span></div><div><b>${d.tre}</b><span>${L`con 3 ⭐`}</span></div></div>
+      ${d.st < d.max ? `<p class="dhint">${L`Sfida finale: rigioca gli scenari dalla mappa e fai 3 stelle ovunque!`}</p>` : `<p class="dhint">${L`Tutto a 3 stelle: sei una leggenda dell'EDT!`}</p>`}
+    </div>
+    <div class="row"><button id="dLater" class="btn btn-gray">${first ? L`Grande!` : L`Chiudi`}</button><button id="dShare" class="btn btn-play">${L`📣 Condividi`}</button></div>`, {
+    dLater: X.hideCard,
+    dShare: () => { shareDiploma(); },
+  });
+}
+
 // vittoria di un livello: immagine + link-sfida
 export function shareWin(n, stars, bg, duel = null) {
   const nick = X.getNick() || L`Un amico`;
@@ -97,7 +124,7 @@ export function readChallenge() {
       X.save.challenge = { n, s: Math.min(3, Math.max(1, parseInt(q.get('s'), 10) || 1)), da: String(q.get('da') || L`Un amico`).replace(/[<>"'`\\]/g, '').slice(0, 16) };
       const seed = parseInt(q.get('seme'), 10), m = parseInt(q.get('m'), 10);
       if (seed > 0) { X.save.challenge.seed = seed; X.save.challenge.m = m >= 0 ? m : 0; }
-      const z = parseInt(q.get('z'), 10); if (z >= 0 && z <= 5) X.save.challenge.z = z;
+      const z = parseInt(q.get('z'), 10); if (z >= 0 && z <= 8) X.save.challenge.z = z;
       X.persist();
       history.replaceState(null, '', location.pathname);
     }
@@ -153,6 +180,15 @@ export const PAGES = [
   { id: 'hallo', name: L`Halloween`, prize: 550, items: [
     ['hw1', L`Strada sbagliata`, 'st7_1', 1], ['hw2', L`Mirco e i fantasmi`, 'st7_2', 1], ['hw3', L`Svetlana strega`, 'st7_4', 2], ['hw4', L`All'alba`, 'st7_5', 3],
     ['fo6', L`La Forestale vampira`, 'forestale6', 2], ['hw5', L`Il castello dell'EDT`, 'b_castello', 2], ['hw6', L`Salto della luna`, 'b_rampa', 1], ['hw7', L`Zucca`, 'o_zucca', 1]] },
+  { id: 'natale', name: L`Natale in baita`, prize: 600, items: [
+    ['xm1', L`Verso la baita`, 'st8_1', 1], ['xm2', L`Mirco nella neve`, 'st8_2', 1], ['xm3', L`Brindisi col vin brulè`, 'st8_4', 2], ['xm4', L`Buon Natale EDT`, 'st8_5', 3],
+    ['fo7', L`La Forestale Babbo Natale`, 'forestale7', 2], ['xm5', L`La baita dell'EDT`, 'b_baita', 2], ['xm6', L`La slitta a motore`, 'b_slitta', 1], ['xm7', L`Pupazzo di neve`, 'o_pupazzo2', 1]] },
+  { id: 'capodanno', name: L`Capodanno`, prize: 650, items: [
+    ['ny1', L`Arrivo in piazza`, 'st9_1', 1], ['ny2', L`Lenticchie di Costa`, 'st9_2', 1], ['ny3', L`Conto alla rovescia`, 'st9_4', 2], ['ny4', L`Mezzanotte`, 'st9_5', 3],
+    ['fo8', L`La Forestale vigile`, 'forestale8', 2], ['ny5', L`La torre dell'orologio`, 'b_orologio', 2], ['ny6', L`Pista da ballo`, 'b_ballo', 1], ['ny7', L`Fuochi d'artificio`, 'o_botti2', 1]] },
+  { id: 'dakar', name: L`La Dakar`, prize: 700, items: [
+    ['dk1', L`La partenza`, 'st10_1', 1], ['dk2', L`Il salto di Miti`, 'st10_2', 1], ['dk3', L`Notte al bivacco`, 'st10_4', 2], ['dk4', L`Il podio sul Lago Rosa`, 'st10_5', 3],
+    ['fo9', L`La Forestale commissario`, 'forestale9', 2], ['dk5', L`Il camion della Dakar`, 'b_camion9', 2], ['dk6', L`Bivacco dei cammelli`, 'b_cammello', 1], ['dk7', L`La Forestale si arrende`, 'forestale_ko', 3]] },
 ];
 const RAR = { 1: [L`Comune`, 10], 2: [L`Rara`, 4], 3: ['D\'oro', 1] };
 const ALL = PAGES.flatMap((p) => p.items.map(([id, name, img, r]) => ({ id, name, img, r, page: p })));
@@ -161,7 +197,7 @@ export const albumCount = () => ALL.filter((s) => X.save.album[s.id]).length;
 export const albumTotal = () => ALL.length;
 // pesca una figurina (le d'oro sono rare); restituisce { s, dup }
 // pagine dell'album di ogni scenario: le figurine che vinci sono quelle dello scenario in cui giochi
-const ZONE_PAGES = [['piloti', 'giro1'], ['forestale', 'momenti'], ['giro2', 'momenti'], ['marocco'], ['okt'], ['hallo']];
+const ZONE_PAGES = [['piloti', 'giro1'], ['forestale', 'momenti'], ['giro2', 'momenti'], ['marocco'], ['okt'], ['hallo'], ['natale'], ['capodanno'], ['dakar']];
 export const zonePage = () => Math.max(0, PAGES.findIndex((p) => p.id === (ZONE_PAGES[X.zone ? X.zone() : 0] || ['piloti'])[0]));
 export function drawSticker() {
   const zp = ZONE_PAGES[X.zone ? X.zone() : 0] || ZONE_PAGES[0];

@@ -92,10 +92,61 @@ export const STORY = {
     scenes: [
       { img: 'st7_5', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`All'alba la nebbia si alza. La Forestale vampira scappa nel suo castello… e il bosco è dell'EDT.`, v: 's_narr19' }, lines: [{ who: 'forestale6', t: L`Va bene, va bene… me ne vado. Tanto odio l'alba!`, v: 's_forestale10' }, { who: 'gabbah', t: L`EDT per sempre! Giro easy!`, v: 's_gabbah3' }] },
     ],
+    end: { t: L`Ma il bosco è finito, e sulle montagne cade la prima neve… Arriva Natale!`, v: 's_narr21' },
+  },
+  natale: {
+    title: L`Capitolo 7`, name: L`Natale in baita`,
+    scenes: [
+      { img: 'st8_1', cam: 'in', fx: ['snow', 'lights'], narr: { t: L`Dopo Halloween arriva l'inverno. L'EDT sale in baita per Natale: neve, presepe e vin brulè.`, v: 's_narr22' } },
+      { img: 'st8_2', cam: 'left', fx: ['snow', 'shiver'], lines: [{ who: 'mirco', t: L`Campa giù… io a Natale dormo in tenda anche con la neve!`, v: 's_mirco4' }] },
+      { img: 'st8_3', cam: 'punch', fx: ['snow', 'shake'], lines: [{ who: 'forestale7', t: L`Ho ho ho! Quest'anno sotto l'albero trovate… la multa!`, v: 's_forestale11' }] },
+      { img: 'st8_4', cam: 'out', fx: ['snow', 'lights'], lines: [{ who: 'svetlana', t: L`A Natale siamo tutti più buoni… tranne la Forestale.`, v: 's_svetlana4' }, { who: 'gabbah', t: L`Allora vin brulè per tutti, e via a costruire la baita!`, v: 's_gabbah7' }] },
+    ],
+    end: { t: L`Accendi le luci, costruisci il villaggio di Natale… e smaschera la Forestale Babbo Natale!`, v: 's_narr23' },
+  },
+  natalefine: {
+    title: L`Capitolo 7`, name: L`Buon Natale, EDT`,
+    scenes: [
+      { img: 'st8_5', cam: 'out', fx: ['fireworks', 'snow'], narr: { t: L`La baita è accesa e l'albero brilla. La Forestale Babbo Natale si arrende… e porta pure un regalo.`, v: 's_narr24' }, lines: [{ who: 'forestale7', t: L`Va bene, va bene… questo è per voi. Dentro c'è una multa, ma col fiocco!`, v: 's_forestale12' }, { who: 'gabbah', t: L`Buon Natale EDT! Giro easy!`, v: 's_gabbah8' }] },
+    ],
+    end: { t: L`Smaltito il panettone, l'EDT scende in città: è quasi Capodanno!`, v: 's_narr25' },
+  },
+  capodanno: {
+    title: L`Capitolo 8`, name: L`Capodanno in città`,
+    scenes: [
+      { img: 'st9_1', cam: 'in', fx: ['lights', 'confetti'], narr: { t: L`Ultima notte dell'anno. L'EDT arriva in piazza con le moto addobbate, pronta a festeggiare.`, v: 's_narr26' } },
+      { img: 'st9_2', cam: 'left', fx: ['lights', 'sparkle'], lines: [{ who: 'costa', t: L`Cotechino e lenticchie portano soldi! E se ci metto una trota, porta anche pesci.`, v: 's_costa2' }] },
+      { img: 'st9_3', cam: 'punch', fx: ['fireworks', 'shake'], lines: [{ who: 'forestale8', t: L`Botti senza permesso? Multa! Spumante in strada? Multa! Prrrrr!`, v: 's_forestale13' }] },
+      { img: 'st9_4', cam: 'out', fx: ['sparkle', 'confetti'], lines: [{ who: 'purcello', t: L`Il conto alla rovescia lo facciamo noi. E i botti li accendo io!`, v: 's_purcello1' }, { who: 'gabbah', t: L`Prendiamoci la piazza prima di mezzanotte!`, v: 's_gabbah9' }] },
+    ],
+    end: { t: L`Costruisci la piazza della festa… e porta l'EDT fino a mezzanotte!`, v: 's_narr27' },
+  },
+  capofine: {
+    title: L`Capitolo 8`, name: L`Buon anno, EDT`,
+    scenes: [
+      { img: 'st9_5', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Dieci, nove, otto… mezzanotte! Fuochi d'artificio, spumante e la Forestale vigile che balla in piazza.`, v: 's_narr28' }, lines: [{ who: 'forestale8', t: L`E va bene… per stanotte niente multe. Buon anno!`, v: 's_forestale14' }, { who: 'gabbah', t: L`Buon anno EDT! E a gennaio… si parte per la Dakar!`, v: 's_gabbah10' }] },
+    ],
+    end: { t: L`Gennaio: l'EDT si iscrive alla corsa più dura del mondo. Destinazione Dakar!`, v: 's_narr29' },
+  },
+  dakar: {
+    title: L`Capitolo 9`, name: L`La Dakar`,
+    scenes: [
+      { img: 'st10_1', cam: 'in', fx: ['sun', 'dust'], narr: { t: L`Diecimila chilometri di deserto, dune e pietre. L'EDT è alla partenza della Dakar… con la borsa frigo.`, v: 's_narr30' } },
+      { img: 'st10_2', cam: 'left', fx: ['sun', 'dust'], lines: [{ who: 'miti', t: L`Ho montato sette GoPro: voglio riprendere anche le dune che mi passano sopra!`, v: 's_miti1' }] },
+      { img: 'st10_3', cam: 'punch', fx: ['dust', 'shake'], lines: [{ who: 'forestale9', t: L`Commissario di gara! Roadbook sbagliato? Penalità… e multa!`, v: 's_forestale15' }] },
+      { img: 'st10_4', cam: 'out', fx: ['sparkle', 'lights'], lines: [{ who: 'renard', t: L`La moto la sistemo io… domani.`, v: 's_renard0' }, { who: 'gabbah', t: L`Domani siamo già in Senegal, Renard!`, v: 's_gabbah11' }] },
+    ],
+    end: { t: L`Costruisci il bivacco, attraversa il deserto… e porta l'EDT sul podio del Lago Rosa!`, v: 's_narr31' },
+  },
+  dakarfine: {
+    title: L`Finale`, name: L`L'EDT sul podio`,
+    scenes: [
+      { img: 'st10_5', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Lago Rosa, Senegal. Dopo nove regni e mille multe, l'EDT sale sul podio della Dakar. La Forestale si arrende per sempre.`, v: 's_narr32' }, lines: [{ who: 'forestale9', t: L`Basta, mi arrendo! Il blocchetto lo appendo al chiodo.`, v: 's_forestale16' }, { who: 'gabbah', t: L`EDT per sempre! Tranquilli, era un giro easy!`, v: 's_gabbah12' }] },
+    ],
     end: { t: L`Fine… per ora. Grazie per aver giocato con l'Enduro Drinking Team!`, v: 's_narr8' },
   },
 };
-export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine', 'oktober', 'oktofine', 'hallo', 'hallofine'];
+export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine', 'oktober', 'oktofine', 'hallo', 'hallofine', 'natale', 'natalefine', 'capodanno', 'capofine', 'dakar', 'dakarfine'];
 
 let opts = {};
 export function initStory(o) { opts = o; }   // { I, SRC, voiceSrc, duck, canVoice, click }

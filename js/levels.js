@@ -251,7 +251,7 @@ function goalsFrom(layout = [], tiles = []) {
 const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 98, 107, 117, 127, 137, 147, 157, 168, 177]);
 export const isHard = (n) => HARD.has(n);
 // scenario "naturale" di un livello (1-30 Valle, 31-60 Passo, ...)
-export const natZone = (n) => (n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
+export const natZone = (n) => (n > 240 ? 8 : n > 210 ? 7 : n > 180 ? 6 : n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
 // z = scenario in cui si gioca: se è diverso da quello naturale il livello viene costruito con gli ostacoli di quello scenario,
 // con la difficoltà del numero di livello e le mosse tarate col simulatore (TUNED)
 export function getLevel(n, z = natZone(n)) {
@@ -299,7 +299,7 @@ function themedLevel(n, z) {
     const lv = bossLevel(n, rng, tier, z);
     return lv;
   }
-  const lv = z >= 5 ? halloLevel(nn, rng, tier) : z === 4 ? oktoberLevel(nn, rng, tier) : z === 3 ? moroccoLevel(nn, rng, tier) : plainLevel(nn, rng, tier, z);
+  const lv = z >= 6 ? partyLevel(nn, rng, tier, z) : z === 5 ? halloLevel(nn, rng, tier) : z === 4 ? oktoberLevel(nn, rng, tier) : z === 3 ? moroccoLevel(nn, rng, tier) : plainLevel(nn, rng, tier, z);
   lv.n = n;
   return lv;
 }
@@ -427,6 +427,57 @@ const BOSS_LINES6 = [
   L`Ho dormito tutto il giorno nella bara. Adesso sono pieno di energia.`,
   L`I fantasmi lavorano per me. Anche loro hanno il blocchetto.`,
 ];
+const BOSS_LINES7 = [
+  L`Ho ho ho! Quest'anno sotto l'albero trovate… la multa!`,
+  L`Ho controllato la lista due volte: siete tutti nella lista dei cattivi.`,
+  L`Niente renne, niente moto: sulla neve si va a piedi. Multa!`,
+  L`Il carbone ve lo porto io, altro che la Befana.`,
+];
+const BOSS_LINES8 = [
+  L`Botti senza permesso? Multa! Spumante in strada? Multa!`,
+  L`Stanotte il fischietto non me lo toglie nessuno. Prrrrr!`,
+  L`Il conto alla rovescia lo faccio io: dieci, nove… multa!`,
+  L`Anno nuovo, blocchetto nuovo. Ed è già pieno di nomi vostri.`,
+];
+const BOSS_LINES9 = [
+  L`Commissario di gara! Roadbook sbagliato? Penalità… e multa!`,
+  L`Nel deserto il limite è trenta all'ora. Anche per i camion.`,
+  L`Waypoint saltato? Un'ora di penalità e la multa in arabo.`,
+  L`La tempesta di sabbia l'ho ordinata io. Buona navigazione!`,
+];
+// Natale (181+), Capodanno (211+), Dakar (241+): stessi meccanismi, ostacoli a tema (catena, multa che si allarga, blocchi, casse, pozze, fusti, a tempo)
+function partyLevel(n, rng, tier, z) {
+  const colors = 6, base0 = (z - 6) * 30 + 180;
+  const pick = z === 8
+    ? ['chain', 'rock', 'multa', 'velox+chain', 'crate+multa', 'drop', 'time', 'gomme+mud', 'rock+chain', 'drop+chain', 'velox+mud', 'crate', 'time', 'rock+multa']
+    : ['chain', 'rock', 'multa', 'chain+mud', 'crate+multa', 'drop', 'time', 'rock+chain', 'crate', 'drop+chain', 'mud+rock', 'time', 'crate+chain'];
+  const FIRST = { [base0 + 1]: 'chain', [base0 + 2]: 'rock', [base0 + 3]: 'multa', [base0 + 4]: 'crate' };
+  const kind = FIRST[n] || pick[(n * (z + 5) + Math.floor(rng() * 3)) % pick.length];
+  if (kind === 'time') {
+    const a = Math.floor(rng() * colors), b2 = (a + 1 + (z % 3)) % colors;
+    const layout = thin(makeLayout(rng, tier, rng() < .5 ? 'mud' : 'chain', rng() < .4), rng, 10);
+    const goals = [{ type: 'tile', t: a, n: 25 + Math.min(tier, 6) }, { type: 'tile', t: b2, n: 25 + Math.min(tier, 6) }, ...goalsFrom(layout)];
+    return { n, moves: 999, time: 105 + goals.length * 10, colors, goals, layout };
+  }
+  const base = ['chain', 'multa', 'mud', 'rock', 'crate'].filter((k) => kind.includes(k)).join('+') || 'none';
+  const G = makeLayout(rng, tier, base, rng() < 0.45).map((r) => r.split(''));
+  const free = (r, c) => G[r][c] === '.';
+  const sym = (r, c, ch) => { if (free(r, c)) G[r][c] = ch; if (free(r, 7 - c)) G[r][7 - c] = ch; };
+  if (kind.includes('velox')) for (let i = 0, g = 0; i < 2 && g < 80; g++) { const r = 2 + Math.floor(rng() * 5), c = Math.floor(rng() * 4); if (free(r, c)) { sym(r, c, 'v'); i++; } }
+  if (kind.includes('gomme')) for (let i = 0, g = 0; i < 2 && g < 80; g++) { const r = 2 + Math.floor(rng() * 5), c = 1 + Math.floor(rng() * 3); if (free(r, c)) { sym(r, c, 'g'); i++; } }
+  let drops = 0;
+  if (kind.includes('drop')) {
+    for (const c of [2, 5]) { for (let r = 0; r < 2; r++) if (G[r][c] === '#') G[r][c] = '.'; G[0][c] = 'd'; }
+    openForDrops(G);
+    drops = 4 + Math.min(2, Math.floor(((n - 1) % 30) / 10));
+  }
+  let layout = thin(G.map((r) => r.join('')), rng, 18);
+  const goals = goalsFrom(layout);
+  if (drops) goals.unshift({ type: 'drop', n: drops });
+  const weight = goals.reduce((s2, g) => s2 + (g.type === 'drop' ? g.n * 3.6 : g.type === 'mud' ? g.n / 5 : g.type === 'multa' ? 0 : g.type === 'velox' ? g.n * 1.0 : g.type === 'gomme' ? g.n * 0.5 : g.n / 3), 0);
+  const moves = Math.round(18 + weight * 0.9 + 3);
+  return { n, moves: Math.min(moves, drops ? 44 : 38), colors, goals, layout, drops };
+}
 function baseLevel(n) {
   if (HAND[n]) {
     const h = HAND[n];
@@ -440,6 +491,7 @@ function baseLevel(n) {
   const tier = Math.floor((n - 1) / 5);
   const isBoss = n % 5 === 0;
   const colors = 6;
+  if (n > 180 && !isBoss) return partyLevel(n, rng, tier, natZone(n));
   if (n > 150 && !isBoss) return halloLevel(n, rng, tier);
   if (n > 120 && !isBoss) return oktoberLevel(n, rng, tier);
   if (n > 90 && !isBoss) return moroccoLevel(n, rng, tier);
@@ -449,12 +501,12 @@ function baseLevel(n) {
 function bossLevel(n, rng, tier, z) {
   const colors = 6;
   const hp = Math.min(220 + (tier - 3) * 15, 430);   // oltre il livello ~110 la pazienza della Forestale non cresce più
-  const layout = makeLayout(rng, tier, z >= 5 ? (rng() < 0.5 ? 'rock' : 'chain') : z === 4 ? (rng() < 0.5 ? 'crate' : 'chain') : z === 3 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
-  const LINES = [BOSS_LINES, BOSS_LINES2, BOSS_LINES3, BOSS_LINES4, BOSS_LINES5, BOSS_LINES6][Math.min(z, 5)];
+  const layout = makeLayout(rng, tier, z >= 6 ? (rng() < 0.5 ? (z === 8 ? 'rock' : 'crate') : 'chain') : z === 5 ? (rng() < 0.5 ? 'rock' : 'chain') : z === 4 ? (rng() < 0.5 ? 'crate' : 'chain') : z === 3 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
+  const LINES = [BOSS_LINES, BOSS_LINES2, BOSS_LINES3, BOSS_LINES4, BOSS_LINES5, BOSS_LINES6, BOSS_LINES7, BOSS_LINES8, BOSS_LINES9][Math.min(z, 8)];
   return {
     n, moves: n > 90 ? 42 : 28, colors, boss: { hp, every: 4 },
     goals: [{ type: 'boss', n: hp }], layout,
-    intro: { who: ['forestale', 'forestale2', 'forestale3', 'forestale4', 'forestale5', 'forestale6'][Math.min(z, 5)], text: LINES[tier % LINES.length] },
+    intro: { who: ['forestale', 'forestale2', 'forestale3', 'forestale4', 'forestale5', 'forestale6', 'forestale7', 'forestale8', 'forestale9'][Math.min(z, 8)], text: LINES[tier % LINES.length] },
   };
 }
 function plainLevel(n, rng, tier, z) {
@@ -536,4 +588,4 @@ function makeLayout(rng, tier, kind, holes) {
   return G.map((row) => row.join(''));
 }
 
-export const MAX_LEVEL = 180;
+export const MAX_LEVEL = 270;

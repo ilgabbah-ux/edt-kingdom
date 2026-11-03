@@ -186,6 +186,9 @@ const THEME = [
   { c: ['#e8bf7a', '#d9a35a', '#f3d9a0'], k: 'puff', g: .02, up: .4, s: [5, 9] },
   { c: ['#ffffff', '#fff6dc', '#ffe9a8'], k: 'puff', g: -.06, up: 1.6, s: [4, 8] },
   { c: ['#b76bff', '#7cff6a', '#ff9a2a'], k: 'spark', g: -.02, up: .8, s: [2.5, 4.5] },
+  { c: ['#ffffff', '#e8f6ff', '#ff4d4d', '#ffd34d'], k: 'puff', g: .03, up: .5, s: [3, 6] },
+  { c: ['#ffd34d', '#ff4fd8', '#5ee8ff', '#ffffff'], k: 'spark', g: -.02, up: 1, s: [2.5, 4.5] },
+  { c: ['#f0c98a', '#e3a85a', '#fbe3b8'], k: 'puff', g: .02, up: .5, s: [5, 10] },
 ];
 export function theme(x, y, z = 0) {
   if (reduce()) return;

@@ -18,6 +18,9 @@ export const CHARS = {
   forestale4: { name: L`La Forestale in vacanza`, img: 'forestale4' },
   forestale5: { name: L`La Forestale all'Oktoberfest`, img: 'forestale5' },
   forestale6: { name: L`La Forestale vampira`, img: 'forestale6' },
+  forestale7: { name: L`La Forestale Babbo Natale`, img: 'forestale7' },
+  forestale8: { name: L`La Forestale vigile urbano`, img: 'forestale8' },
+  forestale9: { name: L`La Forestale commissario della Dakar`, img: 'forestale9' },
 };
 
 // x,y in percentuale sulla mappa
@@ -155,6 +158,69 @@ const HALLO = [
   { id: 'castello', name: L`Castello dell'EDT`, ix: 46, iy: 18, who: 'gabbah',
     text: L`Il castello della Forestale vampira adesso è nostro. Bandiera EDT sulla torre e birre in cantina!` },
 ];
+// Natale in baita (181-210)
+const NATALE = [
+  { id: 'albero', name: L`Albero di Natale`, ix: 67, iy: 77, who: 'costa',
+    text: L`Albero addobbato e sotto una moto col fiocco. Quest'anno Babbo Natale ha capito tutto.` },
+  { id: 'mercatino', name: L`Mercatino di Natale`, ix: 31, iy: 70, who: 'erika',
+    text: L`Cuori di pan di zenzero, palline e candele. Ho comprato tutto, anche il banco.` },
+  { id: 'vinbrule', name: L`Chiosco del vin brulè`, ix: 53, iy: 57, who: 'mirco',
+    text: L`Vin brulè bollente! Finalmente sento di nuovo le dita. Campa giù, un altro giro.` },
+  { id: 'slittino', name: L`Pista da slittino`, ix: 32, iy: 46, who: 'brizio',
+    text: L`Slittino o moto, per me è uguale: si scende in impennata.` },
+  { id: 'presepe', name: L`Presepe dell'EDT`, ix: 64, iy: 45, who: 'svetlana',
+    text: L`Il presepe dell'EDT: bue, asinello e una moto da enduro nella stalla. Perfetto.` },
+  { id: 'elfi', name: L`Laboratorio degli elfi`, ix: 46, iy: 35, who: 'renard',
+    text: L`Il laboratorio degli elfi! Le moto ve le sistemo entro Natale. Quale Natale, non lo so.` },
+  { id: 'pattinaggio', name: L`Pista di pattinaggio`, ix: 33, iy: 28, who: 'maggie',
+    text: L`Pista ghiacciata pronta. Io pattino, voi cadete. Tutto normale.` },
+  { id: 'slitta', name: L`Slitta di Babbo Natale`, ix: 63, iy: 27, who: 'purcello',
+    text: L`La slitta la tira una moto, e la moto la tiro io. Da dietro, come sempre.` },
+  { id: 'baita', name: L`Baita dell'EDT`, ix: 46, iy: 20, who: 'gabbah',
+    text: L`La baita dell'EDT! Stufa accesa, panettone e birre al fresco nella neve. Buon Natale, ragazzi!` },
+];
+// Capodanno in città (211-240)
+const CAPODANNO = [
+  { id: 'trattoria', name: L`Cotechino e lenticchie`, ix: 67, iy: 76, who: 'costa',
+    text: L`Cotechino e lenticchie: portano soldi! Io ci aggiungo una trota, porta fortuna doppia.` },
+  { id: 'bollicine', name: L`Bar delle bollicine`, ix: 30, iy: 70, who: 'claudio',
+    text: L`Torre di bicchieri e spumante in fresco. Il primo brindisi lo offro io. Anche il secondo.` },
+  { id: 'ballo', name: L`Pista da ballo`, ix: 52, iy: 57, who: 'erika',
+    text: L`Palla da discoteca accesa! Stanotte si balla fino all'alba.` },
+  { id: 'bus', name: L`Bus della festa`, ix: 32, iy: 46, who: 'luigi',
+    text: L`Bus a due piani, musica a palla e giro della città. Spedivello anche col bus.` },
+  { id: 'palco8', name: L`Palco di Capodanno`, ix: 64, iy: 45, who: 'svetlana',
+    text: L`Sul palco ci salgo io: microfono acceso e tutta la piazza che canta con l'EDT!` },
+  { id: 'discoteca', name: L`Discoteca EDT`, ix: 46, iy: 36, who: 'alex',
+    text: L`Luci al neon e tappeto rosso. Il buttafuori fa entrare solo chi ha il casco.` },
+  { id: 'terrazza', name: L`Terrazza sui tetti`, ix: 33, iy: 28, who: 'miti',
+    text: L`Dalla terrazza si riprende tutta la città. La GoPro è pronta per mezzanotte.` },
+  { id: 'fuochi', name: L`Rampa dei fuochi`, ix: 63, iy: 28, who: 'purcello',
+    text: L`Razzi, fontane e girandole. Li accendo io: se qualcosa va storto, vi traino via io.` },
+  { id: 'orologio', name: L`Torre dell'orologio`, ix: 47, iy: 19, who: 'gabbah',
+    text: L`Dieci, nove, otto… La torre dell'orologio è nostra. Buon anno, EDT!` },
+];
+// La Dakar (241-270)
+const DAKAR = [
+  { id: 'carburante', name: L`Deposito carburante`, ix: 66, iy: 77, who: 'purcello',
+    text: L`Fusti pieni e taniche in fila. Se qualcuno resta a secco, lo traino io fino a Dakar.` },
+  { id: 'mensa', name: L`Mensa del bivacco`, ix: 29, iy: 70, who: 'mirco',
+    text: L`Griglia accesa e borsa frigo piena. Al bivacco si mangia bene. Campa giù.` },
+  { id: 'oasi9', name: L`L'oasi`, ix: 52, iy: 57, who: 'costa',
+    text: L`Un'oasi con lo stagno! Ci sarà una trota del deserto? Io la canna la butto.` },
+  { id: 'roadbook', name: L`Tenda della navigazione`, ix: 33, iy: 46, who: 'linus',
+    text: L`Roadbook, GPS e bussola. Tranquilli, è un giro easy: sono solo ottocento chilometri.` },
+  { id: 'officina9', name: L`Officina sotto le stelle`, ix: 64, iy: 45, who: 'renard',
+    text: L`Officina aperta tutta la notte. La moto ve la riparo… domani. Forse dopodomani.` },
+  { id: 'elicottero', name: L`Elicottero della gara`, ix: 45, iy: 36, who: 'miti',
+    text: L`Dall'elicottero riprendo tutta la tappa. E se cadete, vi vengo a prendere io.` },
+  { id: 'camion9', name: L`Camion della Dakar`, ix: 33, iy: 29, who: 'guccio',
+    text: L`Il camion d'assistenza è arrivato: ricambi, gomme e un frigo pieno di birre.` },
+  { id: 'cammello', name: L`Bivacco dei cammelli`, ix: 63, iy: 29, who: 'brizio',
+    text: L`Ho provato a impennare anche il cammello. Lui non ha gradito.` },
+  { id: 'podio', name: L`Podio del Lago Rosa`, ix: 46, iy: 21, who: 'gabbah',
+    text: L`Il podio sul Lago Rosa! Dakar finita, coppa d'oro e spumante per tutti. L'EDT è leggenda!` },
+];
 export const ZONES = [
   { id: 'valle', name: L`La Valle`, bg: 'map_bg', boss: 'forestale', from: 1,
     // sentiero sulla mappa (pixel dell'immagine 1280x1280) per la moto che gira
@@ -170,6 +236,9 @@ export const ZONES = [
     trail: [[640,1275],[605,1180],[575,1080],[555,990],[545,900],[575,830],[520,760],[470,700],[520,640],[600,600],[640,540],[655,470],[700,420],[700,360],[640,320],[580,270],[600,210],[640,160],[600,120]], buildings: OKTOBER },
   { id: 'hallo', name: L`Halloween nel bosco`, bg: 'map6_bg', boss: 'forestale6', from: 151,
     trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: HALLO },
+  { id: 'natale', name: L`Natale in baita`, bg: 'map7_bg', boss: 'forestale7', from: 181, trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: NATALE },
+  { id: 'capodanno', name: L`Capodanno in città`, bg: 'map8_bg', boss: 'forestale8', from: 211, trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: CAPODANNO },
+  { id: 'dakar', name: L`La Dakar`, bg: 'map9_bg', boss: 'forestale9', from: 241, trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: DAKAR },
 ];
 VALLE.forEach((b) => { b.zone = 'valle'; });
 PASSO.forEach((b) => { b.zone = 'passo'; });
@@ -177,6 +246,9 @@ CAVA.forEach((b) => { b.zone = 'cava'; });
 MAROCCO.forEach((b) => { b.zone = 'marocco'; });
 OKTOBER.forEach((b) => { b.zone = 'oktober'; });
 HALLO.forEach((b) => { b.zone = 'hallo'; });
-export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA, ...MAROCCO, ...OKTOBER, ...HALLO];
+NATALE.forEach((b) => { b.zone = 'natale'; });
+CAPODANNO.forEach((b) => { b.zone = 'capodanno'; });
+DAKAR.forEach((b) => { b.zone = 'dakar'; });
+export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA, ...MAROCCO, ...OKTOBER, ...HALLO, ...NATALE, ...CAPODANNO, ...DAKAR];
 // zona di un livello: 0 = Valle, 1 = Passo, 2 = Cava
-export const zoneOfLevel = (n) => (n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
+export const zoneOfLevel = (n) => (n > 240 ? 8 : n > 210 ? 7 : n > 180 ? 6 : n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);

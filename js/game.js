@@ -3065,6 +3065,26 @@ $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Stelle<
 $('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
 $('#btnShareGame').onclick = () => V.shareGame();
+// ---------- installa come app (icona nella schermata Home) ----------
+let installEvt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const APP_URL = 'https://ilgabbah-ux.github.io/kingdom/';
+function syncInstallBtn() { const b = $('#btnInstall'); if (b) b.hidden = isStandalone(); }
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; syncInstallBtn(); });
+addEventListener('appinstalled', () => { installEvt = null; syncInstallBtn(); toast(L`Gioco installato! Lo trovi nella Home 📲`, 2200); });
+syncInstallBtn();
+$('#btnInstall').onclick = async () => {
+  sfx.click();
+  if (installEvt) { const ev = installEvt; installEvt = null; ev.prompt(); try { const r = await ev.userChoice; if (r.outcome === 'accepted') fireworks(900); } catch { /* */ } return; }
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const onSite = /github\.io$/.test(location.hostname) || location.hostname === 'localhost';
+  const steps = !onSite
+    ? L`Per metterlo nella Home apri il gioco sul suo sito e da lì tocca di nuovo <b>📲 App</b>.`
+    : ios ? (/CriOS|FxiOS|EdgiOS/.test(ua) ? L`Su iPhone serve <b>Safari</b>: apri questo link in Safari, poi tocca <b>Condividi</b> <span class="kbd">⬆︎</span> e <b>Aggiungi alla schermata Home</b>.` : L`1. Tocca <b>Condividi</b> <span class="kbd">⬆︎</span> nella barra di Safari<br>2. Scorri e scegli <b>Aggiungi alla schermata Home</b><br>3. Tocca <b>Aggiungi</b>: l'icona EDT Kingdom compare nella Home e il gioco parte a schermo intero, come un'app.`)
+    : L`1. Apri il menu del browser <span class="kbd">⋮</span> in alto a destra<br>2. Scegli <b>Installa app</b> (o <b>Aggiungi a schermata Home</b>)<br>3. Conferma: l'icona EDT Kingdom compare nella Home e il gioco parte a schermo intero, come un'app.`;
+  showCard(L`<div class="instico"></div><h2>Gioca come un'app</h2>${speakerHTML('gabbah', L`Metti EDT Kingdom nella Home del telefono: si apre con un tocco, a schermo intero, e i progressi restano salvati.`)}<p class="inststeps">${steps}</p>
+    <div class="row">${onSite ? '' : `<a class="btn btn-share" href="${APP_URL}" target="_blank" rel="noopener">${L`Apri il sito`}</a>`}<button id="cOk" class="btn btn-play">${L`Ok!`}</button></div>`, { cOk: hideCard });
+};
 $('#btnDiploma').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openDiploma(); };
 $('#btnShareGame').title = L`Condividi`;
 $('#btnDiploma').title = L`Attestato`;

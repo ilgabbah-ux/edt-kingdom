@@ -30,6 +30,7 @@ css = open('style.css').read()
 BIG = sorted(set(m for m in re.findall(r"url\('img/(map\w*)\.webp'\)", css)))   # mappe: una sola copia, prese da window.__A
 css = re.sub(r"url\('img/(map\w*)\.webp'\)", lambda m: f"var(--i-{m.group(1)})", css)
 css = re.sub(r"url\('img/([\w]+)\.webp'\)", lambda m: f"url('data:image/webp;base64,{b64l('img/' + m.group(1) + '.webp')}')", css)
+css = css.replace("url('icon2-192.png')", "url('data:image/png;base64," + b64('icon2-192.png') + "')")
 css = re.sub(r"url\('fonts/([\w]+)\.woff2'\)", lambda m: f"url('data:font/woff2;base64,{b64('fonts/' + m.group(1) + '.woff2')}')", css)
 assets = {f[:-5]: 'data:image/webp;base64,' + b64l('img/' + f) for f in sorted(os.listdir('img')) if f.endswith('.webp')}
 amap = 'window.__A={' + ','.join(f'"{k}":"{v}"' for k, v in assets.items()) + '};'

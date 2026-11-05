@@ -380,11 +380,17 @@ export async function shareProgress() {
   try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); X.toast(L`Link copiato! Incollalo sull'altro dispositivo`, 1800); } catch { prompt(L`Copia questo link:`, url); }
 }
-export async function readProgressLink() {
+// link dei progressi pronto in anticipo (per copiarlo con un tocco anche su Safari)
+export async function progressLink() {
+  const keep = { ...X.save }; delete keep.run; delete keep.challenge;
+  return gameURL({ salva: await pack({ v: 1, save: keep, nick: X.getNick(), code: X.getCode() }) });
+}
+export async function readProgressLink(fromText = null, onNo = null) {
   let code = null;
-  try { code = new URLSearchParams(location.search).get('salva'); } catch { /* */ }
+  if (fromText) { const m = String(fromText).match(/[?&]salva=([\w-]+)/) || String(fromText).trim().match(/^([zj][\w-]{20,})$/); code = m && m[1]; if (!code) { X.toast(L`Non trovo i progressi in quello che hai incollato`, 1800); return false; } }
+  else try { code = new URLSearchParams(location.search).get('salva'); } catch { /* */ }
   if (!code) return false;
-  try { history.replaceState(null, '', location.pathname); } catch { /* */ }
+  if (!fromText) try { history.replaceState(null, '', location.pathname); } catch { /* */ }
   let data;
   try { data = await unpack(code); } catch { X.toast(L`Link dei progressi non valido`, 1500); return false; }
   if (!data || !data.save) return false;
@@ -392,8 +398,8 @@ export async function readProgressLink() {
   X.showCard(L`<h2>Progressi trovati</h2><p>Livello <b>${Math.min(s.level || 1, X.MAX_LEVEL)}</b> · <b>${s.coins || 0}</b> monete${data.nick ? L` · nome <b>${esc(data.nick)}</b>` : ''}.</p>
     <p>Li carico su questo dispositivo? Quelli che ci sono adesso (livello <b>${X.save.level || 1}</b>) vengono sostituiti.</p>
     <div class="row"><button id="cNo" class="btn btn-gray">No</button><button id="cYes" class="btn btn-play">Sì, caricali</button></div>`, {
-    cNo: X.hideCard,
-    cYes: () => { X.replaceSave(s, data.nick, data.code); },
+    cNo: () => { X.hideCard(); if (onNo) onNo(); },
+    cYes: () => { if (fromText) s.appBonus = s.appBonus || 0; X.replaceSave(s, data.nick, data.code); },
   });
   return true;
 }

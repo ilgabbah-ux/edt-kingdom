@@ -721,6 +721,7 @@ function flyStarToCounter() {
         if (!pendingStar) {
           renderHome();
           if (G.autoBuild) { G.autoBuild = false; if (save.stars >= STEP_COST && nextBuilding()) { save.tutBuild = true; persist(); setTimeout(() => tryBuild(), 350); return; } }
+          setTimeout(() => { if ($('#overlay').classList.contains('hidden') && !G.building && !pendingStar && $('#home').classList.contains('active')) maybeInviteInstall(); }, 1600);
           if (!save.tutBuild && save.stars >= STEP_COST && nextBuilding()) {
             save.tutBuild = true; persist();
             setTimeout(() => homeTip('gabbah', L`Hai abbastanza <b>stelle</b>! Tocca <b>Costruisci</b> qui sotto per alzare un pezzo del Campo Base.`), 250);
@@ -764,7 +765,7 @@ function checkDaily() {
   if (!save.welcomed || (save.daily && save.daily.last === today)) return false;
   const y = new Date(); y.setDate(y.getDate() - 1);
   const streak = save.daily && save.daily.last === dayKey(y) ? (save.daily.streak % 7) + 1 : 1;
-  save.daily = { last: today, streak }; persist();
+  save.daily = { last: today, streak }; persist(); updateBadge();
   dailyCalendar(streak, () => V.spinWheel(streak, () => { if (typeof offerEvent === 'function') offerEvent(); }));
   return true;
 }
@@ -3082,9 +3083,60 @@ $('#btnInstall').onclick = async () => {
     ? L`Per metterlo nella Home apri il gioco sul suo sito e da lì tocca di nuovo <b>📲 App</b>.`
     : ios ? (/CriOS|FxiOS|EdgiOS/.test(ua) ? L`Su iPhone serve <b>Safari</b>: apri questo link in Safari, poi tocca <b>Condividi</b> <span class="kbd">⬆︎</span> e <b>Aggiungi alla schermata Home</b>.` : L`1. Tocca <b>Condividi</b> <span class="kbd">⬆︎</span> nella barra di Safari<br>2. Scorri e scegli <b>Aggiungi alla schermata Home</b><br>3. Tocca <b>Aggiungi</b>: l'icona EDT Kingdom compare nella Home e il gioco parte a schermo intero, come un'app.`)
     : L`1. Apri il menu del browser <span class="kbd">⋮</span> in alto a destra<br>2. Scegli <b>Installa app</b> (o <b>Aggiungi a schermata Home</b>)<br>3. Conferma: l'icona EDT Kingdom compare nella Home e il gioco parte a schermo intero, come un'app.`;
-  showCard(L`<div class="instico"></div><h2>Gioca come un'app</h2>${speakerHTML('gabbah', L`Metti EDT Kingdom nella Home del telefono: si apre con un tocco, a schermo intero, e i progressi restano salvati.`)}<p class="inststeps">${steps}</p>
-    <div class="row">${onSite ? '' : `<a class="btn btn-share" href="${APP_URL}" target="_blank" rel="noopener">${L`Apri il sito`}</a>`}<button id="cOk" class="btn btn-play">${L`Ok!`}</button></div>`, { cOk: hideCard });
+  const copyStep = ios && onSite && (save.level > 1 || save.welcomed);
+  let link = null; if (copyStep) V.progressLink().then((u) => { link = u; }).catch(() => {});
+  showCard(L`<div class="instico"></div><h2>Gioca come un'app</h2>${copyStep ? '' : speakerHTML('gabbah', L`Metti EDT Kingdom nella Home del telefono: si apre con un tocco, a schermo intero, e c'è un <b>regalo</b> la prima volta che lo apri da lì.`)}${copyStep ? `<div class="copystep"><b>${L`Prima di tutto:`}</b> ${L`su iPhone l'app nella Home parte vuota. Copia i tuoi progressi e incollali quando la apri.`}<button id="cCopy" class="btn btn-share">📋 ${L`Copia i miei progressi`}</button></div>` : ''}<p class="inststeps">${steps}</p>
+    <div class="row">${onSite ? '' : `<a class="btn btn-share" href="${APP_URL}" target="_blank" rel="noopener">${L`Apri il sito`}</a>`}<button id="cOk" class="btn btn-play">${L`Ok!`}</button></div>`, {
+    cOk: hideCard,
+    cCopy: () => {
+      const done = () => { const b = $('#cCopy'); if (b) { b.innerHTML = `✅ ${L`Progressi copiati!`}`; b.disabled = true; } save.copiedForApp = true; persist(); };
+      if (!link) { toast(L`Un attimo e riprova`, 1000); return; }
+      try { navigator.clipboard.writeText(link).then(done, () => { prompt(L`Copia questo link:`, link); done(); }); } catch { prompt(L`Copia questo link:`, link); done(); }
+    },
+  });
 };
+// ---------- prima apertura dall'icona nella Home ----------
+// regalo dell'app (una volta sola) e, su un'app nuova, la possibilità di incollare i progressi del browser
+function appFirstRun(next) {
+  if (!isStandalone()) return next();
+  const gift = () => {
+    if (save.appBonus) return next();
+    save.appBonus = 1; save.coins += 300; save.inv.grappa = (save.inv.grappa || 0) + 1; persist(); renderHome();
+    showCard(L`<div class="instico"></div><h2>Benvenuto nell'app!</h2>${speakerHTML('gabbah', L`Grande, adesso EDT Kingdom è nella tua Home. Ecco il regalo per averlo installato!`)}<p class="appgift"><b>+300 ${IC_C}</b> · <b>+1 ${L`Grappa`}</b></p><div class="row"><button id="cOk" class="btn btn-play">${L`Si parte!`}</button></div>`, { cOk: () => { hideCard(); fireworks(700); setTimeout(next, 500); } });
+  };
+  const fresh = (save.level || 1) <= 1 && !Object.keys(save.steps || {}).length;
+  if (!fresh) return gift();
+  showCard(L`<div class="instico"></div><h2>Hai già giocato nel browser?</h2>${speakerHTML('gabbah', L`Se hai copiato i progressi prima di installare, incollali qui e riparti da dove eri.`)}
+    <textarea id="pasteBox" class="pastebox" rows="2" placeholder="${L`Incolla qui il link dei progressi`}"></textarea>
+    <div class="row"><button id="cNew" class="btn btn-gray">${L`Comincio da zero`}</button><button id="cPaste" class="btn btn-play">📋 ${L`Incolla`}</button></div>`, {
+    cNew: () => { hideCard(); gift(); },
+    cPaste: async () => {
+      let t = $('#pasteBox').value;
+      if (!t) try { t = await navigator.clipboard.readText(); $('#pasteBox').value = t || ''; } catch { /* */ }
+      if (!t) { toast(L`Tieni premuto nel riquadro e scegli Incolla`, 1800); return; }
+      V.readProgressLink(t, () => appFirstRun(next));
+    },
+  });
+}
+// ---------- invito a installare dopo una bella vittoria ----------
+function maybeInviteInstall() {
+  if (isStandalone() || save.level < 6 || (save.instAsk || 0) >= 3) return false;
+  const day = Math.floor(Date.now() / 864e5); if (save.instDay && day - save.instDay < 3) return false;
+  save.instAsk = (save.instAsk || 0) + 1; save.instDay = day; persist();
+  showCard(L`<div class="instico bounce"></div><h2>Mettimi nella Home!</h2>${speakerHTML('purcello', L`Installa EDT Kingdom come un'app: parte con un tocco, a schermo intero, e la prima volta che lo apri da lì ti regalo <b>300 ${IC_C}</b> e una <b>Grappa</b>.`)}
+    <div class="row"><button id="cLater" class="btn btn-gray">${L`Dopo`}</button><button id="cInst" class="btn btn-play">📲 ${L`Installa`}</button></div>`, {
+    cLater: hideCard, cInst: () => { hideCard(); $('#btnInstall').onclick(); },
+  });
+  return true;
+}
+// ---------- pallino sull'icona dell'app: 1 se la ruota del giorno è da girare ----------
+function updateBadge() {
+  const n = save.welcomed && !(save.daily && save.daily.last === dayKey()) ? 1 : 0;
+  try { if (navigator.setAppBadge) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch { /* */ }
+  // il service worker lo riaccende da solo il giorno dopo (Android, app installata)
+  try { if ('caches' in window) caches.open('edtk-meta').then((c) => c.put('daily-last', new Response(save.daily ? save.daily.last : ''))); } catch { /* */ }
+}
+(async () => { try { const r = await navigator.serviceWorker?.ready; if (r && r.periodicSync && isStandalone()) await r.periodicSync.register('edt-badge', { minInterval: 6 * 3600e3 }); } catch { /* permesso non dato: pazienza */ } })();
 $('#btnDiploma').onclick = () => { if (G.building || pendingStar) return; sfx.click(); V.openDiploma(); };
 $('#btnShareGame').title = L`Condividi`;
 $('#btnDiploma').title = L`Attestato`;
@@ -3210,16 +3262,18 @@ AU.playMusic(homeTrack());
 preload.then(() => { const l = $('#loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 400); } });
 const firstStory = !save.story.intro;
 const offerEvent = () => { const ep = V.eventProgress(); if (!ep || save.evSeen === ep.st.id) return false; save.evSeen = ep.st.id; persist(); V.openEvent(); return true; };
-const startup = async () => { if (/[?&]stats\b/.test(location.search)) { openStats(); return; } if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); }
+const goParam = (() => { try { return new URLSearchParams(location.search).get('go'); } catch { return null; } })();
+const startup = async () => { if (/[?&]stats\b/.test(location.search)) { openStats(); return; } updateBadge();
+  if (isStandalone() && !save.appBonus) { await new Promise((r) => appFirstRun(r)); } if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); }
   if (currentZone().id === 'hallo' && !save.story.hallo && save.story.oktober) { if (!save.story.oktofine) await showStory('oktofine'); await showStory('hallo'); viewZone = null; renderHome(); }
-  for (const [zid, prev, pre] of [['natale', 'hallo', 'hallofine'], ['capodanno', 'natale', 'natalefine'], ['dakar', 'capodanno', 'capofine']]) if (currentZone().id === zid && !save.story[zid] && save.story[prev]) { if (!save.story[pre]) await showStory(pre); await showStory(zid); viewZone = null; renderHome(); } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
+  for (const [zid, prev, pre] of [['natale', 'hallo', 'hallofine'], ['capodanno', 'natale', 'natalefine'], ['dakar', 'capodanno', 'capofine']]) if (currentZone().id === zid && !save.story[zid] && save.story[prev]) { if (!save.story[pre]) await showStory(pre); await showStory(zid); viewZone = null; renderHome(); } if (goParam === 'album') { V.openAlbum(V.zonePage()); return; } if (goParam === 'gioca' && save.level <= MAX_LEVEL && !checkDaily()) { openLevel(); return; } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
 if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
 else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {
   save.welcomed = true; persist();
   // primo minuto: storia (saltabile) e poi dritti nel livello 1, oppure nella sfida dell'amico
   if (/[?&]salva=/.test(location.search)) preload.then(() => V.readProgressLink());
-  else preload.then(() => setTimeout(async () => { await showStory('intro'); if (!V.offerChallenge()) { startLevel(1); toast(L`Scambia due tessere vicine!`, 1600); } }, 500));
+  else preload.then(() => setTimeout(async () => { if (isStandalone()) { await new Promise((r) => appFirstRun(r)); if (save.level > 1) return; } await showStory('intro'); if (!V.offerChallenge()) { startLevel(1); toast(L`Scambia due tessere vicine!`, 1600); } }, 500));
 }
 
 // per i test automatici

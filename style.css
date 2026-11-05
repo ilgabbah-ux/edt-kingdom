@@ -1197,3 +1197,8 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .instico { width: 84px; height: 84px; margin: 0 auto 4px; border-radius: 20px; background: url('icon2-192.png') center/cover; box-shadow: 0 4px 0 rgba(0,0,0,.25); }
 .inststeps { text-align: left; line-height: 1.5; font-size: 15px; margin: 8px 4px; }
 .kbd { display: inline-block; padding: 0 6px; border-radius: 6px; background: #e8eefc; border: 1px solid #b8c6e8; font-weight: 800; }
+.copystep { margin: 8px 2px 2px; padding: 8px 10px; border-radius: 12px; background: #fff3c4; border: 2px dashed #e0a21b; font-size: 14px; line-height: 1.35; text-align: left; }
+.copystep .btn { display: block; width: 100%; margin-top: 6px; }
+.pastebox { width: 100%; box-sizing: border-box; margin: 8px 0 4px; padding: 8px 10px; border-radius: 12px; border: 2px solid #b8c6e8; font: 600 14px var(--fb); resize: none; }
+.appgift { font: 400 24px var(--fd); color: #2a8a37; margin: 8px 0; }
+.instico.bounce { animation: stkNew .8s cubic-bezier(.2,1.6,.4,1) both, hardPulse 1.6s 1s ease-in-out infinite; }

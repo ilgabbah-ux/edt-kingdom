@@ -1,7 +1,7 @@
 // EDT Kingdom — livelli
 import { L } from './i18n.js';
 import { makeRng, ROWS, COLS } from './engine.js';
-import { TUNED as TUNED0, HTUNED as HT0 } from './tuned.js';
+import { TUNED as TUNED0, HTUNED as HT0, ETUNED as ET0 } from './tuned.js';
 
 // Layout (9 righe x 8 colonne):
 // '.' normale   '#' casella vuota (fuori griglia)
@@ -251,15 +251,46 @@ function goalsFrom(layout = [], tiles = []) {
 // con meno mosse e premi più grossi; i 2 livelli dopo sono più facili per rifiatare
 const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 98, 108, 117, 127, 137, 147, 157, 168, 177, 187, 198, 207, 217, 229, 237, 247, 257, 267]);
 const SUPER = new Set([43, 73, 103, 133, 163, 193, 223, 253]);
-export const isHard = (n) => HARD.has(n) || SUPER.has(n);
-export const isSuper = (n) => SUPER.has(n);
+export const isHard = (n) => (n > 270 ? n % 10 === 7 || n % 30 === 13 : HARD.has(n) || SUPER.has(n));
+export const isSuper = (n) => (n > 270 ? n % 30 === 13 : SUPER.has(n));
 export const hardKind = (n) => (SUPER.has(n) ? 2 : HARD.has(n) ? 1 : 0);
 export const isBreather = (n) => !hardKind(n) && n % 5 !== 0 && (hardKind(n - 1) > 0 || hardKind(n - 2) > 0);
 // scenario "naturale" di un livello (1-30 Valle, 31-60 Passo, ...)
-export const natZone = (n) => (n > 240 ? 8 : n > 210 ? 7 : n > 180 ? 6 : n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
+export const natZone = (n) => (n > 270 ? ((n - 271) % 300) % 9 : n > 240 ? 8 : n > 210 ? 7 : n > 180 ? 6 : n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
 // z = scenario in cui si gioca: se è diverso da quello naturale il livello viene costruito con gli ostacoli di quello scenario,
 // con la difficoltà del numero di livello e le mosse tarate col simulatore (TUNED)
+// ---------- GIRO INFINITO: dopo il 270 i livelli continuano per sempre ----------
+// ogni livello prende lo schema di un livello avanzato (151-270) e lo ricostruisce in uno scenario che ruota fra i 9 regni,
+// con la sua onda di difficoltà (Difficile ogni 10, Super difficile ogni 30, boss ogni 10) e una salita lenta delle mosse
+export const isEndless = (n) => n > MAX_LEVEL;
+export const endlessZone = (n) => ((n - MAX_LEVEL - 1) % ENDLESS_CYCLE) % 9;
+const endlessKind = (n) => (n % 30 === 13 ? 2 : n % 10 === 7 ? 1 : 0);
+// i primi 300 sono tarati col simulatore (ETUNED, tools/tuneendless.mjs); poi il ciclo ricomincia con una mossa in meno ogni giro (fino a -4)
+export const ENDLESS_CYCLE = 300;
+function endlessLevel(n, z) {
+  const kk = n - MAX_LEVEL - 1, k = kk % ENDLESS_CYCLE, lap = Math.floor(kk / ENDLESS_CYCLE), n0 = MAX_LEVEL + 1 + k;
+  let base;
+  if (n0 % 10 === 0) base = 155 + 5 * ((Math.floor(k / 10) * 7) % 24);   // boss: uno dei livelli-boss avanzati
+  else {
+    base = 151 + ((k * 47) % 120);
+    for (let g = 0; g < 40; g++) {
+      if (base % 5 && !hardKind(base) && !isBreather(base) && !getLevel(base, z).drops) break;   // niente boss, difficili o livelli a caduta come base
+      base = base >= 270 ? 151 : base + 1;
+    }
+  }
+  const lv = getLevel(base, z);
+  lv.n = n; lv.endless = true; lv.base = base; delete lv.intro;
+  const hk = endlessKind(n0), bre = !hk && n0 % 10 !== 0 && (endlessKind(n0 - 1) || endlessKind(n0 - 2));
+  if (!lv.time) {
+    if (ETUNED[n0]) lv.moves = ETUNED[n0];
+    else if (!lv.boss && hk) lv.moves = Math.max(12, Math.round(lv.moves * (hk === 2 ? 0.8 : 0.88)));
+    lv.moves = Math.max(10, lv.moves - Math.min(4, lap));
+  } else if (!lv.boss) lv.time = Math.max(60, lv.time - Math.min(30, lap * 10));
+  lv.hard = hk > 0; lv.superHard = hk === 2; lv.breather = !!bre; lv.zone = z;
+  return lv;
+}
 export function getLevel(n, z = natZone(n)) {
+  if (n > MAX_LEVEL) return endlessLevel(n, z);
   const zn = natZone(n);
   let lv0;
   if (z === zn) { lv0 = baseLevel(n); if (BALANCE[n]) lv0.moves = BALANCE[n]; }
@@ -301,6 +332,7 @@ function addTreasure(lv, n, z) {
 }
 let TUNED = TUNED0 || {};
 let HTUNED = HT0 || {};
+let ETUNED = ET0 || {};
 export function setTuned(t) { TUNED = t || {}; }
 function themedLevel(n, z) {
   const rng = makeRng(n * 7919 + 13 + z * 104729);

@@ -2,7 +2,7 @@
 import { L, LANG, setLang } from './i18n.js';
 import { BUDDIES, BUDDY, unlockedBuddies } from './piloti.js';
 import { Board, ROWS, COLS, key, unkey, inside, newTile } from './engine.js';
-import { getLevel, MAX_LEVEL, isHard, isSuper } from './levels.js';
+import { getLevel, MAX_LEVEL, isHard, isSuper, endlessZone } from './levels.js';
 import { BUILDINGS, CHARS, ZONES, zoneOfLevel } from './kingdom.js';
 import * as FX from './fx.js';
 import * as AU from './audio.js';
@@ -165,7 +165,13 @@ const homeTrack = () => ({ oktober: 'okt', hallo: 'hall', natale: 'xmas', capoda
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 // il tema della partita (sfondo, ostacoli, musica, boss) segue la zona che stai costruendo sulla mappa
 let forceZone = null;   // sfida di un amico: si gioca nello scenario del suo link
-function lvZone() { return forceZone != null ? forceZone : Math.max(0, ZONES.indexOf(viewZone || currentZone())); }
+function lvZone(n) {
+  if (forceZone != null) return forceZone;
+  // Giro infinito: lo scenario ruota fra i 9 regni (se non stai guardando una zona precisa sulla mappa)
+  const nn = n != null ? n : (typeof G !== 'undefined' && G.level ? G.level.n : save.level);
+  if (nn > MAX_LEVEL && !viewZone) return endlessZone(nn);
+  return Math.max(0, ZONES.indexOf(viewZone || currentZone()));
+}
 
 // converte un punto dell'immagine della mappa (1280x1280, "cover") in pixel sullo schermo
 function mapPoint(map, x, y) {
@@ -409,10 +415,10 @@ function renderHome(popId = null) {
     btnB.classList.remove('ready'); btnB.classList.add('wait');
     $('#buildLbl').textContent = L`Fatto`; $('#buildCost').textContent = L`Completo`;
   }
-  { const nl = save.level, hk = nl <= MAX_LEVEL ? (isSuper(nl) ? 2 : isHard(nl) ? 1 : 0) : 0, stk = save.streak || 0;
-    $('#btnPlay').innerHTML = (nl > MAX_LEVEL ? L`Finito! 🏆` : L`Gioca <b>livello ${nl}</b>`)
+  { const nl = save.level, hk = isSuper(nl) ? 2 : isHard(nl) ? 1 : 0, stk = save.streak || 0;
+    $('#btnPlay').innerHTML = L`Gioca <b>livello ${nl}</b>` + (nl > MAX_LEVEL && !hk ? `<em class="ptag inf">${L`♾️ GIRO INFINITO`}</em>` : '')
       + (hk ? `<em class="ptag${hk === 2 ? ' sup' : ''}">${hk === 2 ? L`💀 SUPER DIFFICILE` : L`🔥 DIFFICILE`}</em>` : '')
-      + (stk && nl <= MAX_LEVEL ? `<span class="pflame" title="${L`Serie di vittorie`}">🔥<b>${stk}</b></span>` : '');
+      + (stk ? `<span class="pflame" title="${L`Serie di vittorie`}">🔥<b>${stk}</b></span>` : '');
     $('#btnPlay').classList.toggle('hardp', hk === 1); $('#btnPlay').classList.toggle('superp', hk === 2); }
   if (viewZone && viewZone !== currentZone()) $('#btnPlay').innerHTML = L`Rigioca ${zone.name}`;
 }
@@ -2218,6 +2224,12 @@ async function winLevel() {
   sfx.win();
   const nb = nextBuilding();
   const canBuildNow = !!nb && save.stars >= STEP_COST;
+  // Giro infinito: ogni 10 livelli (quello col boss) il forziere del Giro
+  const giroChest = G.level.endless && first && !G.exhibit && n % 10 === 0 ? (() => {
+    const p = pick(SHOP_PW.filter((x) => x.k !== 'moves')), coins = 150 + Math.min(150, Math.floor((n - MAX_LEVEL) / 50) * 25);
+    save.coins += coins; save.inv[p.k] = (save.inv[p.k] || 0) + 1; persist();
+    return `<div class="girochest"><i style="background-image:${I('o_forziere')}"></i><div><b>${L`Forziere del Giro!`}</b><br>+${coins} ${IC_C} · +1 ${p.name}</div></div>`;
+  })() : '';
   const [who, line] = pick(WIN_LINES);
   setTimeout(() => voice(who, 2), 900);
   const gainTxt = (gain ? `<b>+${gain} ${gain > 1 ? L`stelle` : L`stella`}</b>` : (first ? '' : L`Nessuna stella nuova`)) + (hardBonus ? ` <b class="hbonus">+${hardBonus} ${IC_S} ${L`bonus difficile`}</b>` : '');
@@ -2225,17 +2237,18 @@ async function winLevel() {
     <div class="stars3 fill">${[1, 2, 3].map((k) => `<i class="ic ic-star slot" data-k="${k}"></i>`).join('')}</div>
     <p class="winsub">${stars === 3 ? L`Perfetto! Tre stelle piene.` : L`Con meno mosse usate prendi ${stars === 1 ? L`fino a 3` : L`la terza`} ${IC_S}`}</p>
     <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? L`<br>Con ${STEP_COST} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
-    ${first ? streakStrip() : ''}${chRes}
+    ${giroChest}${first && !giroChest ? streakStrip() : ''}${chRes}
     ${first ? '' : `<div class="cheer">${speakerHTML(who, line)}</div>`}
     ${sticker ? L`<p class="stkhint">📒 Hai trovato una figurina!</p>` : ''}
     <div class="row sharerow"><button id="cShare" class="btn btn-share">📣 Condividi e sfida</button><button id="cVid" class="btn btn-share vid">🎬 Video TikTok</button></div>
-    <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}${canBuildNow ? L`<button id="cHome" class="btn btn-gray">Campo base</button><button id="cBuildNow" class="btn btn-play">Costruisci 🔨</button>` : save.level <= MAX_LEVEL ? L`<button id="cHome" class="btn btn-gray">Campo base</button><button id="cNext" class="btn btn-play">Livello ${save.level} ▶</button>` : L`<button id="cHome" class="btn btn-play">Campo base</button>`}</div>`,
+    <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}${canBuildNow ? L`<button id="cHome" class="btn btn-gray">Campo base</button><button id="cBuildNow" class="btn btn-play">Costruisci 🔨</button>` : L`<button id="cHome" class="btn btn-gray">Campo base</button><button id="cNext" class="btn btn-play">Livello ${save.level} ▶</button>`}</div>`,
     { cShare: () => V.shareWin(n, stars, ZONES[lvZone(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[lvZone(n)].bg, G.hl),
       cHome: async () => { hideCard(); await afterWin(); goHome(); },
       cBuildNow: async () => { hideCard(); await afterWin(); G.autoBuild = true; goHome(true); },
       cNext: async () => { hideCard(); await afterWin(); goHome(true); const go = () => (pendingStar || G.building || !$('#overlay').classList.contains('hidden') ? setTimeout(go, 200) : openLevel()); setTimeout(go, 500); },
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
-  async function afterWin() { await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
+  async function afterWin() {
+  setTimeout(() => cloudPush(), 1500); await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
   const ar = app.getBoundingClientRect();
   for (let k = 1; k <= stars; k++) {
@@ -2858,7 +2871,7 @@ function offerResume() {
 
 async function startLevel(n, extras = [], resume = null, challenge = false) {
   if (challenge && save.challenge && save.challenge.n === n && save.challenge.z != null) forceZone = save.challenge.z;
-  const lv = getLevel(n, lvZone());
+  const lv = getLevel(n, lvZone(n));
   G.exhibit = challenge && n > save.level;   // sfida di un amico su un livello non ancora sbloccato: si gioca ma non fa avanzare
   G.level = lv;
   const dSeed = challenge && save.challenge && save.challenge.n === n && save.challenge.seed ? save.challenge.seed : 0;
@@ -2948,13 +2961,13 @@ function setZoneArt(zl) {
 async function openLevel(num) {
   const n = num || save.level;
   if (G.building || pendingStar) return;
-  if (n > MAX_LEVEL) {
-    await say('gabbah', L`Hai finito tutti i sentieri, fino a Dakar! Rigioca gli scenari dalla mappa per fare 3 stelle ovunque. Nuove zone arrivano coi prossimi aggiornamenti.`);
-    V.openDiploma();
-    return;
+  if (n > MAX_LEVEL && !save.story.endless) {   // prima volta nel Giro infinito
+    save.story.endless = 1; persist();
+    await say('gabbah', L`Il regno è finito... ma un giro easy non finisce mai! Benvenuti nel <b>Giro infinito</b>: livelli senza fine, uno scenario diverso ogni volta.`);
+    await say('purcello', L`Ogni 10 livelli c'è il <b>forziere del Giro</b>: monete e aiuti. E più vai avanti, più la Forestale si fa cattiva.`);
   }
   if (unlockedBuddies(save.level).some((b) => !(save.buddySeen || []).includes(b.id))) await announceBuddies();
-  const lv = getLevel(n, lvZone());
+  const lv = getLevel(n, lvZone(n));
   setZoneArt(lvZone(n));
   const best = save.best[n] || 0;
   const goalsHTML = lv.goals.map((g) => `<div class="goal" style="background-image:${goalURI(g)}"><b>${g.n}</b></div>`).join('');
@@ -3108,8 +3121,10 @@ function appFirstRun(next) {
   if (!fresh) return gift();
   showCard(L`<div class="instico"></div><h2>Hai già giocato nel browser?</h2>${speakerHTML('gabbah', L`Se hai copiato i progressi prima di installare, incollali qui e riparti da dove eri.`)}
     <textarea id="pasteBox" class="pastebox" rows="2" placeholder="${L`Incolla qui il link dei progressi`}"></textarea>
-    <div class="row"><button id="cNew" class="btn btn-gray">${L`Comincio da zero`}</button><button id="cPaste" class="btn btn-play">📋 ${L`Incolla`}</button></div>`, {
+    <div class="row"><button id="cNew" class="btn btn-gray">${L`Comincio da zero`}</button><button id="cPaste" class="btn btn-play">📋 ${L`Incolla`}</button></div>
+    <button id="cCl" class="btn btn-share">☁️ ${L`Ho un salvataggio online`}</button>`, {
     cNew: () => { hideCard(); gift(); },
+    cCl: () => cloudLoadCard(),
     cPaste: async () => {
       let t = $('#pasteBox').value;
       if (!t) try { t = await navigator.clipboard.readText(); $('#pasteBox').value = t || ''; } catch { /* */ }
@@ -3170,10 +3185,11 @@ function bindToggles() {
 function openSettings() {
   if (G.building || pendingStar) return;
   showCard(L`<h2>Impostazioni</h2>${togglesHTML()}
+    <button id="cCloud" class="btn btn-play">☁️ Salvataggio online</button>
     <button id="cMove" class="btn btn-share">📲 Porta i progressi su un altro telefono/iPad</button>
     <div class="row"><button id="cReset" class="btn btn-red">Ricomincia da zero</button></div>
     <div class="row"><button id="cClose" class="btn btn-play">Fatto</button></div>`,
-  { cClose: hideCard, cReset: confirmReset, cMove: () => V.shareProgress() });
+  { cClose: hideCard, cReset: confirmReset, cMove: () => V.shareProgress(), cCloud: () => openCloud() });
   bindToggles();
   const mv = document.getElementById('cMove');
   if (mv) {
@@ -3182,6 +3198,73 @@ function openSettings() {
     lr.querySelectorAll('button').forEach((b) => { b.onclick = () => { sfx.click(); if (b.dataset.l !== LANG) setLang(b.dataset.l); }; });
     mv.parentNode.insertBefore(lr, mv);
   }
+}
+// ---------- SALVATAGGIO ONLINE: nome + codice pilota, sullo stesso server della classifica ----------
+let cloudOK = null, cloudBusy = false;   // null = non so ancora se il server lo supporta
+const fmtAgo = (t) => { if (!t) return L`mai`; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? L`adesso` : m < 60 ? L`${m} min fa` : m < 1440 ? L`${Math.round(m / 60)} ore fa` : new Date(t).toLocaleDateString(); };
+async function cloudPush(force = false) {
+  if (cloudBusy || cloudOK === false || !RANK.getNick() || save.cloudOff) return null;
+  if (!force && save.cloudAt && Date.now() - save.cloudAt < 90e3) return null;
+  cloudBusy = true;
+  try {
+    const r = await RANK.cloudSave(await V.packSave(), save.level);
+    if (r.unsupported) { cloudOK = false; return r; }
+    cloudOK = true;
+    if (r.saved) { save.cloudAt = Date.now(); persist(); }
+    else if (r.taken && !save.cloudTakenWarn) { save.cloudTakenWarn = 1; persist(); toast(L`Nome già preso da un altro telefono: il salvataggio online è fermo`, 2200); }
+    return r;
+  } catch { return null; } finally { cloudBusy = false; }
+}
+addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') cloudPush(); });
+async function openCloud() {
+  if (!RANK.getNick()) {
+    showCard(L`<h2>☁️ Salvataggio online</h2>${speakerHTML('purcello', L`Scegli un nome e i tuoi progressi si salvano online da soli. Se cambi telefono li ritrovi con <b>nome e codice</b>.`)}
+      <div class="row"><button id="cLoad" class="btn btn-gray">${L`Ho già un salvataggio`}</button><button id="cName" class="btn btn-play">${L`Scegli il nome`}</button></div>`, { cName: askNick, cLoad: cloudLoadCard });
+    return;
+  }
+  showCard(L`<h2>☁️ Salvataggio online</h2><p class="rkload">Controllo il salvataggio…</p>`, {});
+  const r = await cloudPush(true);
+  if (!$('#card .rkload')) return;   // scheda chiusa nel frattempo
+  if (!r || r.unsupported) {
+    showCard(L`<h2>☁️ Salvataggio online</h2>${speakerHTML('renard', r && r.unsupported ? L`Il server del Campo Base si sta ancora aggiornando: il salvataggio online parte a breve, da solo. Intanto usa il link qui sotto.` : L`Niente rete in questo momento. Riprova quando hai campo.`)}
+      <div class="row"><button id="cMove" class="btn btn-share">📲 ${L`Link dei progressi`}</button><button id="cOk" class="btn btn-play">Ok</button></div>`, { cOk: hideCard, cMove: () => V.shareProgress() });
+    return;
+  }
+  const code = RANK.getCode();
+  showCard(L`<h2>☁️ Salvataggio online</h2>${r.taken ? `<p class="losswarn">${L`Il nome <b>${RANK.getNick()}</b> è già usato da un altro telefono: scegline un altro dalla classifica.`}</p>` : `<p class="cloudok">✅ ${L`Salvato come <b>${RANK.getNick()}</b> · ${fmtAgo(save.cloudAt)}`}</p>`}
+    <div class="codebox"><small>${L`Il tuo codice segreto`}</small><b id="myCode">${code}</b></div>
+    <p class="small">${L`Segnati nome e codice: su un altro telefono, iPad o PC li inserisci in <b>Impostazioni › Salvataggio online › Carica</b> e ritrovi tutto. Il gioco salva da solo dopo ogni vittoria.`}</p>
+    <div class="row"><button id="cLoad" class="btn btn-gray">${L`Carica`}</button><button id="cCopyC" class="btn btn-share">📋 ${L`Copia`}</button><button id="cOk" class="btn btn-play">Ok</button></div>`, {
+    cOk: hideCard, cLoad: cloudLoadCard,
+    cCopyC: () => { const t = L`EDT Kingdom · nome: ${RANK.getNick()} · codice: ${code}`; try { navigator.clipboard.writeText(t).then(() => toast(L`Copiato!`, 900), () => prompt('', t)); } catch { prompt('', t); } },
+  });
+}
+function cloudLoadCard() {
+  showCard(L`<h2>☁️ Carica i progressi</h2><p>${L`Inserisci il nome e il codice segreto del salvataggio (li trovi sull'altro dispositivo in Impostazioni › Salvataggio online).`}</p>
+    <input id="clName" class="nickin" maxlength="16" placeholder="${L`Nome`}" value="${RANK.getNick().replace(/"/g, '')}">
+    <input id="clCode" class="nickin" maxlength="12" placeholder="${L`Codice`}" autocapitalize="off" autocomplete="off" spellcheck="false">
+    <div class="row"><button id="cNo" class="btn btn-gray">${L`Indietro`}</button><button id="cGo" class="btn btn-play">${L`Carica`}</button></div>`, {
+    cNo: hideCard,
+    cGo: async () => {
+      const name = $('#clName').value.trim(), code = $('#clCode').value.trim().toLowerCase();
+      if (name.length < 2 || code.length < 4) { toast(L`Servono nome e codice`, 1200); return; }
+      const b = $('#cGo'); b.disabled = true; b.textContent = '…';
+      let r; try { r = await RANK.cloudLoad(name, code); } catch { r = null; }
+      if (b) { b.disabled = false; b.textContent = L`Carica`; }
+      if (!r) { toast(L`Niente rete: riprova`, 1400); return; }
+      if (r.unsupported) { toast(L`Il salvataggio online parte a breve`, 1600); return; }
+      if (r.err === 'locked') { toast(L`Troppi tentativi: riprova domani`, 1800); return; }
+      if (r.none) { toast(L`Nessun salvataggio con questo nome`, 1600); return; }
+      if (r.wrong) { toast(L`Codice sbagliato`, 1400); return; }
+      let sv = null; try { sv = await V.unpackSave(r.data); } catch { /* */ }
+      if (!sv) { toast(L`Salvataggio illeggibile`, 1400); return; }
+      showCard(L`<h2>Progressi trovati</h2><p>${L`Livello <b>${sv.level || 1}</b> · <b>${sv.coins || 0}</b> monete · salvato ${fmtAgo(r.at ? Date.parse(r.at) : 0)}.`}</p><p class="small">${L`Quelli che ci sono adesso su questo dispositivo (livello ${save.level}) vengono sostituiti.`}</p>
+        <div class="row"><button id="cNo" class="btn btn-gray">${L`No`}</button><button id="cYes" class="btn btn-play">${L`Carica`}</button></div>`, {
+        cNo: hideCard,
+        cYes: () => { sv.cloudAt = Date.now(); if (isStandalone()) sv.appBonus = sv.appBonus || 0; RANK.setCode(code); try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); RANK.setNick(name); } catch { /* */ } location.reload(); },
+      });
+    },
+  });
 }
 function confirmReset() {
   showCard(L`<h2 class="red">Ricominci da zero?</h2>
@@ -3266,7 +3349,7 @@ const goParam = (() => { try { return new URLSearchParams(location.search).get('
 const startup = async () => { if (/[?&]stats\b/.test(location.search)) { openStats(); return; } updateBadge();
   if (isStandalone() && !save.appBonus) { await new Promise((r) => appFirstRun(r)); } if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); }
   if (currentZone().id === 'hallo' && !save.story.hallo && save.story.oktober) { if (!save.story.oktofine) await showStory('oktofine'); await showStory('hallo'); viewZone = null; renderHome(); }
-  for (const [zid, prev, pre] of [['natale', 'hallo', 'hallofine'], ['capodanno', 'natale', 'natalefine'], ['dakar', 'capodanno', 'capofine']]) if (currentZone().id === zid && !save.story[zid] && save.story[prev]) { if (!save.story[pre]) await showStory(pre); await showStory(zid); viewZone = null; renderHome(); } if (goParam === 'album') { V.openAlbum(V.zonePage()); return; } if (goParam === 'gioca' && save.level <= MAX_LEVEL && !checkDaily()) { openLevel(); return; } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
+  for (const [zid, prev, pre] of [['natale', 'hallo', 'hallofine'], ['capodanno', 'natale', 'natalefine'], ['dakar', 'capodanno', 'capofine']]) if (currentZone().id === zid && !save.story[zid] && save.story[prev]) { if (!save.story[pre]) await showStory(pre); await showStory(zid); viewZone = null; renderHome(); } if (goParam === 'album') { V.openAlbum(V.zonePage()); return; } if (goParam === 'gioca' && !checkDaily()) { openLevel(); return; } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
 if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
 else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {

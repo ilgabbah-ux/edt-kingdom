@@ -6,7 +6,7 @@ npx -y esbuild@0.24.0 js/game.js --bundle --format=iife --minify --target=es2017
 V=$(date +%s)
 {
   echo "const CACHE = 'edtk-$V';"
-  printf "const FILES = ['./', 'index.html', 'style.css?v=60', 'game.min.js?v=60', 'manifest.json', 'icon2-192.png', 'icon2-512.png', 'icon2-mask.png'"
+  printf "const FILES = ['./', 'index.html', 'style.css?v=61', 'game.min.js?v=61', 'manifest.json', 'icon2-192.png', 'icon2-512.png', 'icon2-mask.png'"
   # all'installazione solo l'essenziale; storia, voci e musica si salvano la prima volta che servono
   for f in img/*.webp fonts/*.woff2; do case "$f" in img/st*) ;; *) printf ", '%s'" "$f";; esac; done
   echo "];"

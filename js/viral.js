@@ -380,6 +380,9 @@ export async function shareProgress() {
   try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); X.toast(L`Link copiato! Incollalo sull'altro dispositivo`, 1800); } catch { prompt(L`Copia questo link:`, url); }
 }
+// progressi impacchettati per il salvataggio nel cloud
+export async function packSave() { const keep = { ...X.save }; delete keep.run; delete keep.challenge; return pack({ v: 1, save: keep }); }
+export async function unpackSave(code) { const d = await unpack(code); return d && d.save; }
 // link dei progressi pronto in anticipo (per copiarlo con un tocco anche su Safari)
 export async function progressLink() {
   const keep = { ...X.save }; delete keep.run; delete keep.challenge;

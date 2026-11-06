@@ -97,3 +97,16 @@ export async function levelStats() {
   for (const g of rows) for (let i = 2; i < g.length; i++) { const v = parseInt(g[i], 36) || 0; const n = i - 1; out[n] = out[n] || { lost: 0, who: 0 }; out[n].lost += v; if (v) out[n].who++; }
   return { players: rows.length, lv: out };
 }
+
+// ---- salvataggio nel cloud (stessa app web: foglio "Salvataggi"). Nome + codice pilota proteggono i progressi.
+// Se l'app web non è ancora aggiornata risponde senza "cloud": il gioco lo capisce e non mostra la funzione.
+export async function cloudSave(data, lv) {
+  const name = getNick(); if (!name) return { err: 'noname' };
+  const d = await call({ action: 'cloudsave', name, k: getCode(), data, lv: String(lv || 0) });
+  return d.cloud ? d : { unsupported: true };
+}
+export async function cloudLoad(name, code) {
+  const d = await call({ action: 'cloudload', name: cleanNick(name), k: String(code || '').trim().toLowerCase() });
+  return d.cloud ? d : { unsupported: true };
+}
+export const setCode = (c) => ls.set(CODE_KEY, c);

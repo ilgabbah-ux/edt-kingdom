@@ -212,6 +212,14 @@ export function drawSticker() {
   X.persist();
   return { s, dup };
 }
+// figurina comune: si mostra dentro la scheda di vittoria, senza un'altra finestra da chiudere.
+// Rare, epiche e pagine completate hanno ancora la loro finestra con la figurina che si gira.
+const pageDone = (res) => { const page = res.s.page; return page.items.every(([id]) => X.save.album[id]) && !X.save.albumDone[page.id]; };
+export const stickerNeedsPopup = (res) => !!res && (res.s.r > 1 || pageDone(res));
+export function stickerInline(res) {
+  const { s, dup } = res, page = s.page, have = page.items.filter(([id]) => X.save.album[id]).length;
+  return `<div class="stkinline r${s.r}"><i style="background-image:${X.I(s.img)}"></i><div><b>${dup ? L`Doppione: ${s.name}` : L`Nuova figurina: ${s.name}`}</b><small>${dup ? L`+15 monete` : `${page.name} ${have}/${page.items.length}`}</small></div></div>`;
+}
 // figurina che si gira, poi eventuale premio della pagina completa
 export function revealSticker(res) {
   return new Promise((done) => {
@@ -320,19 +328,20 @@ export function openChest() {
   X.save.winRow = 0;
   const p = R(['mH', 'bomb', 'grappa', 'mH', 'bomb']);
   X.save.coins += 150; X.save.inv[p] = (X.save.inv[p] || 0) + 1; X.persist();
+  const st = drawSticker(), pop = stickerNeedsPopup(st);
   return new Promise((done) => {
     X.showCard(L`<h2>Forziere EDT!</h2><p>3 vittorie di fila!</p><div class="chest" id="chest"><i class="lid"></i><i class="box"></i></div>
-      <p id="chestTxt" style="opacity:0"><b>+150 monete</b> · <b>+1 ${P_NAME[p]}</b> · <b>+1 figurina</b></p>
+      <p id="chestTxt" style="opacity:0"><b>+150 monete</b> · <b>+1 ${P_NAME[p]}</b> · <b>+1 figurina</b></p>${pop ? '' : `<div id="chestStk" style="opacity:0">${stickerInline(st)}</div>`}
       <div class="row"><button id="cOk" class="btn btn-play">Apri!</button></div>`, {
       cOk: () => {
         const ch = document.getElementById('chest');
         if (!ch.classList.contains('open')) {
           ch.classList.add('open'); X.sfx.build(); X.fireworks(1400);
-          document.getElementById('chestTxt').style.opacity = 1;
+          document.getElementById('chestTxt').style.opacity = 1; const cs = document.getElementById('chestStk'); if (cs) cs.style.opacity = 1;
           document.getElementById('cOk').textContent = L`Prendi!`;
           return;
         }
-        X.hideCard(); X.coinsUI(); revealSticker(drawSticker()).then(done);
+        X.hideCard(); X.coinsUI(); if (pop) revealSticker(st).then(done); else done();
       },
     });
   });

@@ -2247,8 +2247,8 @@ async function winLevel() {
     <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? L`<br>Con ${STEP_COST} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
     ${giroChest}${first && !giroChest ? streakStrip() : ''}${chRes}
     ${first ? '' : `<div class="cheer">${speakerHTML(who, line)}</div>`}
-    ${sticker ? L`<p class="stkhint">📒 Hai trovato una figurina!</p>` : ''}
-    <div class="row sharerow"><button id="cShare" class="btn btn-share">📣 Condividi e sfida</button><button id="cVid" class="btn btn-share vid">🎬 Video TikTok</button></div>
+    ${sticker ? (V.stickerNeedsPopup(sticker) ? L`<p class="stkhint">📒 Hai trovato una figurina!</p>` : V.stickerInline(sticker)) : ''}
+    <div class="row sharerow${n <= 5 ? ' hidden' : ''}"><button id="cShare" class="btn btn-share">📣 Condividi e sfida</button><button id="cVid" class="btn btn-share vid">🎬 Video TikTok</button></div>
     <div class="row">${stars < 3 ? L`<button id="cAgain" class="btn btn-gray">Rigioca</button>` : ''}${canBuildNow ? L`<button id="cHome" class="btn btn-gray">Campo base</button><button id="cBuildNow" class="btn btn-play">Costruisci 🔨</button>` : L`<button id="cHome" class="btn btn-gray">Campo base</button><button id="cNext" class="btn btn-play">Livello ${save.level} ▶</button>`}</div>`,
     { cShare: () => V.shareWin(n, stars, ZONES[lvZone(n)].bg, { seed: G.seed, left }), cVid: () => V.shareVideo(n, stars, ZONES[lvZone(n)].bg, G.hl),
       cHome: async () => { hideCard(); await afterWin(); goHome(); },
@@ -2257,7 +2257,7 @@ async function winLevel() {
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
   async function afterWin() {
   setTimeout(() => cloudPush(), 1500);
-  if (G.level && G.level.endless && RANK.getNick()) RANK.infSubmit(save.level - MAX_LEVEL - 1, V.riderTag()).catch(() => {}); await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
+  if (G.level && G.level.endless && RANK.getNick()) RANK.infSubmit(save.level - MAX_LEVEL - 1, V.riderTag()).catch(() => {}); await announceBuddies(); if (sticker && V.stickerNeedsPopup(sticker)) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
   const ar = app.getBoundingClientRect();
   for (let k = 1; k <= stars; k++) {

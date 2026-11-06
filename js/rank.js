@@ -58,7 +58,7 @@ const real = (e) => !/^zz_/.test(e.n || '');
 const listOf = (d) => ((d.boards && d.boards[MODE]) || []).filter(real).map((e) => ({ name: e.n, stars: Math.floor(e.s / 100), level: e.s % 100, rider: e.r || '' }));
 
 export async function top() { return listOf(await call({ action: 'top' })); }
-// g = statistiche anonime dei livelli: 'K1' + una cifra (base 36) per livello = quante volte è stato perso
+// g = statistiche anonime dei livelli: 'k1' + una cifra (base 36) per livello = quante volte è stato perso
 export async function submit(stars, level, rider = 'EDT Kingdom', g = '') {
   const name = getNick();
   if (!name || stars <= 0) return null;
@@ -92,7 +92,7 @@ export async function teamSubmit(w, wins, rider = 'EDT Kingdom team') {
 // ---- statistiche dei livelli (anonime: si sommano i dati di tutti, senza nomi)
 export async function levelStats() {
   const d = await call({ action: 'top' });
-  const rows = ((d.boards && d.boards[MODE]) || []).filter(real).map((e) => e.g || '').filter((g) => g.startsWith('K1'));
+  const rows = ((d.boards && d.boards[MODE]) || []).filter(real).map((e) => e.g || '').filter((g) => /^k1/i.test(g));
   const out = {};
   for (const g of rows) for (let i = 2; i < g.length; i++) { const v = parseInt(g[i], 36) || 0; const n = i - 1; out[n] = out[n] || { lost: 0, who: 0 }; out[n].lost += v; if (v) out[n].who++; }
   return { players: rows.length, lv: out };
@@ -110,3 +110,15 @@ export async function cloudLoad(name, code) {
   return d.cloud ? d : { unsupported: true };
 }
 export const setCode = (c) => ls.set(CODE_KEY, c);
+
+// ---- classifica del Giro infinito: percorso 8 (tolto da Giro Easy nella v59; le righe vecchie hanno versione < 60
+// e restano fuori grazie a minv=60). Punteggio = livelli del Giro infinito superati.
+export const INF_MODE = 8;
+const infOf = (d) => ((d.boards && d.boards[INF_MODE]) || []).filter(real).map((e) => ({ name: e.n, lv: e.s, rider: e.r || '' }));
+export async function infTop() { return infOf(await call({ action: 'top', act: String(INF_MODE), minv: 60 })); }
+export async function infSubmit(lv, rider = 'EDT Kingdom') {
+  const name = getNick();
+  if (!name || lv <= 0) return null;
+  const d = await call({ action: 'add', act: String(INF_MODE), minv: 60, name, score: Math.min(99999, lv), mode: INF_MODE, rider, time: 0, win: 0, v: '61', k: getCode() });
+  return { taken: !!d.taken, list: infOf(d) };
+}

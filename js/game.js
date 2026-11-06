@@ -408,6 +408,14 @@ function renderHome(popId = null) {
     $('#buildCost').innerHTML = (ok ? L`usa` : L`serve`) + ' ' + IC_S + ' ' + STEP_COST;
     { const zb = zoneOf(nb).buildings, nDone = zb.filter(isBuilt).length, miss = STEP_COST - save.stars;
       $('#jobLeft').innerHTML = (ok ? `<b class="ok">${L`Pronto!`}</b>` : L`ancora <b>${miss}</b> ${IC_S}`) + ` · ${L`regno`} <b>${nDone}/${zb.length}</b>`; }
+  } else if (save.level > MAX_LEVEL) {   // Giro infinito: prossimo forziere, record e classifica
+    const done = save.level - MAX_LEVEL - 1, toChest = Math.ceil(save.level / 10) * 10 - save.level;
+    $('#jobImg').style.backgroundImage = I('o_forziere');
+    $('#jobName').textContent = L`Giro infinito`;
+    $('#jobSteps').innerHTML = Array.from({ length: 10 }, (_, k) => `<i class="${k < (save.level - 1) % 10 ? 'on' : ''}"></i>`).join('');
+    $('#jobLeft').innerHTML = (toChest ? L`forziere tra <b>${toChest + 1}</b> livelli` : `<b class="ok">${L`Prossimo: forziere!`}</b>`) + ` · 🏆 <b>${done}</b>`;
+    btnB.classList.remove('wait'); btnB.classList.add('ready');
+    $('#buildLbl').textContent = L`Classifica`; $('#buildCost').textContent = '♾️';
   } else {
     $('#jobImg').style.backgroundImage = I('b_palazzo');
     $('#jobName').textContent = L`Campo Base completo!`;
@@ -892,7 +900,7 @@ function openWeekly() {
 // ---------------- classifica EDT online ----------------
 const esc = (v) => String(v).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 // statistiche anonime: per ogni livello quante volte l'hai perso (una cifra base 36, max 35)
-const statsG = () => { const l = save.lost || {}; let g = 'K1'; const top = Math.min(MAX_LEVEL, Math.max(save.level, ...Object.keys(l).map(Number), 1)); for (let n = 1; n <= top; n++) g += Math.min(35, l[n] || 0).toString(36); return g; };
+const statsG = () => { const l = save.lost || {}; let g = 'k1'; /* minuscolo: il server accetta solo 0-9 a-z */ const top = Math.min(MAX_LEVEL, Math.max(save.level, ...Object.keys(l).map(Number), 1)); for (let n = 1; n <= top; n++) g += Math.min(35, l[n] || 0).toString(36); return g; };
 async function openStats() {
   showCard(L`<h2>Statistiche livelli</h2><p>Caricamento...</p>`, {});
   try {
@@ -2248,7 +2256,8 @@ async function winLevel() {
       cNext: async () => { hideCard(); await afterWin(); goHome(true); const go = () => (pendingStar || G.building || !$('#overlay').classList.contains('hidden') ? setTimeout(go, 200) : openLevel()); setTimeout(go, 500); },
       cAgain: async () => { hideCard(); await afterWin(); goHome(); const again = () => (pendingStar || G.building ? setTimeout(again, 200) : openLevel(n)); setTimeout(again, 500); } });
   async function afterWin() {
-  setTimeout(() => cloudPush(), 1500); await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
+  setTimeout(() => cloudPush(), 1500);
+  if (G.level && G.level.endless && RANK.getNick()) RANK.infSubmit(save.level - MAX_LEVEL - 1, V.riderTag()).catch(() => {}); await announceBuddies(); if (sticker) await V.revealSticker(sticker); if (chest) await V.openChest(); if (G.evRew && G.evRew.length) { const l = G.evRew; G.evRew = []; await V.eventRewardsPopup(l); } }
   // le stelle si riempiono una alla volta, poi fuochi d'artificio
   const ar = app.getBoundingClientRect();
   for (let k = 1; k <= stars; k++) {
@@ -2949,14 +2958,23 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   }, extras.length ? 1400 : 500);
 }
 
+// immagini degli ostacoli di ogni regno (catena, multa, sasso x2, cassa x2, fango x2)
+const ZONE_ART = [
+  ['o_catena', 'o_multa', 'o_sasso1', 'o_sasso2', 'o_cassa1', 'o_cassa2', 'o_fango1', 'o_fango2'],
+  ['o_ghiaccio', 'o_multa', 'o_neve1', 'o_neve2', 'o_ghiacciata1', 'o_ghiacciata2', 'o_fango_n1', 'o_fango_n2'],
+  ['o_nastro', 'o_multa', 'o_marmo1', 'o_marmo2', 'o_cemento1', 'o_cemento2', 'o_fango_c1', 'o_fango_c2'],
+  ['o_sabbia', 'o_acqua', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2'],
+  ['o_ghirlanda', 'o_conto', 'o_barile1', 'o_barile', 'o_bottiglie1', 'o_bottiglie', 'o_birra1', 'o_birra2'],
+  ['o_ragnatela', 'o_pozione', 'o_zucca', 'o_zucca2', 'o_bara', 'o_bara2', 'o_melma1', 'o_melma2'],
+  ['o_luci', 'o_carbone', 'o_pupazzo1', 'o_pupazzo2', 'o_pacco1', 'o_pacco2', 'o_cioccolata1', 'o_cioccolata2'],
+  ['o_stelle', 'o_verbale', 'o_botti1', 'o_botti2', 'o_spumante1', 'o_spumante2', 'o_coriandoli1', 'o_coriandoli2'],
+  ['o_cinghie', 'o_tempesta', 'o_roccia1', 'o_roccia2', 'o_tanica1', 'o_taniche2', 'o_polvere1', 'o_polvere2'],
+];
 function setZoneArt(zl) {
   FORESTALE_URI = I(ZONES[zl].boss);
-  const A = (a, b) => [null, I(a), I(b)];
-  CHAIN_URI = I(['o_catena', 'o_ghiaccio', 'o_nastro', 'o_sabbia', 'o_ghirlanda', 'o_ragnatela', 'o_luci', 'o_stelle', 'o_cinghie'][zl] || 'o_catena');
-  MULTA_URI = I(['o_multa', 'o_multa', 'o_multa', 'o_acqua', 'o_conto', 'o_pozione', 'o_carbone', 'o_verbale', 'o_tempesta'][zl] || 'o_multa');
-  ROCK_URI = [A('o_sasso1', 'o_sasso2'), A('o_neve1', 'o_neve2'), A('o_marmo1', 'o_marmo2'), A('o_duna1', 'o_duna2'), A('o_barile1', 'o_barile'), A('o_zucca', 'o_zucca2'), A('o_pupazzo1', 'o_pupazzo2'), A('o_botti1', 'o_botti2'), A('o_roccia1', 'o_roccia2')][zl] || A('o_sasso1', 'o_sasso2');
-  CRATE_URI = [A('o_cassa1', 'o_cassa2'), A('o_ghiacciata1', 'o_ghiacciata2'), A('o_cemento1', 'o_cemento2'), A('o_spezie1', 'o_spezie2'), A('o_bottiglie1', 'o_bottiglie'), A('o_bara', 'o_bara2'), A('o_pacco1', 'o_pacco2'), A('o_spumante1', 'o_spumante2'), A('o_tanica1', 'o_taniche2')][zl] || A('o_cassa1', 'o_cassa2');
-  MUD_URI = [A('o_fango1', 'o_fango2'), A('o_fango_n1', 'o_fango_n2'), A('o_fango_c1', 'o_fango_c2'), A('o_fango_m1', 'o_fango_m2'), A('o_birra1', 'o_birra2'), A('o_melma1', 'o_melma2'), A('o_cioccolata1', 'o_cioccolata2'), A('o_coriandoli1', 'o_coriandoli2'), A('o_polvere1', 'o_polvere2')][zl] || A('o_fango1', 'o_fango2');
+  const z = ZONE_ART[zl] || ZONE_ART[0], A = (a, b) => [null, I(a), I(b)];
+  CHAIN_URI = I(z[0]); MULTA_URI = I(z[1]);
+  ROCK_URI = A(z[2], z[3]); CRATE_URI = A(z[4], z[5]); MUD_URI = A(z[6], z[7]);
 }
 async function openLevel(num) {
   const n = num || save.level;
@@ -3071,7 +3089,22 @@ function shopTutorial() {
 
 // ---------- pulsanti ----------
 $('#btnPlay').onclick = () => (viewZone && viewZone !== currentZone() ? openLevelList(ZONES.indexOf(viewZone)) : openLevel());
-$('#btnBuild').onclick = () => tryBuild();
+$('#btnBuild').onclick = () => (!nextBuilding() && save.level > MAX_LEVEL ? openInfRanking() : tryBuild());
+// classifica del Giro infinito
+async function openInfRanking() {
+  if (G.building || pendingStar) return;
+  if (!RANK.getNick()) { askNick(); return; }
+  const me = RANK.getNick().toLowerCase(), mine = save.level - MAX_LEVEL - 1;
+  showCard(L`<h2>♾️ Giro infinito</h2><p class="rkload">Chiedo i risultati al Campo Base…</p>`, {});
+  let list = null;
+  try { const r = mine > 0 ? await RANK.infSubmit(mine, V.riderTag()) : null; list = r && r.list && r.list.length ? r.list : await RANK.infTop(); } catch { list = null; }
+  if (!$('#card .rkload')) return;
+  const medal = ['🥇', '🥈', '🥉'];
+  const rows = (list || []).map((e, i) => { const isMe = String(e.name).toLowerCase() === me; return `<div class="rk${isMe ? ' me' : ''}"><span class="pos">${medal[i] || i + 1}</span>${V.avatarHTML(isMe ? V.me() : V.parseRider(e.rider))}<b>${esc(e.name)}</b><span class="st">♾️ ${+e.lv || 0}</span><small>${L`liv`} ${MAX_LEVEL + (+e.lv || 0)}</small></div>`; }).join('');
+  showCard(L`<h2>♾️ Giro infinito</h2><p>${L`Chi arriva più lontano dopo il livello ${MAX_LEVEL}. Il tuo record: <b>${mine}</b> livelli.`}</p>
+    <div class="rklist">${rows || `<p class="small">${list ? L`Nessuno ancora: sii il primo!` : L`Niente rete: riprova più tardi.`}</p>`}</div>
+    <div class="row"><button id="cOk" class="btn btn-play">${L`Si va!`}</button></div>`, { cOk: () => { hideCard(); openLevel(); } });
+}
 $('#btnLevels').onclick = () => { sfx.click(); openLevelList(); };
 $('#btnRank').onclick = () => { sfx.click(); openRanking(); };
 $('#hCoins').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Monete</h2><div class="hlist">${helpRow('coins')}</div><div class="row"><button id="cClose" class="btn btn-play">Ok</button></div>`, { cClose: hideCard }); };
@@ -3331,7 +3364,9 @@ const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't
 const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); });
 // caricamento leggero: subito solo quello che serve nello scenario attuale; il resto dello scenario dopo, gli altri scenari quando li apri
 const zoneAssets = (z) => (z ? [z.bg, z.boss, ...z.buildings.map((b) => 'b_' + b.id)] : []);
-const CORE = ASSETS.filter((n) => !/^(b_|map|c_|forestale|st\d)/.test(n)).concat((() => { const z = ZONES[Math.min(ZONES.length - 1, lvZone())]; return [z.bg, z.boss, 'c_gabbah', ...z.buildings.map((b) => 'b_' + b.id)]; })());
+// all'avvio si aspettano solo le immagini del regno in cui si gioca: gli ostacoli degli altri regni arrivano dopo, in sottofondo
+const OTHER_ART = (() => { const zi = Math.min(ZONES.length - 1, lvZone()); return new Set(ZONE_ART.flat().filter((n) => !ZONE_ART[zi].includes(n))); })();
+const CORE = ASSETS.filter((n) => !/^(b_|map|c_|forestale|st\d)/.test(n) && !OTHER_ART.has(n)).concat((() => { const z = ZONES[Math.min(ZONES.length - 1, lvZone())]; return [z.bg, z.boss, 'c_gabbah', ...z.buildings.map((b) => 'b_' + b.id)]; })());
 const preload = Promise.all(CORE.map(loadImg));
 preload.then(() => setTimeout(() => {
   const zi = ZONES.indexOf(currentZone());

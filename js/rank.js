@@ -3,6 +3,7 @@ import { L } from './i18n.js';
 // EDT Kingdom scrive nel "percorso" 19, che Giro Easy non usa. Stessi nomi protetti col codice del telefono,
 // e su ilgabbah-ux.github.io nome e codice sono già quelli di Giro Easy.
 // Punteggio = stelle * 100 + livello raggiunto (vince chi ha più stelle, a parità chi è più avanti).
+// classifiche nel foglio "Kingdom" (gioco=kingdom), separate da quelle di Giro Easy (dal 10/11/2026)
 const API = 'https://script.google.com/macros/s/AKfycbxb8Ky6HSkHLF01ZT-ku_oGIVbS9Fl2pFT427gk38hx_mCL_DQn81IqEl3OtTKykeY/exec';
 export const MODE = 19;
 const NICK_KEY = 'edt-giro-easy-nick', CODE_KEY = 'edt-giro-easy-code';
@@ -44,7 +45,7 @@ function jsonp(url, ms = 20000) {
   });
 }
 async function call(params) {
-  const url = API + '?' + new URLSearchParams({ minv: 0, act: String(MODE), grp: 'edt', day: dayISO(), ...params }).toString();
+  const url = API + '?' + new URLSearchParams({ minv: 0, act: String(MODE), grp: 'edt', day: dayISO(), gioco: 'kingdom', ...params }).toString();
   let data;
   try {
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);

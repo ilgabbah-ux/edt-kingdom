@@ -41,3 +41,10 @@ function cloud_(p) {
   } finally { lock.releaseLock(); }
   return { ok: true, cloud: true, saved: true };
 }
+
+// ---- 10/11/2026 (versioni 24-25 dell'app web): classifiche del Kingdom separate da Giro Easy ----
+// in cima:   let SHEET_NOW = SHEET;  const gameSheet_ = (p) => (p && p.gioco === 'kingdom' ? 'Kingdom' : SHEET);
+// sheet_():  usa SHEET_NOW (crea il foglio "Kingdom" con le intestazioni se manca)
+// doGet/doPost: SHEET_NOW = gameSheet_(p) subito dopo aver letto i parametri
+// cache delle classifiche: chiave ['b', SHEET_NOW, grp, ...] per non mischiare i due giochi
+// spostaKingdom(): una tantum, ha spostato 289 righe del Kingdom da "Punteggi" a "Kingdom" (copia di sicurezza "Backup Punteggi")

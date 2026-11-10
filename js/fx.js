@@ -243,14 +243,33 @@ export function freeSpotY() {
   const top = topEl.getBoundingClientRect().bottom - ar.top;
   const bot = document.querySelector('.boosters').getBoundingClientRect().top - ar.top;
   const gapA = br.top - ar.top - top, gapB = bot - (br.bottom - ar.top);
-  if (Math.max(gapA, gapB) < 60) return br.top - ar.top + 24; // poco spazio: in alto sulla griglia
-  return gapA >= gapB ? top + gapA / 2 : br.bottom - ar.top + gapB / 2;
+  if (Math.max(gapA, gapB) >= 60) return gapA >= gapB ? top + gapA / 2 : br.bottom - ar.top + gapB / 2;
+  // telefono stretto: niente spazio libero → la scritta va sopra la barra in alto (obiettivi e mosse), mai sulle tessere
+  const hud = document.querySelector('.gamebar').getBoundingClientRect();
+  return -(((hud.top + Math.min(br.top, hud.bottom + 60)) / 2) - ar.top);   // negativo = "zona stretta"
+}
+// mette la scritta nello spazio libero; nella zona stretta la rimpicciolisce perché stia fuori dalla griglia
+function placeFree(d) {
+  const y = freeSpotY();
+  d.style.top = Math.abs(y) + 'px';
+  if (y < 0) d.classList.add('tight');
+}
+// grido corto (Moto!, Tanica!, Prosit!...): stessa zona libera, sotto la scritta grande se c'è
+export function shout(text, color) {
+  if (app.querySelector('.combo')) return;   // c'è già la scritta grande: basta quella
+  app.querySelectorAll('.shout').forEach((e) => e.remove());
+  const d = document.createElement('div');
+  d.className = 'combo shout';
+  placeFree(d);
+  d.innerHTML = `<span class="w" style="color:${color || '#ffd34d'}">${text}</span>`;
+  app.appendChild(d);
+  setTimeout(() => d.remove(), 800);
 }
 export function banner(word, sub = '', color = '#ffd34d') {
   app.querySelectorAll('.combo').forEach((e) => e.remove());
   const d = document.createElement('div');
   d.className = 'combo';
-  d.style.top = freeSpotY() + 'px';
+  placeFree(d);
   const longest = Math.max(...word.split(' ').map((w) => w.length));
   const size = Math.max(24, Math.min(40, Math.floor(Math.min(520 / word.length, 280 / longest))));
   d.innerHTML = `<span class="w" style="color:${color};font-size:${size}px">${word}</span>${sub ? `<span class="n">${sub}</span>` : ''}`;

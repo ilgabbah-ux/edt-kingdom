@@ -32,7 +32,12 @@ const app = $('#app');
 // ---------- grafica in cache ----------
 const SRC = (n) => (window.__A && window.__A[n]) || `img/${n}.webp`;
 const I = (n) => `url('${SRC(n)}')`;
-const TILE_URI = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale'].map(I);
+const TILE_BASE = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale'];
+// tessere a tema: in ogni regno la blu, la verde e la bianca cambiano (birra, casco e gomma restano: sono l'EDT)
+const ZONE_TILES = { 1: ['tz1_b', 'tz1_g', 'tz1_w'], 2: ['tz2_b', 'tz2_g', 'tz2_w'], 3: ['tz3_b', 'tz3_g', 'tz3_w'], 4: ['tz4_b', 'tz4_g', 'tz4_w'],
+  5: ['tz5_b', 'tz5_g', 'tz5_w'], 6: ['tz6_b', 'tz6_g', 'tz6_w'], 7: ['tz7_b', 'tz7_g', 'tz7_w'], 8: ['tz8_b', 'tz8_g', 'tz8_w'] };
+const tileNames = (z) => { const t = TILE_BASE.slice(), zt = ZONE_TILES[z]; if (zt) { t[2] = zt[0]; t[3] = zt[1]; t[5] = zt[2]; } return t; };
+let TILE_URI = TILE_BASE.map(I);
 const RIDER_UP = I('r_up'), RIDER_DOWN = I('r_down');
 const RIDE_URI = { mH: I('fx_moto'), mV: I('fx_moto_v'), drone: I('fx_drone') };   // senza medaglione, per le animazioni
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
@@ -1125,7 +1130,10 @@ function renderGoals(bumpIdx = -1) {
     const gl = G.goals[0];
     const pct = Math.max(0, (gl.n - gl.done) / gl.n) * 100;
     $('#bossHp').style.width = pct + '%';
-    $('#bossTxt').textContent = L`Pazienza della Forestale: ${goalLeft(gl)}`;
+    // a parole e in percentuale: si capisce al volo quanto manca a mandarla via
+    const pp = Math.ceil(pct), mood = pp > 75 ? L`😠 Forestale furiosa` : pp > 45 ? L`😤 Forestale arrabbiata` : pp > 15 ? L`😩 Forestale stanca` : L`😵 Forestale quasi K.O.`;
+    $('#bossTxt').textContent = `${mood} · ${pp}%`;
+    $('#bossbar').classList.toggle('lowhp', pp <= 15);
     $('#bossCount').textContent = G.boss.count;
   }
 }
@@ -1390,13 +1398,7 @@ function floater(text, r, c) {
   const S = G.S;
   const delay = Math.max(0, floatQ - performance.now());
   floatQ = performance.now() + delay + 260;
-  setTimeout(() => {
-    const x = Math.min(Math.max((c + 0.5) * S, S * 1.6), S * (COLS - 1.6));
-    const d = fxEl('floater pop', x, r * S, 0, 0, 1200);
-    d.style.width = 'auto'; d.style.height = 'auto';
-    if (FLOAT_COL[text]) d.style.color = FLOAT_COL[text];
-    d.textContent = text;
-  }, delay);
+  setTimeout(() => FX.shout(text, FLOAT_COL[text]), delay);   // fuori dalla griglia, come le scritte grandi
 }
 async function flyDrone(fromK, toK) {
   const [r1, c1] = unkey(fromK), [r2, c2] = unkey(toK);
@@ -2972,6 +2974,7 @@ const ZONE_ART = [
 ];
 function setZoneArt(zl) {
   FORESTALE_URI = I(ZONES[zl].boss);
+  TILE_URI = tileNames(zl).map(I);
   const z = ZONE_ART[zl] || ZONE_ART[0], A = (a, b) => [null, I(a), I(b)];
   CHAIN_URI = I(z[0]); MULTA_URI = I(z[1]);
   ROCK_URI = A(z[2], z[3]); CRATE_URI = A(z[4], z[5]); MUD_URI = A(z[6], z[7]);
@@ -3112,6 +3115,14 @@ $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Stelle<
 $('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
 $('#btnShareGame').onclick = () => V.shareGame();
+// menu "Altro": le voci usate meno (attestato, condividi, app, guida) stanno qui, così la mappa resta libera
+$('#btnMore').onclick = () => {
+  sfx.click();
+  const items = [['btnDiploma', '🎓', L`Attestato`, L`il tuo diploma EDT da condividere`], ['btnShareGame', '📣', L`Condividi il gioco`, L`manda il link agli amici`], ['btnInstall', '📲', L`Metti il gioco nella Home`, L`si apre come un'app`], ['btnGuide', '❓', L`Guida`, L`come si gioca, ostacoli e aiuti`]]
+    .filter(([id]) => $('#' + id) && !$('#' + id).hidden);
+  showCard(L`<h2>Altro</h2><div class="morelist">${items.map(([id, ic, t, sub]) => `<button class="moreit" data-go="${id}"><span>${ic}</span><b>${t}<small>${sub}</small></b></button>`).join('')}</div><div class="row"><button id="cOk" class="btn btn-gray">${L`Chiudi`}</button></div>`, { cOk: hideCard });
+  document.querySelectorAll('.moreit').forEach((b) => { b.onclick = () => { hideCard(); setTimeout(() => $('#' + b.dataset.go).onclick(), 120); }; });
+};
 // ---------- installa come app (icona nella schermata Home) ----------
 let installEvt = null;
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -3357,7 +3368,7 @@ window.addEventListener('resize', () => {
 
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
-const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
+const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', ...Object.values(ZONE_TILES).flat(), 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
   'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'map7_bg', 'map8_bg', 'map9_bg', 'o_luci', 'o_carbone', 'o_pupazzo1', 'o_pupazzo2', 'o_pacco1', 'o_pacco2', 'o_cioccolata1', 'o_cioccolata2', 'o_stelle', 'o_verbale', 'o_botti1', 'o_botti2', 'o_spumante1', 'o_spumante2', 'o_coriandoli1', 'o_coriandoli2', 'o_cinghie', 'o_tempesta', 'o_roccia1', 'o_roccia2', 'o_tanica1', 'o_taniche2', 'o_polvere1', 'o_polvere2', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2', 'o_birra1', 'o_birra2', 'o_barile1', 'o_bottiglie1', 'o_neve1', 'o_neve2', 'o_ghiacciata1', 'o_ghiacciata2', 'o_fango_n1', 'o_fango_n2', 'o_marmo1', 'o_marmo2', 'o_cemento1', 'o_cemento2', 'o_fango_c1', 'o_fango_c2', 'o_melma1', 'o_melma2', 'o_tesoro', 'o_forziere',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 // caricamento leggero: prima solo quello che serve subito (tessere, ostacoli e la zona attuale), il resto dopo con calma
@@ -3365,7 +3376,7 @@ const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload 
 // caricamento leggero: subito solo quello che serve nello scenario attuale; il resto dello scenario dopo, gli altri scenari quando li apri
 const zoneAssets = (z) => (z ? [z.bg, z.boss, ...z.buildings.map((b) => 'b_' + b.id)] : []);
 // all'avvio si aspettano solo le immagini del regno in cui si gioca: gli ostacoli degli altri regni arrivano dopo, in sottofondo
-const OTHER_ART = (() => { const zi = Math.min(ZONES.length - 1, lvZone()); return new Set(ZONE_ART.flat().filter((n) => !ZONE_ART[zi].includes(n))); })();
+const OTHER_ART = (() => { const zi = Math.min(ZONES.length - 1, lvZone()); const mine = [...ZONE_ART[zi], ...tileNames(zi)]; return new Set([...ZONE_ART.flat(), ...Object.values(ZONE_TILES).flat()].filter((n) => !mine.includes(n))); })();
 const CORE = ASSETS.filter((n) => !/^(b_|map|c_|forestale|st\d)/.test(n) && !OTHER_ART.has(n)).concat((() => { const z = ZONES[Math.min(ZONES.length - 1, lvZone())]; return [z.bg, z.boss, 'c_gabbah', ...z.buildings.map((b) => 'b_' + b.id)]; })());
 const preload = Promise.all(CORE.map(loadImg));
 preload.then(() => setTimeout(() => {

@@ -1225,3 +1225,17 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .stkstrip { padding: 4px 10px; margin: 4px auto; }
 .stks { width: 38px; height: 38px; }
 .stkstrip > small { font-size: 12px; }
+/* scritte nella zona stretta (sopra la barra in alto): più piccole, mai sopra le tessere */
+.combo.tight .w { font-size: min(30px, var(--fs, 30px)) !important; -webkit-text-stroke: 6px var(--ink); }
+.combo.tight .n { font-size: 14px; -webkit-text-stroke: 4px var(--ink); }
+.combo.shout .w { font-size: 26px !important; }
+.combo.shout.tight .w { font-size: 22px !important; }
+/* menu laterale: le voci secondarie stanno in "Altro" */
+.sidebtns .sidebtn.more { display: none !important; }
+.morelist { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+.moreit { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--ink); background: #fff7e0; box-shadow: 0 3px 0 var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.moreit > span { font-size: 26px; width: 34px; text-align: center; }
+.moreit b { font: 400 18px var(--fd); color: var(--ink); line-height: 1.1; }
+.moreit small { display: block; font: 600 12.5px var(--fb); color: #7a6a4a; }
+.moreit:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+#bossbar.lowhp .hp { animation: hardPulse .8s ease-in-out infinite; }

@@ -1239,3 +1239,4 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .moreit small { display: block; font: 600 12.5px var(--fb); color: #7a6a4a; }
 .moreit:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
 #bossbar.lowhp .hp { animation: hardPulse .8s ease-in-out infinite; }
+.privlink { margin: 10px 0 0; opacity: .75; } .privlink a { color: inherit; }

@@ -38,6 +38,7 @@ const ZONE_TILES = { 1: ['tz1_b', 'tz1_g', 'tz1_w'], 2: ['tz2_b', 'tz2_g', 'tz2_
   5: ['tz5_b', 'tz5_g', 'tz5_w'], 6: ['tz6_b', 'tz6_g', 'tz6_w'], 7: ['tz7_b', 'tz7_g', 'tz7_w'], 8: ['tz8_b', 'tz8_g', 'tz8_w'] };
 const tileNames = (z) => { const t = TILE_BASE.slice(), zt = ZONE_TILES[z]; if (zt) { t[2] = zt[0]; t[3] = zt[1]; t[5] = zt[2]; } return t; };
 let TILE_URI = TILE_BASE.map(I);
+const GAME_V = (() => { try { return ([...document.scripts].map((x) => (x.src.match(/[?&]v=(\d+)/) || [])[1]).find(Boolean)) || ''; } catch { return ''; } })();
 const RIDER_UP = I('r_up'), RIDER_DOWN = I('r_down');
 const RIDE_URI = { mH: I('fx_moto'), mV: I('fx_moto_v'), drone: I('fx_drone') };   // senza medaglione, per le animazioni
 const POWER_URI = { mH: I('p_moto'), mV: I('p_moto_v'), bomb: I('p_tanica'), grappa: I('p_grappa'), drone: I('p_drone') };
@@ -3232,6 +3233,7 @@ function openSettings() {
     <button id="cCloud" class="btn btn-play">☁️ Salvataggio online</button>
     <button id="cMove" class="btn btn-share">📲 Porta i progressi su un altro telefono/iPad</button>
     <div class="row"><button id="cReset" class="btn btn-red">Ricomincia da zero</button></div>
+    <p class="small privlink"><a href="privacy.html" target="_blank" rel="noopener">Informativa privacy</a> · EDT Kingdom v${GAME_V}</p>
     <div class="row"><button id="cClose" class="btn btn-play">Fatto</button></div>`,
   { cClose: hideCard, cReset: confirmReset, cMove: () => V.shareProgress(), cCloud: () => openCloud() });
   bindToggles();

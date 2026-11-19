@@ -21,6 +21,7 @@ export const CHARS = {
   forestale7: { name: L`La Forestale Babbo Natale`, img: 'forestale7' },
   forestale8: { name: L`La Forestale vigile urbano`, img: 'forestale8' },
   forestale9: { name: L`La Forestale commissario della Dakar`, img: 'forestale9' },
+  forestale10: { name: L`La Forestale ispettore della revisione`, img: 'forestale10' },
 };
 
 // x,y in percentuale sulla mappa
@@ -221,6 +222,27 @@ const DAKAR = [
   { id: 'podio', name: L`Podio del Lago Rosa`, ix: 46, iy: 21, who: 'gabbah',
     text: L`Il podio sul Lago Rosa! Dakar finita, coppa d'oro e spumante per tutti. L'EDT è leggenda!` },
 ];
+// Il Gusta Ranch (271-300): l'officina del pazzo inventore
+const GUSTA = [
+  { id: 'trapano', name: L`Banco del trapano`, ix: 72, iy: 75, who: 'gusta',
+    text: L`Il trapano fuma, la gomma si arrende. Qui si chioda tutto, anche le ciabatte.` },
+  { id: 'chiodate', name: L`Gomme chiodate`, ix: 32.5, iy: 74, who: 'renard',
+    text: L`Denti d'acciaio per la bestia nera. Sul ghiaccio non scivola più nessuno. Forse.` },
+  { id: 'saldatrice', name: L`La saldatrice`, ix: 56, iy: 61.5, who: 'purcello',
+    text: L`Si aggiusta spaccando e si salda bevendo. Se regge, era giusto così.` },
+  { id: 'mola', name: L`La mola`, ix: 33, iy: 47.5, who: 'brizio',
+    text: L`Scintille a nastro! Ho affilato anche il cavalletto, per sicurezza.` },
+  { id: 'frigo', name: L`Frigo delle birre calde`, ix: 70, iy: 48, who: 'mirco',
+    text: L`Il frigo è rotto dal 2009. Birra calda, motori infami. Campa giù.` },
+  { id: 'ponte10', name: L`Ponte sollevatore`, ix: 55, iy: 36.5, who: 'linus',
+    text: L`La moto sale sul ponte, io scendo dal ponte. Tranquilli, è un lavoro easy.` },
+  { id: 'rottami', name: L`Mucchio dei rottami`, ix: 34, iy: 31, who: 'costa',
+    text: L`Si entra da sani, si esce rottami. Ma lì in mezzo ho trovato una canna da pesca.` },
+  { id: 'bestia', name: L`La Bestia Nera`, ix: 66.5, iy: 29, who: 'gusta',
+    text: L`Non serve il libretto, non serve la targa. Serve solo il coraggio di farla più larga.` },
+  { id: 'tempio', name: L`Tempio del Gusta Ranch`, ix: 50, iy: 25.5, who: 'gabbah',
+    text: L`Benvenuti nel regno del nostro disastro! Gas a martello: l'EDT ha la sua officina.` },
+];
 export const ZONES = [
   { id: 'valle', name: L`La Valle`, bg: 'map_bg', boss: 'forestale', from: 1,
     // sentiero sulla mappa (pixel dell'immagine 1280x1280) per la moto che gira
@@ -239,6 +261,7 @@ export const ZONES = [
   { id: 'natale', name: L`Natale in baita`, bg: 'map7_bg', boss: 'forestale7', from: 181, trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: NATALE },
   { id: 'capodanno', name: L`Capodanno in città`, bg: 'map8_bg', boss: 'forestale8', from: 211, trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: CAPODANNO },
   { id: 'dakar', name: L`La Dakar`, bg: 'map9_bg', boss: 'forestale9', from: 241, trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: DAKAR },
+  { id: 'gusta', name: L`Il Gusta Ranch`, bg: 'map10_bg', boss: 'forestale10', from: 271, trail: [[600,1275],[590,1180],[560,1080],[510,990],[470,900],[510,820],[600,760],[660,700],[640,620],[590,560],[600,500],[660,450],[650,390],[600,330],[560,290],[600,240],[650,200],[620,170]], buildings: GUSTA },
 ];
 VALLE.forEach((b) => { b.zone = 'valle'; });
 PASSO.forEach((b) => { b.zone = 'passo'; });
@@ -249,6 +272,7 @@ HALLO.forEach((b) => { b.zone = 'hallo'; });
 NATALE.forEach((b) => { b.zone = 'natale'; });
 CAPODANNO.forEach((b) => { b.zone = 'capodanno'; });
 DAKAR.forEach((b) => { b.zone = 'dakar'; });
-export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA, ...MAROCCO, ...OKTOBER, ...HALLO, ...NATALE, ...CAPODANNO, ...DAKAR];
+GUSTA.forEach((b) => { b.zone = 'gusta'; });
+export const BUILDINGS = [...VALLE, ...PASSO, ...CAVA, ...MAROCCO, ...OKTOBER, ...HALLO, ...NATALE, ...CAPODANNO, ...DAKAR, ...GUSTA];
 // zona di un livello: 0 = Valle, 1 = Passo, 2 = Cava
 export const zoneOfLevel = (n) => (n > 240 ? 8 : n > 210 ? 7 : n > 180 ? 6 : n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);

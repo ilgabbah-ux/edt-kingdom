@@ -10,7 +10,7 @@ export const BUDDIES = [
   { id: 'angelo', name: 'Angelo', nick: L`Amico delle pietre`, at: 6, perk: { clear: 'rock', n: 4 }, desc: L`Spacca <b>4 sassi</b> appena parti.`,
     lines: [L`Le pietre? Sono amiche mie. Le saluto una a una.`, L`Sassi e gradoni non mi fanno niente. Lascia fare a me.`] },
   { id: 'gusta', name: 'Gusta', nick: L`Trinciatutto`, at: 9, perk: { clear: 'mud', n: 6 }, desc: L`Trincia <b>6 caselle di fango</b> all'inizio.`,
-    lines: [L`Al Gusta Ranch la trincia passa ovunque. Anche qui.`, L`Fango? Lo trincio e ci faccio pure i punti.`] },
+    lines: [L`Al Gusta Ranch la trincia passa ovunque. Anche qui.`, L`Fango? Lo trincio e ci faccio pure i punti.`, L`Gas a martello!`, L`Spegni il cervello e dai gas.`, L`Non chiedere come, non chiedere quando.`, L`Più ignorante è la modifica, meglio va.`, L`Benvenuti al Gusta Ranch!`] },
   { id: 'ciprian', name: 'Ciprian', nick: L`Salitone`, at: 12, perk: { moves: 3 }, desc: L`<b>+3 mosse</b> (o +12 secondi nei livelli a tempo).`,
     lines: [L`In salita non mollo mai il gas. Tieni, tre mosse in più.`, L`Più è ripida, più mi diverto.`] },
   { id: 'daniel', name: 'Daniel', nick: L`Re della scia`, at: 15, perk: { moves: 2, coins: 20 }, desc: L`<b>+2 mosse</b> e <b>+20% monete</b> se vinci.`,

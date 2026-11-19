@@ -249,17 +249,17 @@ function goalsFrom(layout = [], tiles = []) {
 
 // difficoltà a onde (come in Royal Match): un livello "Difficile" ogni 10 e un "Super difficile" per regno,
 // con meno mosse e premi più grossi; i 2 livelli dopo sono più facili per rifiatare
-const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 98, 108, 117, 127, 137, 147, 157, 168, 177, 187, 198, 207, 217, 229, 237, 247, 257, 267]);
-const SUPER = new Set([43, 73, 103, 133, 163, 193, 223, 253]);
-export const isHard = (n) => (n > 270 ? n % 10 === 7 || n % 30 === 13 : HARD.has(n) || SUPER.has(n));
-export const isSuper = (n) => (n > 270 ? n % 30 === 13 : SUPER.has(n));
+const HARD = new Set([17, 27, 37, 47, 56, 66, 79, 87, 98, 108, 117, 127, 137, 147, 157, 168, 177, 187, 198, 207, 217, 229, 237, 247, 257, 267, 277, 287, 297]);
+const SUPER = new Set([43, 73, 103, 133, 163, 193, 223, 253, 283]);
+export const isHard = (n) => (n > 300 ? n % 10 === 7 || n % 30 === 13 : HARD.has(n) || SUPER.has(n));
+export const isSuper = (n) => (n > 300 ? n % 30 === 13 : SUPER.has(n));
 export const hardKind = (n) => (SUPER.has(n) ? 2 : HARD.has(n) ? 1 : 0);
 export const isBreather = (n) => !hardKind(n) && n % 5 !== 0 && (hardKind(n - 1) > 0 || hardKind(n - 2) > 0);
 // scenario "naturale" di un livello (1-30 Valle, 31-60 Passo, ...)
-export const natZone = (n) => (n > 270 ? ((n - 271) % 300) % 9 : n > 240 ? 8 : n > 210 ? 7 : n > 180 ? 6 : n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
+export const natZone = (n) => (n > 300 ? ((n - 301) % 300) % 9 : n > 270 ? 9 : n > 240 ? 8 : n > 210 ? 7 : n > 180 ? 6 : n > 150 ? 5 : n > 120 ? 4 : n > 90 ? 3 : n > 60 ? 2 : n > 30 ? 1 : 0);
 // z = scenario in cui si gioca: se è diverso da quello naturale il livello viene costruito con gli ostacoli di quello scenario,
 // con la difficoltà del numero di livello e le mosse tarate col simulatore (TUNED)
-// ---------- GIRO INFINITO: dopo il 270 i livelli continuano per sempre ----------
+// ---------- GIRO INFINITO: dopo il 300 i livelli continuano per sempre ----------
 // ogni livello prende lo schema di un livello avanzato (151-270) e lo ricostruisce in uno scenario che ruota fra i 9 regni,
 // con la sua onda di difficoltà (Difficile ogni 10, Super difficile ogni 30, boss ogni 10) e una salita lenta delle mosse
 export const isEndless = (n) => n > MAX_LEVEL;
@@ -282,7 +282,7 @@ function endlessLevel(n, z) {
   lv.n = n; lv.endless = true; lv.base = base; delete lv.intro;
   const hk = endlessKind(n0), bre = !hk && n0 % 10 !== 0 && (endlessKind(n0 - 1) || endlessKind(n0 - 2));
   if (!lv.time) {
-    if (ETUNED[n0]) lv.moves = ETUNED[n0];
+    if (ETUNED[271 + k]) lv.moves = ETUNED[271 + k];   // la tabella è nata quando il Giro infinito partiva dal 271
     else if (!lv.boss && hk) lv.moves = Math.max(12, Math.round(lv.moves * (hk === 2 ? 0.8 : 0.88)));
     lv.moves = Math.max(10, lv.moves - Math.min(4, lap));
   } else if (!lv.boss) lv.time = Math.max(60, lv.time - Math.min(30, lap * 10));
@@ -488,10 +488,16 @@ const BOSS_LINES9 = [
   L`Waypoint saltato? Un'ora di penalità e la multa in arabo.`,
   L`La tempesta di sabbia l'ho ordinata io. Buona navigazione!`,
 ];
-// Natale (181+), Capodanno (211+), Dakar (241+): stessi meccanismi, ostacoli a tema (catena, multa che si allarga, blocchi, casse, pozze, fusti, a tempo)
+const BOSS_LINES10 = [
+  L`Revisione! Libretto, targa e bollino blu. Subito!`,
+  L`Quella marmitta non è omologata. E nemmeno il meccanico.`,
+  L`Gomme chiodate a luglio? Multa. E anche ad agosto.`,
+  L`Qui dentro non c'è un solo bullone a norma.`,
+];
+// Natale (181+), Capodanno (211+), Dakar (241+), Gusta Ranch (271+): stessi meccanismi, ostacoli a tema (catena, multa che si allarga, blocchi, casse, pozze, fusti, a tempo)
 function partyLevel(n, rng, tier, z) {
   const colors = 6, base0 = (z - 6) * 30 + 180;
-  const pick = z === 8
+  const pick = z >= 8
     ? ['chain', 'rock', 'multa', 'velox+chain', 'crate+multa', 'drop', 'time', 'gomme+mud', 'rock+chain', 'drop+chain', 'velox+mud', 'crate', 'time', 'rock+multa']
     : ['chain', 'rock', 'multa', 'chain+mud', 'crate+multa', 'drop', 'time', 'rock+chain', 'crate', 'drop+chain', 'mud+rock', 'time', 'crate+chain'];
   const FIRST = { [base0 + 1]: 'chain', [base0 + 2]: 'rock', [base0 + 3]: 'multa', [base0 + 4]: 'crate' };
@@ -544,12 +550,12 @@ function baseLevel(n) {
 function bossLevel(n, rng, tier, z) {
   const colors = 6;
   const hp = Math.min(220 + (tier - 3) * 15, 430);   // oltre il livello ~110 la pazienza della Forestale non cresce più
-  const layout = makeLayout(rng, tier, z >= 6 ? (rng() < 0.5 ? (z === 8 ? 'rock' : 'crate') : 'chain') : z === 5 ? (rng() < 0.5 ? 'rock' : 'chain') : z === 4 ? (rng() < 0.5 ? 'crate' : 'chain') : z === 3 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
-  const LINES = [BOSS_LINES, BOSS_LINES2, BOSS_LINES3, BOSS_LINES4, BOSS_LINES5, BOSS_LINES6, BOSS_LINES7, BOSS_LINES8, BOSS_LINES9][Math.min(z, 8)];
+  const layout = makeLayout(rng, tier, z >= 6 ? (rng() < 0.5 ? (z >= 8 ? 'rock' : 'crate') : 'chain') : z === 5 ? (rng() < 0.5 ? 'rock' : 'chain') : z === 4 ? (rng() < 0.5 ? 'crate' : 'chain') : z === 3 ? (rng() < 0.5 ? 'gomme' : 'chain') : rng() < 0.5 ? 'rock' : 'crate', false);
+  const LINES = [BOSS_LINES, BOSS_LINES2, BOSS_LINES3, BOSS_LINES4, BOSS_LINES5, BOSS_LINES6, BOSS_LINES7, BOSS_LINES8, BOSS_LINES9, BOSS_LINES10][Math.min(z, 9)];
   return {
     n, moves: n > 90 ? 42 : 28, colors, boss: { hp, every: 4 },
     goals: [{ type: 'boss', n: hp }], layout,
-    intro: { who: ['forestale', 'forestale2', 'forestale3', 'forestale4', 'forestale5', 'forestale6', 'forestale7', 'forestale8', 'forestale9'][Math.min(z, 8)], text: LINES[tier % LINES.length] },
+    intro: { who: ['forestale', 'forestale2', 'forestale3', 'forestale4', 'forestale5', 'forestale6', 'forestale7', 'forestale8', 'forestale9', 'forestale10'][Math.min(z, 9)], text: LINES[tier % LINES.length] },
   };
 }
 function plainLevel(n, rng, tier, z) {
@@ -631,4 +637,4 @@ function makeLayout(rng, tier, kind, holes) {
   return G.map((row) => row.join(''));
 }
 
-export const MAX_LEVEL = 270;
+export const MAX_LEVEL = 300;

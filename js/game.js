@@ -35,7 +35,7 @@ const I = (n) => `url('${SRC(n)}')`;
 const TILE_BASE = ['t0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale'];
 // tessere a tema: in ogni regno la blu, la verde e la bianca cambiano (birra, casco e gomma restano: sono l'EDT)
 const ZONE_TILES = { 1: ['tz1_b', 'tz1_g', 'tz1_w'], 2: ['tz2_b', 'tz2_g', 'tz2_w'], 3: ['tz3_b', 'tz3_g', 'tz3_w'], 4: ['tz4_b', 'tz4_g', 'tz4_w'],
-  5: ['tz5_b', 'tz5_g', 'tz5_w'], 6: ['tz6_b', 'tz6_g', 'tz6_w'], 7: ['tz7_b', 'tz7_g', 'tz7_w'], 8: ['tz8_b', 'tz8_g', 'tz8_w'] };
+  5: ['tz5_b', 'tz5_g', 'tz5_w'], 6: ['tz6_b', 'tz6_g', 'tz6_w'], 7: ['tz7_b', 'tz7_g', 'tz7_w'], 8: ['tz8_b', 'tz8_g', 'tz8_w'], 9: ['tz9_b', 'tz9_g', 'tz9_w'] };
 const tileNames = (z) => { const t = TILE_BASE.slice(), zt = ZONE_TILES[z]; if (zt) { t[2] = zt[0]; t[3] = zt[1]; t[5] = zt[2]; } return t; };
 let TILE_URI = TILE_BASE.map(I);
 const GAME_V = (() => { try { return ([...document.scripts].map((x) => (x.src.match(/[?&]v=(\d+)/) || [])[1]).find(Boolean)) || ''; } catch { return ''; } })();
@@ -51,10 +51,10 @@ const MUG_URI = [I('o_boccale3'), I('o_boccale2'), I('o_boccale1'), I('o_boccale
 let CHAIN_URI = I('o_catena');
 let MULTA_URI = I('o_multa');
 // nomi (voci della guida) della catena e della multa che si allarga, per ogni scenario
-const CHAIN_K = ['chain', 'ice', 'tape', 'sand', 'garland', 'web', 'lights', 'streamers', 'straps'];
-const MULTA_K = ['multa', 'multa', 'multa', 'water', 'bill', 'potion', 'coal', 'ticket', 'sandstorm'];
+const CHAIN_K = ['chain', 'ice', 'tape', 'sand', 'garland', 'web', 'lights', 'streamers', 'straps', 'welds'];
+const MULTA_K = ['multa', 'multa', 'multa', 'water', 'bill', 'potion', 'coal', 'ticket', 'sandstorm', 'oilspill'];
 // musica di partita per scenario
-const zoneTrack = (z) => ({ 4: 'okt', 5: 'hall', 6: 'xmas', 7: 'nye', 8: 'dakar' }[z] || 'game');
+const zoneTrack = (z) => ({ 4: 'okt', 5: 'hall', 6: 'xmas', 7: 'nye', 8: 'dakar', 9: 'gusta' }[z] || 'game');
 const VELOX_URI = I('o_autovelox'), GOMME_URI = I('o_gomme'), DROP_URI = I('o_fusto');
 
 // ---------- salvataggio ----------
@@ -104,7 +104,7 @@ function speakerHTML(who, text) {
 // voci dei personaggi (ElevenLabs): 0 e 1 = battute, 2 = esultanza (per la Forestale: resa)
 const VOICED = ['gabbah', 'miti', 'mirco', 'purcello', 'costa', 'renard', 'svetlana', 'forestale'];
 // compagni di giro con la voce vera (ElevenLabs): file v_<id>0 e v_<id>1 = le due battute in piloti.js
-const BUD_VOICED = ['angelo', 'erika', 'maggie', 'alex', 'giacu'];
+const BUD_VOICED = ['angelo', 'erika', 'maggie', 'alex', 'giacu', 'gusta'];
 function budVoice(id, i) {
   if (!save.voice || !save.sfx || !BUD_VOICED.includes(id)) return;
   const src = (window.__V && window.__V['v_' + id + i]) || `audio/v_${id}${i}.mp3`;
@@ -171,7 +171,7 @@ function bldXY(b) {
 // quanto dell'edificio è già su (dal basso): tappa 0 niente, 1 fondamenta, 2 metà, 3 finito
 const RISE = [0, 0.3, 0.68, 1];
 const riseClip = (st) => `inset(${Math.round((1 - RISE[Math.max(0, Math.min(st, STEPS))]) * 100)}% 0 0 0)`;
-const homeTrack = () => ({ oktober: 'okt', hallo: 'hall', natale: 'xmas', capodanno: 'nye', dakar: 'dakar' }[currentZone().id] || 'home');
+const homeTrack = () => ({ oktober: 'okt', hallo: 'hall', natale: 'xmas', capodanno: 'nye', dakar: 'dakar', gusta: 'gusta' }[currentZone().id] || 'home');
 function currentZone() { const nb = nextBuilding(); return nb ? zoneOf(nb) : ZONES[ZONES.length - 1]; }
 // il tema della partita (sfondo, ostacoli, musica, boss) segue la zona che stai costruendo sulla mappa
 let forceZone = null;   // sfida di un amico: si gioca nello scenario del suo link
@@ -330,7 +330,7 @@ function renderHome(popId = null) {
   fitMap(); setTimeout(sideUI, 0);
   renderWeekBadge();
   $('#albPct').textContent = `${V.albumCount()}/${V.albumTotal()}`;
-  { const bd = $('#btnDiploma'); if (bd) bd.hidden = !save.story.dakarfine; }
+  { const bd = $('#btnDiploma'); if (bd) bd.hidden = !(save.story.gustafine || (save.story.dakarfine && !nextBuilding())); }
   { const ep = V.eventProgress(), be = $('#btnEvent');
     if (be) { be.hidden = !ep; if (ep) { be.querySelector('span').style.backgroundImage = I(ep.ev.img); $('#evPct').textContent = ep.st.n; } } }
   $('#hStars').textContent = save.stars - pendingStar;
@@ -707,7 +707,7 @@ async function tryBuild() {
         viewZone = null; renderHome();
         FX.banner(nz.name, L`Nuova zona sbloccata!`, '#bdf0ff');
       } else {
-        await showStory('dakarfine');
+        await showStory('gustafine');
         fireworks(2600);
         await sleep(1200);
         renderHome();
@@ -718,7 +718,7 @@ async function tryBuild() {
 }
 
 // il finale del capitolo prima, da mostrare quando si apre la zona dopo
-const PRE_STORY = { natale: 'hallofine', capodanno: 'natalefine', dakar: 'capofine' };
+const PRE_STORY = { natale: 'hallofine', capodanno: 'natalefine', dakar: 'capofine', gusta: 'dakarfine' };
 function fireworks(ms = 2000) {
   const ar = app.getBoundingClientRect();
   const cols = ['#ffd34d', '#ff5a3c', '#3d8bff', '#4fd25f', '#ff4fa3', '#bdf0ff'];
@@ -2416,6 +2416,11 @@ const COACH = {
   desertrock: ['miti', L`Le rocce del deserto si spaccano con i tris <b>accanto</b>. Quelle grandi vanno colpite due volte.`],
   jerrycan: ['purcello', L`Le taniche si liberano con i tris <b>accanto</b> o con un potenziamento.`],
   fesh: ['mirco', L`Il fesh-fesh è polvere finissima: si pulisce facendo tris <b>sopra</b>. Quello alto va fatto due volte.`],
+  welds: ['purcello', L`Le saldature tengono ferme le tessere: fai un tris con quelle tessere per staccarle.`],
+  oilspill: ['forestale10', L`Se in un turno non asciughi nessuna macchia d'olio, se ne allarga un'altra. Verbale!`],
+  studtyre: ['gusta', L`Le gomme chiodate si tolgono con i tris <b>accanto</b>. Quelle impilate vanno colpite due volte.`],
+  toolbox: ['renard', L`Le casse degli attrezzi si aprono con i tris <b>accanto</b> o con un potenziamento.`],
+  sludge: ['mirco', L`La morchia si pulisce facendo tris <b>sopra</b>. Quella densa va fatta due volte.`],
   slime: ['svetlana', L`La melma stregata si pulisce facendo tris <b>sopra</b>. Quella che bolle va fatta due volte.`],
   barrel: ['albertone', L`Le botti si aprono facendo tris <b>accanto</b>. Quelle intere vanno colpite due volte.`],
   bottles: ['claudio', L`Le casse di bottiglie si rompono con i tris <b>accanto</b> o con un potenziamento.`],
@@ -2590,6 +2595,11 @@ const HELP = {
   sandstorm: { img: 'o_tempesta', t: L`Tempesta di sabbia`, d: L`Copre la casella e si toglie con un tris sopra. Se in un turno <b>non ne togli nessuna</b>, se ne alza un'altra.` },
   desertrock: { img: 'o_roccia2', t: L`Roccia del deserto`, d: L`Blocca la casella. Si spacca facendo un tris <b>accanto</b> o con un potenziamento. Le rocce grandi vanno colpite due volte.` },
   jerrycan: { img: 'o_taniche2', t: L`Taniche`, d: L`Bloccano la casella come una cassa. Si liberano con i tris <b>accanto</b> o con un potenziamento.` },
+  welds: { img: 'o_saldatura', t: L`Saldature`, d: L`Al Gusta Ranch le saldature tengono ferme le tessere: non si spostano finché non le metti in un tris o le colpisci con un potenziamento.` },
+  oilspill: { img: 'o_olio', t: L`Macchia d'olio`, d: L`Copre la casella e si asciuga con un tris sopra. Se in un turno <b>non ne asciughi nessuna</b>, se ne allarga un'altra.` },
+  studtyre: { img: 'o_chiodata2', t: L`Gomme chiodate`, d: L`Bloccano la casella. Si tolgono facendo un tris <b>accanto</b> o con un potenziamento. Quelle impilate vanno colpite due volte.` },
+  toolbox: { img: 'o_attrezzi2', t: L`Cassa degli attrezzi`, d: L`Blocca la casella come una cassa. Si apre con i tris <b>accanto</b> o con un potenziamento.` },
+  sludge: { img: 'o_morchia1', t: L`Morchia`, d: L`Olio vecchio che sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra. Quella densa va pulita due volte.` },
   fesh: { img: 'o_polvere1', t: L`Fesh-fesh`, d: L`Polvere finissima che sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra. Quella alta va pulita due volte.` },
   slime: { img: 'o_melma1', t: L`Melma stregata`, d: L`Sta <b>sotto</b> le tessere. Si pulisce facendo un tris sopra la pozza. Quella che bolle va pulita due volte.` },
   barrel: { img: 'o_barile', t: L`Botte di birra`, d: L`Blocca la casella. Si apre facendo un tris <b>accanto</b> o con un potenziamento. Le botti intere vanno colpite due volte.` },
@@ -2680,7 +2690,8 @@ function storyUnlocked(id) {
   if (id === 'hallofine') return save.level > 180 || !!save.story.natale;
   if (id === 'natalefine') return save.level > 210 || !!save.story.capodanno;
   if (id === 'capofine') return save.level > 240 || !!save.story.dakar;
-  if (id === 'dakarfine') return false;
+  if (id === 'dakarfine') return save.level > 270 || !!save.story.gusta;
+  if (id === 'gustafine') return false;
   const z = ZONES.find((zz) => zz.id === id);
   return z ? save.level >= z.from : false;
 }
@@ -2705,6 +2716,7 @@ const ZONE_OBS = [
   { rock: 'rock', crate: 'crate', mud: 'mud' }, { rock: 'snowblock', crate: 'icecrate', mud: 'slush' }, { rock: 'marble', crate: 'cement', mud: 'greymud' },
   { rock: 'dune', crate: 'spice', mud: 'redmud' }, { rock: 'barrel', crate: 'bottles', mud: 'beer' }, { rock: 'pumpkin', crate: 'coffin', mud: 'slime' },
   { rock: 'snowman', crate: 'gift', mud: 'cocoa' }, { rock: 'fireworks', crate: 'bubbly', mud: 'confetti' }, { rock: 'desertrock', crate: 'jerrycan', mud: 'fesh' },
+  { rock: 'studtyre', crate: 'toolbox', mud: 'sludge' },
 ];
 const KIND = (p) => (p === 'mV' ? 'mH' : p);
 // tipi di ostacoli presenti in un livello
@@ -2949,7 +2961,7 @@ async function startLevel(n, extras = [], resume = null, challenge = false) {
   $('#board').classList.toggle('tape', zl === 2);
   $('#game').classList.toggle('winter', zl === 1);
   $('#game').classList.toggle('quarry', zl === 2);
-  for (const [cl, zz] of [['xmas', 6], ['nye', 7], ['dakar', 8]]) { $('#board').classList.toggle(cl, zl === zz); $('#game').classList.toggle(cl, zl === zz); }
+  for (const [cl, zz] of [['xmas', 6], ['nye', 7], ['dakar', 8], ['gusta', 9]]) { $('#board').classList.toggle(cl, zl === zz); $('#game').classList.toggle(cl, zl === zz); }
   const bf = $('#bossFace');
   bf.classList.remove('beaten', 'angry', 'hit');
   if (G.boss) bf.style.backgroundImage = FORESTALE_URI;
@@ -2987,6 +2999,7 @@ const ZONE_ART = [
   ['o_luci', 'o_carbone', 'o_pupazzo1', 'o_pupazzo2', 'o_pacco1', 'o_pacco2', 'o_cioccolata1', 'o_cioccolata2'],
   ['o_stelle', 'o_verbale', 'o_botti1', 'o_botti2', 'o_spumante1', 'o_spumante2', 'o_coriandoli1', 'o_coriandoli2'],
   ['o_cinghie', 'o_tempesta', 'o_roccia1', 'o_roccia2', 'o_tanica1', 'o_taniche2', 'o_polvere1', 'o_polvere2'],
+  ['o_saldatura', 'o_olio', 'o_chiodata1', 'o_chiodata2', 'o_attrezzi1', 'o_attrezzi2', 'o_morchia1', 'o_morchia2'],
 ];
 function setZoneArt(zl) {
   FORESTALE_URI = I(ZONES[zl].boss);
@@ -3386,7 +3399,7 @@ window.addEventListener('resize', () => {
 FX.initFX($('#fxc'), app);
 // precarica tutte le immagini prima di mostrare il gioco
 const ASSETS = ['map_bg', 't0_birra', 't1_casco', 't2_maschera', 't3_chiave', 't4_gomma', 't5_stivale', ...Object.values(ZONE_TILES).flat(), 'p_moto', 'p_moto_v', 'p_tanica', 'p_grappa', 'p_drone',
-  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'map7_bg', 'map8_bg', 'map9_bg', 'o_luci', 'o_carbone', 'o_pupazzo1', 'o_pupazzo2', 'o_pacco1', 'o_pacco2', 'o_cioccolata1', 'o_cioccolata2', 'o_stelle', 'o_verbale', 'o_botti1', 'o_botti2', 'o_spumante1', 'o_spumante2', 'o_coriandoli1', 'o_coriandoli2', 'o_cinghie', 'o_tempesta', 'o_roccia1', 'o_roccia2', 'o_tanica1', 'o_taniche2', 'o_polvere1', 'o_polvere2', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2', 'o_birra1', 'o_birra2', 'o_barile1', 'o_bottiglie1', 'o_neve1', 'o_neve2', 'o_ghiacciata1', 'o_ghiacciata2', 'o_fango_n1', 'o_fango_n2', 'o_marmo1', 'o_marmo2', 'o_cemento1', 'o_cemento2', 'o_fango_c1', 'o_fango_c2', 'o_melma1', 'o_melma2', 'o_tesoro', 'o_forziere',
+  'o_sasso1', 'o_sasso2', 'o_fango1', 'o_fango2', 'o_cassa1', 'o_cassa2', 'o_catena', 'o_multa', 'forestale', 'b_cantiere', 'map2_bg', 'o_ghiaccio', 'map3_bg', 'o_nastro', 'fx_moto', 'fx_moto_v', 'fx_drone', 'r_up', 'r_down', 'map4_bg', 'o_sabbia', 'o_acqua', 'o_autovelox', 'o_gomme', 'o_fusto', 'e_zucca', 'e_regalo', 'e_brezel', 'map5_bg', 'o_ghirlanda', 'o_conto', 'o_barile', 'o_bottiglie', 'o_boccale0', 'o_boccale1', 'o_boccale2', 'o_boccale3', 'map6_bg', 'o_ragnatela', 'o_pozione', 'o_zucca', 'map7_bg', 'map8_bg', 'map9_bg', 'map10_bg', 'o_saldatura', 'o_olio', 'o_chiodata1', 'o_chiodata2', 'o_attrezzi1', 'o_attrezzi2', 'o_morchia1', 'o_morchia2', 'o_luci', 'o_carbone', 'o_pupazzo1', 'o_pupazzo2', 'o_pacco1', 'o_pacco2', 'o_cioccolata1', 'o_cioccolata2', 'o_stelle', 'o_verbale', 'o_botti1', 'o_botti2', 'o_spumante1', 'o_spumante2', 'o_coriandoli1', 'o_coriandoli2', 'o_cinghie', 'o_tempesta', 'o_roccia1', 'o_roccia2', 'o_tanica1', 'o_taniche2', 'o_polvere1', 'o_polvere2', 'o_zucca2', 'o_bara', 'o_bara2', 'o_duna1', 'o_duna2', 'o_spezie1', 'o_spezie2', 'o_fango_m1', 'o_fango_m2', 'o_birra1', 'o_birra2', 'o_barile1', 'o_bottiglie1', 'o_neve1', 'o_neve2', 'o_ghiacciata1', 'o_ghiacciata2', 'o_fango_n1', 'o_fango_n2', 'o_marmo1', 'o_marmo2', 'o_cemento1', 'o_cemento2', 'o_fango_c1', 'o_fango_c2', 'o_melma1', 'o_melma2', 'o_tesoro', 'o_forziere',
   ...BUILDINGS.map((b) => 'b_' + b.id), ...Object.values(CHARS).map((c) => c.img), 'u_stella', 'u_moneta', 'u_martello', 'u_scudo', 'u_lucchetto', 'u_nuvola'];
 // caricamento leggero: prima solo quello che serve subito (tessere, ostacoli e la zona attuale), il resto dopo con calma
 const loadImg = (n) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => res(); im.src = SRC(n); if (im.decode) im.decode().then(res, res); });
@@ -3412,7 +3425,7 @@ const goParam = (() => { try { return new URLSearchParams(location.search).get('
 const startup = async () => { if (/[?&]stats\b/.test(location.search)) { openStats(); return; } updateBadge();
   if (isStandalone() && !save.appBonus) { await new Promise((r) => appFirstRun(r)); } if (await V.readProgressLink()) return; if (V.readGift()) return; if (currentZone().id === 'oktober' && !save.story.oktober && save.story.marocco) { if (!save.story.fine) await showStory('fine'); await showStory('oktober'); viewZone = null; renderHome(); }
   if (currentZone().id === 'hallo' && !save.story.hallo && save.story.oktober) { if (!save.story.oktofine) await showStory('oktofine'); await showStory('hallo'); viewZone = null; renderHome(); }
-  for (const [zid, prev, pre] of [['natale', 'hallo', 'hallofine'], ['capodanno', 'natale', 'natalefine'], ['dakar', 'capodanno', 'capofine']]) if (currentZone().id === zid && !save.story[zid] && save.story[prev]) { if (!save.story[pre]) await showStory(pre); await showStory(zid); viewZone = null; renderHome(); } if (goParam === 'album') { V.openAlbum(V.zonePage()); return; } if (goParam === 'gioca' && !checkDaily()) { openLevel(); return; } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
+  for (const [zid, prev, pre] of [['natale', 'hallo', 'hallofine'], ['capodanno', 'natale', 'natalefine'], ['dakar', 'capodanno', 'capofine'], ['gusta', 'dakar', 'dakarfine']]) if (currentZone().id === zid && !save.story[zid] && save.story[prev]) { if (!save.story[pre]) await showStory(pre); await showStory(zid); viewZone = null; renderHome(); } if (goParam === 'album') { V.openAlbum(V.zonePage()); return; } if (goParam === 'gioca' && !checkDaily()) { openLevel(); return; } if (!offerResume() && !V.offerChallenge() && !checkDaily()) offerEvent(); };
 if (save.welcomed && firstStory) preload.then(() => setTimeout(async () => { await showStory('intro'); startup(); }, 500));
 else if (save.welcomed) setTimeout(startup, 600);
 if (!save.welcomed) {

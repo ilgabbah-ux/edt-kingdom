@@ -145,8 +145,23 @@ export const STORY = {
     ],
     end: { t: L`Fine… per ora. Grazie per aver giocato con l'Enduro Drinking Team!`, v: 's_narr8' },
   },
+  gusta: {
+    title: L`Capitolo 10`, name: L`Il Gusta Ranch`,
+    scenes: [
+      { img: 'st11_1', cam: 'in', fx: ['sun', 'sparkle'], narr: { t: L`Tornata dal deserto, l'EDT ha le moto a pezzi. C'è un solo posto dove portarle: il tempio del pazzo inventore.` }, lines: [{ who: 'gusta', t: L`Benvenuti al Gusta Ranch!`, v: 's_gusta0' }] },
+      { img: 'st11_2', cam: 'punch', fx: ['dust', 'shake'], lines: [{ who: 'forestale10', t: L`Revisione! Libretto, targa e bollino blu. Subito!` }, { who: 'gabbah', t: L`Ma non si era arreso per sempre?` }] },
+    ],
+    end: { t: L`Costruisci l'officina, chioda le gomme… e fai passare la revisione alla Bestia Nera!` },
+  },
+  gustafine: {
+    title: L`Gran finale`, name: L`Gas a martello`,
+    scenes: [
+      { img: 'st11_3', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Dieci regni, mille multe e una revisione passata per miracolo. Al Gusta Ranch si festeggia fino all'alba.` }, lines: [{ who: 'forestale10', t: L`Revisione superata. Ma non ditelo a nessuno.` }, { who: 'gabbah', t: L`EDT per sempre! Tranquilli, era un giro easy!`, v: 's_gabbah12' }] },
+    ],
+    end: { t: L`Fine… per ora. Grazie per aver giocato con l'Enduro Drinking Team!`, v: 's_narr8' },
+  },
 };
-export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine', 'oktober', 'oktofine', 'hallo', 'hallofine', 'natale', 'natalefine', 'capodanno', 'capofine', 'dakar', 'dakarfine'];
+export const STORY_ORDER = ['intro', 'passo', 'cava', 'finale', 'marocco', 'fine', 'oktober', 'oktofine', 'hallo', 'hallofine', 'natale', 'natalefine', 'capodanno', 'capofine', 'dakar', 'dakarfine', 'gusta', 'gustafine'];
 
 let opts = {};
 export function initStory(o) { opts = o; }   // { I, SRC, voiceSrc, duck, canVoice, click }

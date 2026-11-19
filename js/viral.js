@@ -87,16 +87,16 @@ const diplomaStats = () => {
 export function shareDiploma() {
   const nick = X.getNick() || L`Un pilota EDT`, d = diplomaStats();
   X.sfx.click();
-  shareImage({ bg: 'st10_5', title: L`REGNO EDT CONQUISTATO!`, line1: L`${nick}: ${d.lv} livelli, ${d.st} ⭐`, stars: 3, who: 'gabbah', img: 'forestale_ko', footer: L`CHI MI BATTE? 🍺` },
-    L`🏆 Ho conquistato tutto il regno di Enduro Drinking Kingdom: ${d.lv} livelli, dalla Valle fino alla Dakar, con ${d.st} ⭐! Chi mi batte?`, gameURL());
+  shareImage({ bg: 'st11_3', title: L`REGNO EDT CONQUISTATO!`, line1: L`${nick}: ${d.lv} livelli, ${d.st} ⭐`, stars: 3, who: 'gabbah', img: 'forestale_ko', footer: L`CHI MI BATTE? 🍺` },
+    L`🏆 Ho conquistato tutto il regno di Enduro Drinking Kingdom: ${d.lv} livelli, dalla Valle fino al Gusta Ranch, con ${d.st} ⭐! Chi mi batte?`, gameURL());
 }
 export function openDiploma(first = false) {
   const nick = X.getNick() || L`Pilota EDT`, d = diplomaStats();
   X.showCard(`<div class="diploma">
-      <div class="dpic" style="background-image:${X.I('st10_5')}"><span style="background-image:${X.I('forestale_ko')}"></span></div>
+      <div class="dpic" style="background-image:${X.I('st11_3')}"><span style="background-image:${X.I('forestale_ko')}"></span></div>
       <small>${L`ATTESTATO UFFICIALE EDT`}</small>
       <h2>${L`Regno conquistato!`}</h2>
-      <p>${L`<b>${esc(nick)}</b> ha liberato la Valle, il Passo, la Cava, il Marocco, l'Oktoberfest, il bosco di Halloween, la baita di Natale, la piazza di Capodanno e la Dakar. La Forestale si arrende!`}</p>
+      <p>${L`<b>${esc(nick)}</b> ha liberato la Valle, il Passo, la Cava, il Marocco, l'Oktoberfest, il bosco di Halloween, la baita di Natale, la piazza di Capodanno, la Dakar e il Gusta Ranch. La Forestale si arrende!`}</p>
       <div class="dstats"><div><b>${d.lv}</b><span>${L`livelli`}</span></div><div><b>${d.st}</b><span>⭐</span></div><div><b>${d.tre}</b><span>${L`con 3 ⭐`}</span></div></div>
       ${d.st < d.max ? `<p class="dhint">${L`Sfida finale: rigioca gli scenari dalla mappa e fai 3 stelle ovunque!`}</p>` : `<p class="dhint">${L`Tutto a 3 stelle: sei una leggenda dell'EDT!`}</p>`}
     </div>
@@ -189,6 +189,9 @@ export const PAGES = [
   { id: 'dakar', name: L`La Dakar`, prize: 700, items: [
     ['dk1', L`La partenza`, 'st10_1', 1], ['dk2', L`Il salto di Miti`, 'st10_2', 1], ['dk3', L`Notte al bivacco`, 'st10_4', 2], ['dk4', L`Il podio sul Lago Rosa`, 'st10_5', 3],
     ['fo9', L`La Forestale commissario`, 'forestale9', 2], ['dk5', L`Il camion della Dakar`, 'b_camion9', 2], ['dk6', L`Bivacco dei cammelli`, 'b_cammello', 1], ['dk7', L`La Forestale si arrende`, 'forestale_ko', 3]] },
+  { id: 'gusta', name: L`Il Gusta Ranch`, prize: 750, items: [
+    ['gr1', L`Arrivo al Ranch`, 'st11_1', 1], ['gr2', L`La revisione`, 'st11_2', 1], ['gr3', L`Banco del trapano`, 'b_trapano', 1], ['gr4', L`Festa in officina`, 'st11_3', 3],
+    ['fo10', L`La Forestale ispettore`, 'forestale10', 2], ['gr5', L`La Bestia Nera`, 'b_bestia', 2], ['gr6', L`Il Tempio del Gusta Ranch`, 'b_tempio', 2], ['gr7', L`Gomme chiodate`, 'o_chiodata2', 1]] },
 ];
 const RAR = { 1: [L`Comune`, 10], 2: [L`Rara`, 4], 3: ['D\'oro', 1] };
 const ALL = PAGES.flatMap((p) => p.items.map(([id, name, img, r]) => ({ id, name, img, r, page: p })));
@@ -197,7 +200,7 @@ export const albumCount = () => ALL.filter((s) => X.save.album[s.id]).length;
 export const albumTotal = () => ALL.length;
 // pesca una figurina (le d'oro sono rare); restituisce { s, dup }
 // pagine dell'album di ogni scenario: le figurine che vinci sono quelle dello scenario in cui giochi
-const ZONE_PAGES = [['piloti', 'giro1'], ['forestale', 'momenti'], ['giro2', 'momenti'], ['marocco'], ['okt'], ['hallo'], ['natale'], ['capodanno'], ['dakar']];
+const ZONE_PAGES = [['piloti', 'giro1'], ['forestale', 'momenti'], ['giro2', 'momenti'], ['marocco'], ['okt'], ['hallo'], ['natale'], ['capodanno'], ['dakar'], ['gusta']];
 export const zonePage = () => Math.max(0, PAGES.findIndex((p) => p.id === (ZONE_PAGES[X.zone ? X.zone() : 0] || ['piloti'])[0]));
 export function drawSticker() {
   const zp = ZONE_PAGES[X.zone ? X.zone() : 0] || ZONE_PAGES[0];

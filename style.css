@@ -1247,3 +1247,9 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .shoppill { padding-right: 26px !important; }
 #home .topbar .gear { position: absolute; right: 12px; top: calc(58px + env(safe-area-inset-top)); margin: 0; z-index: 4; }
 .shoppill.newshop::before { left: 0; transform: none; }
+
+/* v70: Il Gusta Ranch */
+#game.gusta { background: linear-gradient(180deg, rgba(70,40,15,.46), rgba(255,210,150,.05) 30%, rgba(70,40,15,.22) 70%, rgba(35,18,6,.66)), url('img/map10_bg.webp') center 30%/cover !important; }
+#board.gusta .tile.chained::after { background-image: url('img/o_saldatura.webp') !important; inset: -2% !important; opacity: .92 !important; }
+#board.gusta .ticket { background-image: url('img/o_olio.webp'); background-size: 90%; background-position: center; background-repeat: no-repeat; }
+#game.gusta #goals .goal[data-t="chain"] { background-color: #e3e6ea !important; }

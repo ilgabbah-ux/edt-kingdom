@@ -138,7 +138,11 @@ function say(who, text, btn = L`Ok!`, vIdx = -1) {
 
 // =================== CAMPO BASE ===================
 const STEPS = 3;
-const STEP_COST = 2;   // stelle per ogni tappa di costruzione
+// stelle per ogni tappa di costruzione: sale andando avanti (2 nelle prime tre zone, 3 nelle tre dopo, poi 4),
+// così il regno cresce insieme ai livelli e non finisce cento livelli prima
+const STEP_COSTS = [2, 2, 2, 3, 3, 3];
+const STEP_COST_MAX = 4;
+const stepCost = (b = nextBuilding()) => { if (!b) return STEP_COSTS[0]; const i = ZONES.findIndex((z) => z.id === b.zone); return i < 0 ? STEP_COSTS[0] : (STEP_COSTS[i] || STEP_COST_MAX); };
 if (!save.steps) { save.steps = {}; (save.built || []).forEach((id) => { save.steps[id] = STEPS; }); }
 if (!save.best) save.best = {};
 if (!save.inv) save.inv = { mH: 0, bomb: 0, grappa: 0 };
@@ -220,7 +224,7 @@ function fitMap() {
   $('#home').style.setProperty('--hb', (hb.offsetHeight + 14) + 'px');
   if (map.style.bottom !== b) map.style.bottom = b;
 }
-window.addEventListener('resize', () => { fitMap(); });
+window.addEventListener('resize', () => { fitMap(); fitPlay(); });
 // ---------------- edifici dorati e negozio ----------------
 // (giorno di oggi: dayKey, definita più sotto)
 const GOLD_COST = 600;
@@ -383,7 +387,7 @@ function renderHome(popId = null) {
     d.onclick = () => (isNext ? tryBuild() : built ? openBuilt(b) : lockedInfo(b));
     map.appendChild(d);
   }
-  if (nb && zoneOf(nb) === zone && save.stars >= STEP_COST) {
+  if (nb && zoneOf(nb) === zone && save.stars >= stepCost()) {
     const a = document.createElement('div');
     a.className = 'arrow'; a.textContent = '▼';
     a.style.left = bldX(nb) + '%'; a.style.top = (bldTop(nb) - 12) + '%';
@@ -408,11 +412,11 @@ function renderHome(popId = null) {
     $('#jobImg').style.backgroundImage = I('b_' + nb.id);
     $('#jobName').textContent = nb.name;
     $('#jobSteps').innerHTML = Array.from({ length: STEPS }, (_, k) => `<i class="${k < stepsOf(nb) ? 'on' : ''}"></i>`).join('');
-    const ok = save.stars >= STEP_COST;
+    const ok = save.stars >= stepCost();
     btnB.classList.toggle('ready', ok); btnB.classList.toggle('wait', !ok);
     $('#buildLbl').textContent = L`Costruisci`;
-    $('#buildCost').innerHTML = (ok ? L`usa` : L`serve`) + ' ' + IC_S + ' ' + STEP_COST;
-    { const zb = zoneOf(nb).buildings, nDone = zb.filter(isBuilt).length, miss = STEP_COST - save.stars;
+    $('#buildCost').innerHTML = (ok ? L`usa` : L`serve`) + ' ' + IC_S + ' ' + stepCost();
+    { const zb = zoneOf(nb).buildings, nDone = zb.filter(isBuilt).length, miss = stepCost() - save.stars;
       $('#jobLeft').innerHTML = (ok ? `<b class="ok">${L`Pronto!`}</b>` : L`ancora <b>${miss}</b> ${IC_S}`) + ` · ${L`regno`} <b>${nDone}/${zb.length}</b>`; }
   } else if (save.level > MAX_LEVEL) {   // Giro infinito: prossimo forziere, record e classifica
     const done = save.level - MAX_LEVEL - 1, toChest = Math.ceil(save.level / 10) * 10 - save.level;
@@ -430,12 +434,23 @@ function renderHome(popId = null) {
     $('#buildLbl').textContent = L`Fatto`; $('#buildCost').textContent = L`Completo`;
   }
   { const nl = save.level, hk = isSuper(nl) ? 2 : isHard(nl) ? 1 : 0, stk = save.streak || 0;
-    $('#btnPlay').innerHTML = L`Gioca <b>livello ${nl}</b>` + (nl > MAX_LEVEL && !hk ? `<em class="ptag inf">${L`♾️ GIRO INFINITO`}</em>` : '')
+    $('#btnPlay').innerHTML = '<span class="ptxt">' + L`Gioca <b>livello ${nl}</b>` + '</span>' + (nl > MAX_LEVEL && !hk ? `<em class="ptag inf">${L`♾️ GIRO INFINITO`}</em>` : '')
       + (hk ? `<em class="ptag${hk === 2 ? ' sup' : ''}">${hk === 2 ? L`💀 SUPER DIFFICILE` : L`🔥 DIFFICILE`}</em>` : '')
       + (stk ? `<span class="pflame" title="${L`Serie di vittorie`}">🔥<b>${stk}</b></span>` : '');
     $('#btnPlay').classList.toggle('hardp', hk === 1); $('#btnPlay').classList.toggle('superp', hk === 2); }
-  if (viewZone && viewZone !== currentZone()) $('#btnPlay').innerHTML = L`Rigioca ${zone.name}`;
+  if (viewZone && viewZone !== currentZone()) $('#btnPlay').innerHTML = '<span class="ptxt">' + L`Rigioca ${zone.name}` + '</span>';
+  fitPlay();
 }
+// la scritta del pulsante verde sta sempre su una riga: se è lunga (es. "Rigioca Capodanno in città") si rimpicciolisce
+function fitPlay() {
+  const b = $('#btnPlay'), t = b && b.querySelector('.ptxt');
+  if (!t || !b.clientWidth) return;
+  t.style.fontSize = '';
+  const cs = getComputedStyle(b), room = b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 8;
+  let fs = parseFloat(getComputedStyle(t).fontSize);
+  while (fs > 13 && t.offsetWidth > room) { fs -= 1; t.style.fontSize = fs + 'px'; }
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitPlay());
 
 let riderRAF = 0;
 // Miti che fa il giro del Campo Base: sentiero curvo, frena in curva, si piega, in cima fa inversione; ogni tanto salta o impenna
@@ -553,23 +568,23 @@ function startTrailRider(map, trail) {
 
 function lockedInfo(b) {
   const idx = BUILDINGS.indexOf(b);
-  const before = BUILDINGS.slice(0, idx).reduce((s, x) => s + (STEPS - stepsOf(x)) * STEP_COST, 0);
+  const before = BUILDINGS.slice(0, idx).reduce((s, x) => s + (STEPS - stepsOf(x)) * stepCost(x), 0);
   const nb = nextBuilding();
   say('gabbah', L`<b>${b.name}</b> arriva più avanti. Prima finiamo <b>${nb.name}</b>: servono ancora <b>${before} ${IC_S}</b> prima di arrivarci.`, L`Ok`);
 }
 
 async function tryBuild() {
-  const nb = nextBuilding();
+  const nb = nextBuilding(); const cost = stepCost(nb);
   if (!nb || G.building || pendingStar) return;
   if (viewZone && viewZone !== zoneOf(nb)) { viewZone = null; renderHome(); }
-  if (save.stars < STEP_COST) {
-    showCard(L`${speakerHTML('gabbah', L`Ogni pezzo di <b>${nb.name}</b> costa <b>${STEP_COST} ${IC_S}</b> e ne hai ${save.stars}. Vinci i livelli: con poche mosse usate prendi fino a <b>3 ${IC_S}</b>!`)}
+  if (save.stars < cost) {
+    showCard(L`${speakerHTML('gabbah', L`Ogni pezzo di <b>${nb.name}</b> costa <b>${cost} ${IC_S}</b> e ne hai ${save.stars}. Vinci i livelli: con poche mosse usate prendi fino a <b>3 ${IC_S}</b>!`)}
       <div class="row"><button id="cNo" class="btn btn-gray">Dopo</button><button id="cGo" class="btn btn-play">Gioca!</button></div>`,
       { cNo: hideCard, cGo: () => { hideCard(); openLevel(); } });
     return;
   }
   G.building = true;
-  save.stars -= STEP_COST;
+  save.stars -= cost;
   save.steps[nb.id] = stepsOf(nb) + 1;
   persist();
   const done = isBuilt(nb);
@@ -587,7 +602,7 @@ async function tryBuild() {
   {
     const pill = $('#hStars').parentElement.getBoundingClientRect();
     const tr = el0.getBoundingClientRect();
-    for (let k = 0; k < STEP_COST; k++) {
+    for (let k = 0; k < cost; k++) {
       const st = document.createElement('div'); st.className = 'flystar ic-star';
       const x0 = pill.left - ar.left + 18, y0 = pill.top - ar.top + 18;
       const x1 = tr.left - ar.left + tr.width * .5, y1 = tr.top - ar.top + tr.height * .5;
@@ -740,9 +755,9 @@ function flyStarToCounter() {
         sfx.star();
         if (!pendingStar) {
           renderHome();
-          if (G.autoBuild) { G.autoBuild = false; if (save.stars >= STEP_COST && nextBuilding()) { save.tutBuild = true; persist(); setTimeout(() => tryBuild(), 350); return; } }
+          if (G.autoBuild) { G.autoBuild = false; if (save.stars >= stepCost() && nextBuilding()) { save.tutBuild = true; persist(); setTimeout(() => tryBuild(), 350); return; } }
           setTimeout(() => { if ($('#overlay').classList.contains('hidden') && !G.building && !pendingStar && $('#home').classList.contains('active')) maybeInviteInstall(); }, 1600);
-          if (!save.tutBuild && save.stars >= STEP_COST && nextBuilding()) {
+          if (!save.tutBuild && save.stars >= stepCost() && nextBuilding()) {
             save.tutBuild = true; persist();
             setTimeout(() => homeTip('gabbah', L`Hai abbastanza <b>stelle</b>! Tocca <b>Costruisci</b> qui sotto per alzare un pezzo del Campo Base.`), 250);
           }
@@ -2234,7 +2249,7 @@ async function winLevel() {
   const chRes = V.challengeResult(n, stars, true, left);
   sfx.win();
   const nb = nextBuilding();
-  const canBuildNow = !!nb && save.stars >= STEP_COST;
+  const canBuildNow = !!nb && save.stars >= stepCost();
   // Giro infinito: ogni 10 livelli (quello col boss) il forziere del Giro
   const giroChest = G.level.endless && first && !G.exhibit && n % 10 === 0 ? (() => {
     const p = pick(SHOP_PW.filter((x) => x.k !== 'moves')), coins = 150 + Math.min(150, Math.floor((n - MAX_LEVEL) / 50) * 25);
@@ -2247,7 +2262,7 @@ async function winLevel() {
   showCard(L`<h2 class="wintitle">${pick(WIN_TITLES)}</h2>
     <div class="stars3 fill">${[1, 2, 3].map((k) => `<i class="ic ic-star slot" data-k="${k}"></i>`).join('')}</div>
     <p class="winsub">${stars === 3 ? L`Perfetto! Tre stelle piene.` : L`Con meno mosse usate prendi ${stars === 1 ? L`fino a 3` : L`la terza`} ${IC_S}`}</p>
-    <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? L`<br>Con ${STEP_COST} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
+    <p>${gainTxt}${gainTxt ? ' · ' : ''}<b>+${coins} ${IC_C}</b>${nb && gain ? L`<br>Con ${stepCost()} ${IC_S} costruisci un pezzo di <b>${nb.name}</b>.` : ''}</p>
     ${giroChest}${first && !giroChest ? streakStrip() : ''}${chRes}
     ${first ? '' : `<div class="cheer">${speakerHTML(who, line)}</div>`}
     ${sticker ? (V.stickerNeedsPopup(sticker) ? L`<p class="stkhint">📒 Hai trovato una figurina!</p>` : V.stickerInline(sticker)) : ''}
@@ -2614,7 +2629,7 @@ const HELP = {
   pre: { img: 'p_tanica', t: L`Aiuti di partenza`, d: L`Prima del livello puoi mettere in griglia una Moto, una Tanica o una Grappa (con le monete o gratis se li hai vinti). Se vinci più livelli di fila li ricevi in <b>regalo</b>.` },
   coins: { img: 'u_moneta', t: L`Monete`, d: L`Le guadagni vincendo (50 più 10 per ogni mossa avanzata; meno se rigiochi un livello) e col premio del giorno. Servono per gli aiuti: <b>Martello</b> 100, <b>Scudo</b> 150, aiuti di partenza (Moto 60, Tanica 90, Grappa 140) e <b>+5 mosse</b> quando perdi (200). Per costruire servono le stelle, non le monete.` },
   // campo base
-  build: { img: 'b_cantiere', t: L`Costruire`, d: L`Ogni edificio ha <b>3 pezzi</b> e ogni pezzo costa <b>2 stelle</b>. Tocca <b>Costruisci</b> o il cantiere con la freccia. Finita una zona, se ne apre una nuova.` },
+  build: { img: 'b_cantiere', t: L`Costruire`, d: L`Ogni edificio ha <b>3 pezzi</b> e ogni pezzo costa <b>da 2 a 4 stelle</b> (più vai avanti, più costa). Tocca <b>Costruisci</b> o il cantiere con la freccia. Finita una zona, se ne apre una nuova.` },
   zones: { img: 'map2_bg', t: L`Zone`, d: L`Prima <b>La Valle</b>, poi <b>Il Passo</b> sulla neve (dal livello 31) e <b>La Cava</b> (dal livello 61), ognuna con edifici, ostacoli e boss nuovi. Col cartello in alto guardi le zone già sbloccate.` },
   daily: { img: 'u_moneta', t: L`Ruota del giorno`, d: L`Apri il gioco ogni giorno e gira la <b>Ruota del Giro Easy</b>: monete, Moto, Tanica, Grappa o una figurina. Al settimo giorno di fila la giri <b>due volte</b>.` },
   levels: { img: 'u_stella', t: L`Livelli`, d: L`Dal pulsante <b>Livelli</b> rigiochi quelli già fatti per prendere le stelle che mancano.` },
@@ -3071,7 +3086,7 @@ function goHome(quiet = false) {
   AU.playMusic(homeTrack());
   renderHome();
   if (pendingStar) setTimeout(flyStarToCounter, 350);
-  else if (G.autoBuild) { G.autoBuild = false; if (save.stars >= STEP_COST && nextBuilding()) setTimeout(() => tryBuild(), 450); }
+  else if (G.autoBuild) { G.autoBuild = false; if (save.stars >= stepCost() && nextBuilding()) setTimeout(() => tryBuild(), 450); }
   else if (!quiet) setTimeout(shopTutorial, 900);
 }
 // primo acquisto guidato: quando hai monete e non hai mai aperto il Negozio, Gabbah te lo mostra e ti regala una Moto

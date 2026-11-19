@@ -1240,3 +1240,10 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .moreit:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
 #bossbar.lowhp .hp { animation: hardPulse .8s ease-in-out infinite; }
 .privlink { margin: 10px 0 0; opacity: .75; } .privlink a { color: inherit; }
+
+/* v69: pulsante verde sempre su una riga, ingranaggio sotto le monete (non più sotto il logo), cifre delle monete libere dal + */
+#btnPlay .ptxt { display: inline-block; white-space: nowrap; line-height: 1.15; }
+.homebar .btn-play { min-height: 58px; }
+.shoppill { padding-right: 26px !important; }
+#home .topbar .gear { position: absolute; right: 12px; top: calc(58px + env(safe-area-inset-top)); margin: 0; z-index: 4; }
+.shoppill.newshop::before { left: 0; transform: none; }

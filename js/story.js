@@ -149,14 +149,14 @@ export const STORY = {
     title: L`Capitolo 10`, name: L`Il Gusta Ranch`,
     scenes: [
       { img: 'st11_1', cam: 'in', fx: ['sun', 'sparkle'], narr: { t: L`Tornata dal deserto, l'EDT ha le moto a pezzi. C'è un solo posto dove portarle: il tempio del pazzo inventore.`, v: 's_narr33' }, lines: [{ who: 'gusta', t: L`Benvenuti al Gusta Ranch!`, v: 's_gusta0' }] },
-      { img: 'st11_2', cam: 'punch', fx: ['dust', 'shake'], lines: [{ who: 'forestale10', t: L`Revisione! Libretto, targa e bollino blu. Subito!` }, { who: 'gabbah', t: L`Ma non si era arreso per sempre?` }] },
+      { img: 'st11_2', cam: 'punch', fx: ['dust', 'shake'], lines: [{ who: 'forestale10', t: L`Revisione! Libretto, targa e bollino blu. Subito!`, v: 's_forestale17' }, { who: 'gabbah', t: L`Ma non si era arreso per sempre?` }] },
     ],
     end: { t: L`Costruisci l'officina, chioda le gomme… e fai passare la revisione alla Bestia Nera!`, v: 's_narr34' },
   },
   gustafine: {
     title: L`Gran finale`, name: L`Gas a martello`,
     scenes: [
-      { img: 'st11_3', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Dieci regni, mille multe e una revisione passata per miracolo. Al Gusta Ranch si festeggia fino all'alba.`, v: 's_narr35' }, lines: [{ who: 'forestale10', t: L`Revisione superata. Ma non ditelo a nessuno.` }, { who: 'gabbah', t: L`EDT per sempre! Tranquilli, era un giro easy!`, v: 's_gabbah12' }] },
+      { img: 'st11_3', cam: 'out', fx: ['fireworks', 'confetti'], narr: { t: L`Dieci regni, mille multe e una revisione passata per miracolo. Al Gusta Ranch si festeggia fino all'alba.`, v: 's_narr35' }, lines: [{ who: 'forestale10', t: L`Revisione superata. Ma non ditelo a nessuno.`, v: 's_forestale18' }, { who: 'gabbah', t: L`EDT per sempre! Tranquilli, era un giro easy!`, v: 's_gabbah12' }] },
     ],
     end: { t: L`Fine… per ora. Grazie per aver giocato con l'Enduro Drinking Team!`, v: 's_narr8' },
   },

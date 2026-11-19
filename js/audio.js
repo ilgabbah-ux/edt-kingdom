@@ -139,7 +139,7 @@ const TRACKS = {
     lead: [12, -1, 16, 14, 12, -1, 9, -1, 7, 9, 12, -1, 14, -1, 12, -1], bassPat: [1, 0, 0, 1, 0, 0, 1, 0], drums: 'soft', leadType: 'triangle' },
   game: { bpm: 124, root: 57, swing: 0.04, prog: [[0, 4, 7], [7, 11, 14], [-3, 0, 4], [5, 9, 12]],
     lead: [12, 14, 16, -1, 19, -1, 16, 14, 12, -1, 14, 16, 14, -1, 9, -1], bassPat: [1, 0, 1, 0, 1, 0, 1, 1], drums: 'rock', leadType: 'square' },
-  // Gusta Ranch: rock-blues da officina (suona finché non c'è il brano vero m_gusta)
+  // Gusta Ranch: rock-blues da officina (suona solo se il brano vero m_gusta non si carica)
   gusta: { bpm: 128, root: 52, swing: 0.16, prog: [[0, 4, 7, 10], [0, 4, 7, 10], [5, 9, 12, 15], [0, 4, 7, 10], [7, 11, 14, 17], [5, 9, 12, 15], [0, 4, 7, 10], [7, 11, 14, 17]],
     lead: [12, -1, 15, 16, -1, 19, 17, -1, 15, 16, -1, 12, 10, -1, 12, -1], bassPat: [1, 0, 1, 1, 0, 1, 1, 0], drums: 'rock', leadType: 'sawtooth' },
   boss: { bpm: 138, root: 52, swing: 0, prog: [[0, 3, 7], [0, 3, 7], [-4, 0, 3], [-2, 2, 5]],
@@ -149,7 +149,7 @@ const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 let wantTrack = null, timer = 0, step = 0, nextT = 0, cur = null;
 
 // musica vera (brani ElevenLabs in loop); se un file non si carica resta quella sintetica
-const FILES = { home: 'm_home', game: 'm_game_a', boss: 'm_boss', okt: 'm_okt', hall: 'm_hall', xmas: 'm_xmas', nye: 'm_nye', dakar: 'm_dakar' };
+const FILES = { home: 'm_home', game: 'm_game_a', boss: 'm_boss', okt: 'm_okt', hall: 'm_hall', xmas: 'm_xmas', nye: 'm_nye', dakar: 'm_dakar', gusta: 'm_gusta' };
 let gameFlip = false;
 const bufs = {}, loading = {};
 let srcNode = null, srcGain = null;

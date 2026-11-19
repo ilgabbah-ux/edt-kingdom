@@ -6,12 +6,18 @@ import { L } from './i18n.js';
 // classifiche nel foglio "Kingdom" (gioco=kingdom), separate da quelle di Giro Easy (dal 10/11/2026)
 const API = 'https://script.google.com/macros/s/AKfycbxb8Ky6HSkHLF01ZT-ku_oGIVbS9Fl2pFT427gk38hx_mCL_DQn81IqEl3OtTKykeY/exec';
 export const MODE = 19;
-const NICK_KEY = 'edt-giro-easy-nick', CODE_KEY = 'edt-giro-easy-code';
+// dal v68 Kingdom ha nome e codice suoi sul telefono: non tocca più quelli di Giro Easy (stesso sito)
+const NICK_KEY = 'edt-kingdom-nick', CODE_KEY = 'edt-kingdom-code';
 
 const ls = {
   get: (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* */ } },
 };
+// una volta sola: chi giocava già a Kingdom si porta dietro nome e codice usati finora (il server li ha copiati nel registro di Kingdom)
+if (!ls.get(CODE_KEY) && ls.get('edtKingdom_v1') && ls.get('edt-giro-easy-code')) {
+  ls.set(CODE_KEY, ls.get('edt-giro-easy-code'));
+  if (!ls.get(NICK_KEY) && ls.get('edt-giro-easy-nick')) ls.set(NICK_KEY, ls.get('edt-giro-easy-nick'));
+}
 export function getCode() {
   let c = ls.get(CODE_KEY);
   if (!c) { c = Array.from({ length: 6 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join(''); ls.set(CODE_KEY, c); }

@@ -2646,7 +2646,7 @@ function openGuide(tab = 0) {
 }
 // ---------- condivisione, sfide, album, ruota, forziere, gara del weekend ----------
 V.initViral({ zone: () => lvZone(), save, persist, showCard, hideCard, I, SRC, sfx, toast, FX, beep, getNick: RANK.getNick, coinsUI: () => { $('#hCoins').textContent = save.coins; }, startLevel: (...a) => startLevel(...a), fireworks, speakerHTML: (...a) => speakerHTML(...a), IC_S, MAX_LEVEL, getCode: RANK.getCode,
-  replaceSave: (sv, nick, code) => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); if (nick) RANK.setNick(nick); if (code) localStorage.setItem('edt-giro-easy-code', code); } catch { /* */ } location.reload(); } });
+  replaceSave: (sv, nick, code) => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); if (nick) RANK.setNick(nick); if (code) RANK.setCode(code); } catch { /* */ } location.reload(); } });
 V.readChallenge();
 // ---------- la storia ----------
 if (!save.story) save.story = {};

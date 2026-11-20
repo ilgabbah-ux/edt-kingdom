@@ -1255,9 +1255,7 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 #game.gusta #goals .goal[data-t="chain"] { background-color: #e3e6ea !important; }
 
 /* v76: minigiochi (pausa ogni 5 livelli) */
-.minibtn { position: absolute; right: 12px; top: -46px; display: flex; align-items: center; gap: 6px; padding: 6px 14px 6px 8px; border-radius: 999px; border: 3px solid var(--ink); background: linear-gradient(#ff8a5c, #ff5a3c); box-shadow: 0 3px 0 var(--ink); color: #fff; cursor: pointer; z-index: 4; animation: pulse 1.2s ease-in-out infinite; }
-.minibtn[hidden] { display: none; }
-.minibtn span { font-size: 22px; line-height: 1; } .minibtn b { font: 800 14px var(--fb); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; }
+#btnPlay.minip { background: linear-gradient(#ff9a4a, #f2601c); }
 .sidebtn.more { display: none; }
 .mini-today { display: flex; align-items: center; gap: 10px; text-align: left; background: #fff; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 10px; margin: 6px 0 10px; }
 .mini-today span { width: 54px; height: 54px; flex: none; background: center/contain no-repeat; }
@@ -1278,3 +1276,4 @@ p.small { font-size: 12px; } p.small a { color: #1f5fd6; }
 .mem-card { aspect-ratio: 1; border-radius: 14px; border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); background: repeating-linear-gradient(45deg, #2f5fa8, #2f5fa8 8px, #3b70c0 8px, #3b70c0 16px); padding: 0; cursor: pointer; position: relative; overflow: hidden; }
 .mem-card i { position: absolute; inset: 0; background: #fff6d8 center/cover no-repeat; opacity: 0; transition: opacity .12s; }
 .mem-card.up i, .mem-card.ok i { opacity: 1; } .mem-card.ok { border-color: #2e9e3a; box-shadow: 0 3px 0 #2e9e3a; }
+.mini-today small b { display: inline; font: inherit; font-weight: 800; color: #5b4a3a; }

@@ -1220,5 +1220,16 @@ export default {
 "Li conosci tutti! Con una memoria così la Forestale non ti frega più.": "You know them all! With a memory like that the Ranger won't catch you out again.",
 "Tempo scaduto! Hai bevuto troppo per ricordarti le facce.": "Time's up! You drank too much to remember the faces.",
 "la pausa ogni 5 livelli e la classifica": "the break every 5 levels and the ranking",
-"Pausa: minigioco!": "Break: mini-game!"
+"Pausa: minigioco!": "Break: mini-game!",
+"Alt! Ogni <b>{0} livelli</b> si passa dal mio banco. Prima di ripartire mi devi chiodare una gomma: è un attimo, e ti pago in monete.": "Halt! Every <b>{0} levels</b> you stop at my bench. Before you move on you stud a tyre for me: it takes a moment, and I pay in coins.",
+"Fermi tutti! Ogni <b>{0} livelli</b> c'è la <b>tappa minigioco</b>. Prima di ripartire vediamo se ti ricordi le facce della squadra: ti pago in monete.": "Hold it! Every <b>{0} levels</b> there's a <b>mini-game stage</b>. Before you move on, let's see if you remember the team's faces: I pay in coins.",
+"Tocca <b>TRAPANA!</b> quando la lancetta è nel verde. 10 chiodi, 3 errori al massimo.": "Tap <b>DRILL!</b> when the needle is in the green. 10 studs, 3 misses at most.",
+"Gira le carte e trova le <b>8 coppie</b> di piloti in 60 secondi.": "Flip the cards and find the <b>8 pairs</b> of riders in 60 seconds.",
+"Tappa minigioco": "Mini-game stage",
+"Più punti fai, più monete vinci. Finita la tappa si riparte con i livelli.": "The more points, the more coins. After the stage it's back to the levels.",
+"<p>C'è una <b>tappa minigioco</b> da giocare: oggi tocca a <b>{0}</b>. Più punti fai, più monete porti a casa.</p>": "<p>There's a <b>mini-game stage</b> to play: today it's <b>{0}</b>. The more points you score, the more coins you take home.</p>",
+"<p>La tappa minigioco arriva <b>ogni {0} livelli</b> nuovi. Ti mancano <b>{1}</b> livelli.</p>": "<p>The mini-game stage comes <b>every {0} new levels</b>. <b>{1}</b> levels to go.</p>",
+"Tappa superata: si riparte! La prossima arriva tra {0} livelli.": "Stage cleared: off we go! The next one comes in {0} levels.",
+"Tappa <b>minigioco</b>": "<b>Mini-game</b> stage",
+"la tappa ogni 5 livelli e la classifica": "the stage every 5 levels and the ranking"
 };

@@ -21,12 +21,32 @@ function st() {
 export function initMini(deps) { X = deps; st(); }
 export const miniReady = () => !!st().ready;
 // chiamata quando si vince per la prima volta il livello n
-export function miniOnWin(n) { if (n % MINI_EVERY === 0) { st().ready = true; X.persist(); } }
+export function miniOnWin(n) { if (n % MINI_EVERY === 0) { st().ready = true; st().intro = 0; X.persist(); } }
+// la tappa va presentata da sola una volta, appena si torna sulla mappa
+export const miniAuto = () => !!st().ready && !st().intro;
 export const miniLeft = (level) => { const next = Math.ceil(level / MINI_EVERY) * MINI_EVERY; return Math.max(1, next - level + 1); };
 
 let raf = 0, timer = 0, alive = false;
 function stop() { alive = false; cancelAnimationFrame(raf); clearInterval(timer); raf = 0; timer = 0; }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------------- tappa obbligata: presentazione ----------------
+export function openMiniStage() {
+  stop();
+  const m = st(), g = todayGame(), nm = NAMES();
+  if (!m.intro) { m.intro = 1; X.persist(); }
+  const talk = g === 'trapano'
+    ? L`Alt! Ogni <b>${MINI_EVERY} livelli</b> si passa dal mio banco. Prima di ripartire mi devi chiodare una gomma: è un attimo, e ti pago in monete.`
+    : L`Fermi tutti! Ogni <b>${MINI_EVERY} livelli</b> c'è la <b>tappa minigioco</b>. Prima di ripartire vediamo se ti ricordi le facce della squadra: ti pago in monete.`;
+  const how = g === 'trapano'
+    ? L`Tocca <b>TRAPANA!</b> quando la lancetta è nel verde. 10 chiodi, 3 errori al massimo.`
+    : L`Gira le carte e trova le <b>8 coppie</b> di piloti in 60 secondi.`;
+  X.showCard(`<h2>${L`Tappa minigioco`}</h2>${X.speakerHTML(g === 'trapano' ? 'gusta' : 'gabbah', talk)}
+    <div class="mini-today"><span style="background-image:${X.I(ICONS[g])}"></span><b>${nm[g]}<small>${how}</small></b></div>
+    <p class="mini-tip">${L`Più punti fai, più monete vinci. Finita la tappa si riparte con i livelli.`}</p>
+    <div class="row"><button id="mClose" class="btn btn-gray">${L`Dopo`}</button><button id="mGo" class="btn btn-play">${L`Gioca!`}</button></div>`,
+  { mClose: X.hideCard, mGo: () => { X.sfx.click(); (g === 'trapano' ? playTrapano : playMemory)(); } });
+}
 
 // ---------------- scheda dei minigiochi ----------------
 export function openMiniHub() {
@@ -34,8 +54,8 @@ export function openMiniHub() {
   const m = st(), g = todayGame(), nm = NAMES();
   const ready = m.ready;
   const info = ready
-    ? L`<p>Pausa meritata! Oggi si gioca a <b>${nm[g]}</b>. Più punti fai, più monete porti a casa.</p>`
-    : L`<p>La pausa si sblocca <b>ogni ${MINI_EVERY} livelli</b> nuovi. Ti mancano <b>${miniLeft(X.save.level)}</b> livelli.</p>`;
+    ? L`<p>C'è una <b>tappa minigioco</b> da giocare: oggi tocca a <b>${nm[g]}</b>. Più punti fai, più monete porti a casa.</p>`
+    : L`<p>La tappa minigioco arriva <b>ogni ${MINI_EVERY} livelli</b> nuovi. Ti mancano <b>${miniLeft(X.save.level)}</b> livelli.</p>`;
   X.showCard(`<h2>${L`Minigiochi`}</h2>${info}
     <div class="mini-today"><span style="background-image:${X.I(ICONS[g])}"></span><b>${nm[g]}<small>${L`record`}: ${m.best[g] || 0} · ${L`questa settimana`}: ${m.pts || 0} ${L`punti`}</small></b></div>
     <div class="mini-rank" id="miniRank"><p class="rkload">${L`Chiedo la classifica della settimana…`}</p></div>
@@ -68,7 +88,7 @@ function finish(game, score, line) {
   if (X.RANK.getNick()) X.RANK.miniSubmit(weekNo(), m.pts, X.riderTag()).catch(() => {});
   X.showCard(`<h2>${nm[game]}</h2>${X.speakerHTML(game === 'trapano' ? 'gusta' : 'gabbah', line)}
     <div class="mini-res"><b>${score}</b><small>${L`punti`}${record ? ' · ' + L`nuovo record!` : ''}</small></div>
-    <p>${L`Premio`}: <b>+${coins}</b> ${L`monete`}. ${L`La prossima pausa arriva tra ${MINI_EVERY} livelli.`}</p>
+    <p>${L`Premio`}: <b>+${coins}</b> ${L`monete`}. ${L`Tappa superata: si riparte! La prossima arriva tra ${MINI_EVERY} livelli.`}</p>
     <div class="row"><button id="mOk" class="btn btn-play">${L`Avanti`}</button></div>`, { mOk: () => { X.hideCard(); X.refreshHome(); } });
 }
 

@@ -329,7 +329,6 @@ function openShop(tab = 0) {
 }
 function renderHome(popId = null) {
   fitMap(); setTimeout(sideUI, 0);
-  { const bm = $('#btnMini'); if (bm) bm.hidden = !MINI.miniReady(); }
   renderWeekBadge();
   $('#albPct').textContent = `${V.albumCount()}/${V.albumTotal()}`;
   { const bd = $('#btnDiploma'); if (bd) bd.hidden = !(save.story.gustafine || (save.story.dakarfine && !nextBuilding())); }
@@ -440,6 +439,9 @@ function renderHome(popId = null) {
       + (hk ? `<em class="ptag${hk === 2 ? ' sup' : ''}">${hk === 2 ? L`💀 SUPER DIFFICILE` : L`🔥 DIFFICILE`}</em>` : '')
       + (stk ? `<span class="pflame" title="${L`Serie di vittorie`}">🔥<b>${stk}</b></span>` : '');
     $('#btnPlay').classList.toggle('hardp', hk === 1); $('#btnPlay').classList.toggle('superp', hk === 2); }
+  { const mp = MINI.miniReady() && !(viewZone && viewZone !== currentZone());   // tappa obbligata: prima il minigioco, poi il livello
+    if (mp) $('#btnPlay').innerHTML = '<span class="ptxt">🎮 ' + L`Tappa <b>minigioco</b>` + '</span>';
+    $('#btnPlay').classList.toggle('minip', mp); if (mp) $('#btnPlay').classList.remove('hardp', 'superp'); }
   if (viewZone && viewZone !== currentZone()) $('#btnPlay').innerHTML = '<span class="ptxt">' + L`Rigioca ${zone.name}` + '</span>';
   fitPlay();
 }
@@ -3015,6 +3017,7 @@ function setZoneArt(zl) {
 async function openLevel(num) {
   const n = num || save.level;
   if (G.building || pendingStar) return;
+  if (n >= save.level && MINI.miniReady()) { MINI.openMiniStage(); return; }   // tappa obbligata ogni 5 livelli
   if (n > MAX_LEVEL && !save.story.endless) {   // prima volta nel Giro infinito
     save.story.endless = 1; persist();
     await say('gabbah', L`Il regno è finito... ma un giro easy non finisce mai! Benvenuti nel <b>Giro infinito</b>: livelli senza fine, uno scenario diverso ogni volta.`);
@@ -3105,6 +3108,13 @@ function goHome(quiet = false) {
   if (pendingStar) setTimeout(flyStarToCounter, 350);
   else if (G.autoBuild) { G.autoBuild = false; if (save.stars >= stepCost() && nextBuilding()) setTimeout(() => tryBuild(), 450); }
   else if (!quiet) setTimeout(shopTutorial, 900);
+  if (MINI.miniAuto()) setTimeout(miniStageAuto, 1500);
+}
+// la tappa minigioco si presenta da sola appena la mappa è libera (stella volata, niente cantiere, nessuna scheda aperta)
+function miniStageAuto(tries = 0) {
+  if (!MINI.miniAuto() || !$('#home').classList.contains('active')) return;
+  if (!$('#overlay').classList.contains('hidden') || G.building || pendingStar) { if (tries < 20) setTimeout(() => miniStageAuto(tries + 1), 1200); return; }
+  MINI.openMiniStage();
 }
 // primo acquisto guidato: quando hai monete e non hai mai aperto il Negozio, Gabbah te lo mostra e ti regala una Moto
 function shopTutorial() {
@@ -3148,13 +3158,11 @@ $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Stelle<
 $('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
 $('#btnShareGame').onclick = () => V.shareGame();
-$('#btnMini').onclick = () => { if (G.building || pendingStar) return; sfx.click(); MINI.openMiniHub(); };
 $('#btnMiniHub').onclick = () => MINI.openMiniHub();
-{ const b = $('#btnMini b'); if (b) b.textContent = L`Pausa: minigioco!`; }
 // menu "Altro": le voci usate meno (attestato, condividi, app, guida) stanno qui, così la mappa resta libera
 $('#btnMore').onclick = () => {
   sfx.click();
-  const items = [['btnMiniHub', '🎮', L`Minigiochi`, L`la pausa ogni 5 livelli e la classifica`], ['btnDiploma', '🎓', L`Attestato`, L`il tuo diploma EDT da condividere`], ['btnShareGame', '📣', L`Condividi il gioco`, L`manda il link agli amici`], ['btnInstall', '📲', L`Metti il gioco nella Home`, L`si apre come un'app`], ['btnGuide', '❓', L`Guida`, L`come si gioca, ostacoli e aiuti`]]
+  const items = [['btnMiniHub', '🎮', L`Minigiochi`, L`la tappa ogni 5 livelli e la classifica`], ['btnDiploma', '🎓', L`Attestato`, L`il tuo diploma EDT da condividere`], ['btnShareGame', '📣', L`Condividi il gioco`, L`manda il link agli amici`], ['btnInstall', '📲', L`Metti il gioco nella Home`, L`si apre come un'app`], ['btnGuide', '❓', L`Guida`, L`come si gioca, ostacoli e aiuti`]]
     .filter(([id]) => $('#' + id) && !$('#' + id).hidden);
   showCard(L`<h2>Altro</h2><div class="morelist">${items.map(([id, ic, t, sub]) => `<button class="moreit" data-go="${id}"><span>${ic}</span><b>${t}<small>${sub}</small></b></button>`).join('')}</div><div class="row"><button id="cOk" class="btn btn-gray">${L`Chiudi`}</button></div>`, { cOk: hideCard });
   document.querySelectorAll('.moreit').forEach((b) => { b.onclick = () => { hideCard(); setTimeout(() => $('#' + b.dataset.go).onclick(), 120); }; });

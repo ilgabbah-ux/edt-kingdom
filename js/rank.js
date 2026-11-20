@@ -62,7 +62,10 @@ async function call(params) {
   return data;
 }
 const real = (e) => !/^zz_/.test(e.n || '');
-const listOf = (d) => ((d.boards && d.boards[MODE]) || []).filter(real).map((e) => ({ name: e.n, stars: Math.floor(e.s / 100), level: e.s % 100, rider: e.r || '' }));
+// Il punteggio tiene solo due cifre per il livello (massimo 99) e il server taglia il "pilota" a 20 caratteri:
+// il livello vero si ricava dalle statistiche anonime 'g' (k1 + una cifra per ogni livello raggiunto).
+const realLevel = (e) => Math.max(/^k1[0-9a-z]+$/.test(e.g || '') ? e.g.length - 2 : 0, e.s % 100);
+const listOf = (d) => ((d.boards && d.boards[MODE]) || []).filter(real).map((e) => ({ name: e.n, stars: Math.floor(e.s / 100), level: realLevel(e), rider: e.r || '' }));
 
 export async function top() { return listOf(await call({ action: 'top' })); }
 // g = statistiche anonime dei livelli: 'k1' + una cifra (base 36) per livello = quante volte è stato perso

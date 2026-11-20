@@ -88,6 +88,17 @@ export async function weSubmit(id, pts, rider = L`EDT Kingdom weekend`) {
   return { taken: !!d.taken, list: weOf(d) };
 }
 
+// ---- minigiochi: percorso 16. Punteggio = settimana * 100000 + punti fatti nei minigiochi in quella settimana.
+export const MINI_MODE = 16;
+const miniOf = (d) => ((d.boards && d.boards[MINI_MODE]) || []).filter(real).map((e) => ({ name: e.n, w: Math.floor(e.s / 100000), pts: e.s % 100000, rider: e.r || '' }));
+export async function miniTop() { return miniOf(await call({ action: 'top', act: String(MINI_MODE) })); }
+export async function miniSubmit(w, pts, rider = 'EDT Kingdom mini') {
+  const name = getNick();
+  if (!name || pts <= 0) return null;
+  const d = await call({ action: 'add', act: String(MINI_MODE), name, score: w * 100000 + Math.min(99999, pts), mode: MINI_MODE, rider, time: 0, win: 0, v: '1', k: getCode() });
+  return { taken: !!d.taken, list: miniOf(d) };
+}
+
 // ---- forziere di squadra EDT: percorso 17 (libero in Giro Easy). Punteggio = settimana * 10000 + vittorie della settimana.
 export const TEAM_MODE = 17;
 const teamOf = (d) => ((d.boards && d.boards[TEAM_MODE]) || []).map((e) => ({ name: e.n, w: Math.floor(e.s / 10000), wins: e.s % 10000, rider: e.r || '' }));

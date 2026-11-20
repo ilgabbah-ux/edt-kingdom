@@ -9,6 +9,7 @@ import * as AU from './audio.js';
 import * as RANK from './rank.js';
 import { initStory, playStory, STORY, STORY_ORDER } from './story.js';
 import * as V from './viral.js';
+import * as MINI from './mini.js';
 
 const $ = (s) => document.querySelector(s);
 // tocca la griglia durante cascate e bonus finale: tutto va 3 volte più veloce
@@ -328,6 +329,7 @@ function openShop(tab = 0) {
 }
 function renderHome(popId = null) {
   fitMap(); setTimeout(sideUI, 0);
+  { const bm = $('#btnMini'); if (bm) bm.hidden = !MINI.miniReady(); }
   renderWeekBadge();
   $('#albPct').textContent = `${V.albumCount()}/${V.albumTotal()}`;
   { const bd = $('#btnDiploma'); if (bd) bd.hidden = !(save.story.gustafine || (save.story.dakarfine && !nextBuilding())); }
@@ -2239,6 +2241,7 @@ async function winLevel() {
   if (first) save.streak = Math.min(3, (save.streak || 0) + 1);
   save.coins += coins;
   save.level = Math.max(save.level, n + 1);
+  if (first) MINI.miniOnWin(n);   // ogni 5 livelli nuovi: pausa con un minigioco
   persist();
   submitScore();
   // gara del weekend: stelle prese + 2 per ogni livello nuovo
@@ -2670,6 +2673,7 @@ function openGuide(tab = 0) {
   document.querySelectorAll('.gtab').forEach((b) => { b.onclick = () => { sfx.click(); openGuide(+b.dataset.t); }; });
 }
 // ---------- condivisione, sfide, album, ruota, forziere, gara del weekend ----------
+MINI.initMini({ save, persist, showCard, hideCard, I, sfx, speakerHTML: (...a) => speakerHTML(...a), RANK, riderTag: () => V.riderTag(), coinsUI: () => { $('#hCoins').textContent = save.coins; }, refreshHome: () => renderHome() });
 V.initViral({ zone: () => lvZone(), save, persist, showCard, hideCard, I, SRC, sfx, toast, FX, beep, getNick: RANK.getNick, coinsUI: () => { $('#hCoins').textContent = save.coins; }, startLevel: (...a) => startLevel(...a), fireworks, speakerHTML: (...a) => speakerHTML(...a), IC_S, MAX_LEVEL, getCode: RANK.getCode,
   replaceSave: (sv, nick, code) => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); if (nick) RANK.setNick(nick); if (code) RANK.setCode(code); } catch { /* */ } location.reload(); } });
 V.readChallenge();
@@ -3144,10 +3148,13 @@ $('#hStars').parentElement.onclick = () => { sfx.click(); showCard(L`<h2>Stelle<
 $('#btnWeek').onclick = () => { sfx.click(); openWeekly(); };
 $('#btnGuide').onclick = () => { sfx.click(); openGuide(); };
 $('#btnShareGame').onclick = () => V.shareGame();
+$('#btnMini').onclick = () => { if (G.building || pendingStar) return; sfx.click(); MINI.openMiniHub(); };
+$('#btnMiniHub').onclick = () => MINI.openMiniHub();
+{ const b = $('#btnMini b'); if (b) b.textContent = L`Pausa: minigioco!`; }
 // menu "Altro": le voci usate meno (attestato, condividi, app, guida) stanno qui, così la mappa resta libera
 $('#btnMore').onclick = () => {
   sfx.click();
-  const items = [['btnDiploma', '🎓', L`Attestato`, L`il tuo diploma EDT da condividere`], ['btnShareGame', '📣', L`Condividi il gioco`, L`manda il link agli amici`], ['btnInstall', '📲', L`Metti il gioco nella Home`, L`si apre come un'app`], ['btnGuide', '❓', L`Guida`, L`come si gioca, ostacoli e aiuti`]]
+  const items = [['btnMiniHub', '🎮', L`Minigiochi`, L`la pausa ogni 5 livelli e la classifica`], ['btnDiploma', '🎓', L`Attestato`, L`il tuo diploma EDT da condividere`], ['btnShareGame', '📣', L`Condividi il gioco`, L`manda il link agli amici`], ['btnInstall', '📲', L`Metti il gioco nella Home`, L`si apre come un'app`], ['btnGuide', '❓', L`Guida`, L`come si gioca, ostacoli e aiuti`]]
     .filter(([id]) => $('#' + id) && !$('#' + id).hidden);
   showCard(L`<h2>Altro</h2><div class="morelist">${items.map(([id, ic, t, sub]) => `<button class="moreit" data-go="${id}"><span>${ic}</span><b>${t}<small>${sub}</small></b></button>`).join('')}</div><div class="row"><button id="cOk" class="btn btn-gray">${L`Chiudi`}</button></div>`, { cOk: hideCard });
   document.querySelectorAll('.moreit').forEach((b) => { b.onclick = () => { hideCard(); setTimeout(() => $('#' + b.dataset.go).onclick(), 120); }; });
